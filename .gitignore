@@ -1,0 +1,54 @@
+# ── 압축·배포 묶음 ──
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# ── 별도 관리 ──
+checklist.md
+
+# ── 앱이 뱉은 결과물 (사용자 데이터이지 소스가 아니다) ──
+*.png
+orrery-lorebook*.json
+*-worldinfo.json
+*.charx
+
+# ── 작업 중 백업 (대량 치환 전 만드는 것들) ──
+*.bak
+*.bak.html
+*.orig
+*.rej
+*~
+
+# ── 앱에서 내보낸 개인 데이터 (API 키 포함 가능 — 절대 커밋 금지) ──
+orrery-settings*.json
+orrery-preset-*.json
+orrery-backup*.json
+*.settings.json
+.env
+.env.*
+
+# ── 스모크 테스트 환경 ──
+node_modules/
+package.json
+package-lock.json
+smoke*.js
+_check.js
+.venv/
+__pycache__/
+*.pyc
+
+# ── OS·에디터 부스러기 ──
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── 예외 ──
+# 문서용 스크린샷을 두게 되면 여기서 되살린다.
+# !docs/*.png
