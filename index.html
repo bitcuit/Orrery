@@ -22,7 +22,7 @@
   --teal:#87a8df; --teal-d:#5b7dab;
   --bad:#e07a6e; --good:#7dd4a0;
   --icon:#9eb0c8; --icon-muted:#72869f;
-  --danger-icon:#d4a094; --danger-icon-hover:#f0b5a8; --danger-bg:rgba(224,122,110,0.12);
+  --danger-icon:#d9897f; --danger-icon-hover:#f0aaa0; --danger-bg:rgba(224,122,110,0.13);
   --r:16px; --r-in:10px;
   --glass-hi:inset 0 1px 0 rgba(203,230,255,0.08);
   --glass-hi2:inset 0 1px 0 rgba(203,230,255,0.1);
@@ -132,9 +132,9 @@ button.iconbtn{width:40px;height:40px;min-height:40px;padding:0;display:grid;pla
 .iconbtn.on{color:var(--brass);background:rgba(233,182,84,0.12);
   box-shadow:0 0 0 1px rgba(233,182,84,0.45)}
 .iconbtn.on:hover{color:var(--brass)}
-/* 아이콘 전용 버튼은 SVG 안의 고정 금색 대신 버튼의 의미 색상을 따른다. */
-button[aria-label] [stroke="#e9b654"]{stroke:currentColor}
-button[aria-label] [fill="#e9b654"]{fill:currentColor}
+/* 기본은 은청색, SVG의 황동 포인트는 유지한다. 삭제와 선택 상태는 버튼 자체의 의미 색상을 쓴다. */
+.iconbtn.danger [stroke="#e9b654"],button.danger [stroke="#e9b654"]{stroke:currentColor}
+.iconbtn.danger [fill="#e9b654"],button.danger [fill="#e9b654"]{fill:currentColor}
 .topctl select{
   flex:0 1 auto;min-width:0;max-width:170px;
   background:transparent;border:none;
@@ -376,6 +376,12 @@ label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
 .asset.lorebook .asset-kind{color:#eeb650}
 .asset-name{font-weight:560;font-size:14px;flex:1;min-width:100px;word-break:break-all;color:#dbe5f1}
 .asset-meta{font-family:var(--mono);font-size:11px;color:#72869f}
+.asset-taxonomy{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:8px 0 0 29px}
+.asset-purpose{display:inline-flex;align-items:center;min-height:24px;padding:2px 8px;border-radius:999px;
+  font-size:10px;color:#9fb3cb;background:rgba(119,161,200,0.09);box-shadow:inset 0 0 0 1px rgba(138,182,225,0.1)}
+button.asset-tag{min-height:24px;padding:2px 8px;border:0;border-radius:999px;font-size:10px;line-height:1.25;
+  color:#b4a982;background:rgba(233,182,84,0.065);box-shadow:inset 0 0 0 1px rgba(233,182,84,0.13)}
+button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0.12)}
 .entries{margin-top:12px;border-top:1px solid rgba(138,182,225,0.1);padding-top:11px;display:none}
 .entries.open{display:block}
 .asset-editor{display:none;margin-top:12px;padding:13px;border-top:1px solid rgba(138,182,225,0.1);background:rgba(2,8,17,0.28);border-radius:0 0 10px 10px}
@@ -391,7 +397,8 @@ label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
 .asset-folderbar{display:grid;gap:7px;margin:-2px 0 13px;padding:8px 10px;
   border-radius:10px;background:rgba(121,168,211,0.035)}
 .asset-folder-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
-.asset-scope-row .asset-search{flex:0 1 240px;min-width:125px;max-width:260px;min-height:31px;margin-left:auto;padding:5px 10px;font-size:11px}
+.asset-purpose-filter{flex:0 0 auto;width:auto;min-width:112px;max-width:138px;min-height:31px;margin-left:auto;padding:5px 28px 5px 10px;font-size:11px}
+.asset-scope-row .asset-search{flex:0 1 240px;min-width:125px;max-width:260px;min-height:31px;padding:5px 10px;font-size:11px}
 .asset-scope-row .asset-clear-temp{flex:none;width:32px;height:32px;min-height:32px}
 .favorite-folder-row{display:flex;align-items:center;gap:5px;min-width:0;padding-top:7px;border-top:1px solid rgba(138,182,225,0.08)}
 .folder-scroll{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
@@ -407,6 +414,15 @@ label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
 .asset-editor .editrow{display:grid;grid-template-columns:minmax(90px,150px) 1fr;gap:10px;align-items:start;margin-bottom:10px}
 .asset-editor .editrow:last-child{margin-bottom:0}
 .asset-editor textarea{min-height:72px}
+.purpose-options{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:40px}
+.purpose-choice{position:relative;cursor:pointer}
+.purpose-choice input{position:absolute;inset:0;opacity:0;pointer-events:none}
+.purpose-choice span{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:5px 11px;border-radius:999px;
+  color:#8fa3bd;background:rgba(119,161,200,0.045);box-shadow:inset 0 0 0 1px rgba(138,182,225,0.13);
+  font-size:11px;transition:color .18s,background-color .18s,box-shadow .18s}
+.purpose-choice:hover span{color:#dfe8f4;background:rgba(119,161,200,0.09)}
+.purpose-choice input:checked+span{color:var(--brass);background:rgba(233,182,84,0.1);box-shadow:inset 0 0 0 1px rgba(233,182,84,0.32)}
+.purpose-choice input:focus-visible+span{outline:2px solid rgba(243,183,76,0.9);outline-offset:2px}
 .compare-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .compare-grid h3{font-size:12px;color:var(--brass);margin:0 0 7px}
 .compare-grid pre{white-space:pre-wrap;word-break:break-word;max-height:min(58vh,560px);overflow:auto;margin:0;padding:12px;border-radius:9px;background:rgba(2,8,17,.55);font:11px/1.6 var(--mono);color:var(--dim)}
@@ -560,6 +576,9 @@ label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
 .libitem:hover{background:var(--s2h);transform:translateY(-1px)}
 .libitem .ln{font-family:var(--body);font-size:14px;font-weight:520;flex:1;min-width:110px;color:#dbe5f1;cursor:pointer}
 .libitem .lm{font-family:var(--mono);font-size:11px;color:#72869f}
+.libitem .iconbtn{width:34px;height:34px;min-height:34px}
+.libitem .iconbtn.danger{color:var(--danger-icon)}
+.libitem .iconbtn.danger:hover{color:var(--danger-icon-hover);background:var(--danger-bg)}
 
 /* ---------- 연결 ---------- */
 .conn{border-radius:13px;padding:17px 18px;margin-bottom:11px;
@@ -874,6 +893,18 @@ button.build-mode.on .bn{color:#f1b94f}
         <label class="fl" for="pasteName">재료 이름</label>
         <input id="pasteName" placeholder="비워두면 본문 첫 줄에서 자동으로 만듭니다">
       </div>
+      <div class="field">
+        <span class="fl">쓸 곳</span>
+        <div class="purpose-options" id="pastePurposes" role="group" aria-label="쓸 곳">
+          <label class="purpose-choice"><input type="checkbox" value="world"><span>세계</span></label>
+          <label class="purpose-choice"><input type="checkbox" value="character"><span>인물</span></label>
+          <label class="purpose-choice"><input type="checkbox" value="prompt"><span>프롬프트</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="fl" for="pasteTags">태그</label>
+        <input id="pasteTags" placeholder="예: 마법학교, 라이벌, 겨울 · 쉼표로 구분">
+      </div>
       <label class="fl" for="pasteIn">붙여넣을 텍스트</label>
       <textarea id="pasteIn" rows="8" placeholder="설정 텍스트를 여기에 붙여넣으세요. 길어도 됩니다 — 이 칸 안에서 스크롤됩니다."></textarea>
       <div class="bar" style="margin-top:9px">
@@ -987,7 +1018,7 @@ button.build-mode.on .bn{color:#f1b94f}
       <button class="primary" id="btnDigest"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 8.5h7.2a3.3 3.3 0 0 1 3.3 2 3.3 3.3 0 0 1 3.3-2h7.2v15h-7.2a3.3 3.3 0 0 0-3.3 2 3.3 3.3 0 0 0-3.3-2H5.5Z"/><path d="M16 10.5v15" stroke="#e9b654"/></svg>세계 읽기</button>
       <span class="sp"></span>
       <span class="tokchip" id="digestTok"></span>
-      <button class="ghost mini danger" id="btnDigestClear" title="읽은 요약 지우기" aria-label="읽은 요약 지우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+      <button class="ghost mini danger" id="btnDigestClear" title="읽은 요약 지우기" aria-label="읽은 요약 지우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
     </div>
     <div id="digestOut" style="margin-top:15px"></div>
   </div>
@@ -1025,11 +1056,11 @@ button.build-mode.on .bn{color:#f1b94f}
     <div id="cardOut" style="margin-top:6px"></div>
     <div class="bar" id="cardBar" style="display:none">
       <button class="primary" id="btnSaveLib"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9z" stroke="#e9b654"/></svg>고정하기</button>
-      <button class="ghost" id="btnCopyText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4"/></svg>글로 복사</button>
-      <button class="ghost" id="btnDlText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4"/></svg>글로 내려받기</button>
-      <button class="ghost" id="btnCopyCard"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4"/></svg>카드 JSON</button>
-      <button class="ghost" id="btnDlCard"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4"/></svg>JSON</button>
-      <button class="ghost" id="btnDlPng"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4"/></svg>PNG 카드</button>
+      <button class="ghost" id="btnCopyText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg>글로 복사</button>
+      <button class="ghost" id="btnDlText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>글로 내려받기</button>
+      <button class="ghost" id="btnCopyCard"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg>카드 JSON</button>
+      <button class="ghost" id="btnDlCard"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>JSON</button>
+      <button class="ghost" id="btnDlPng"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>PNG 카드</button>
       <button class="ghost" id="btnDlBook" style="display:none">로어북으로 뽑기</button>
       <button class="ghost" id="btnToAsset"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 7.5v17M7.5 16h17"/></svg>재료로 넣기</button>
       <button class="primary" id="btnMakePreset" style="display:none">이 양식 등록하기</button>
@@ -1089,9 +1120,9 @@ button.build-mode.on .bn{color:#f1b94f}
     <div class="panel-h">
       <h2>대화</h2>
       <span class="sp"></span>
-      <button class="iconbtn danger" id="btnTalkClear" title="대화 비우기" aria-label="대화 비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+      <button class="iconbtn danger" id="btnTalkClear" title="대화 비우기" aria-label="대화 비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
       <button class="iconbtn" id="btnTalkToAsset" title="이 대화를 재료로" aria-label="이 대화를 재료로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 7.5v17M7.5 16h17"/></svg></button>
-      <button class="iconbtn" id="btnTalkCopy" title="전부 복사" aria-label="전부 복사"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4"/></svg></button>
+      <button class="iconbtn" id="btnTalkCopy" title="전부 복사" aria-label="전부 복사"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg></button>
     </div>
     <p class="hint">만든 것을 보여주고 평가를 듣거나, 아이디어를 주고받으며 다듬습니다. 공정과 달리 형식이 없습니다.</p>
     <div class="row">
@@ -1146,7 +1177,7 @@ button.build-mode.on .bn{color:#f1b94f}
       <h2>기록</h2>
       <span class="sp"></span>
       <button class="iconbtn" id="btnLibExport" title="전체 내보내기" aria-label="전체 내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg></button>
-      <button class="iconbtn danger" id="btnLibClear" title="비우기 — 고정 안 한 것만" aria-label="비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+      <button class="iconbtn danger" id="btnLibClear" title="비우기 — 고정 안 한 것만" aria-label="비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
     </div>
     <p class="hint">만든 것은 자동으로 여기 남습니다. ★ 를 켜두면 오래돼도 지워지지 않습니다.</p>
     <div class="row" style="align-items:flex-end">
@@ -1176,12 +1207,12 @@ button.build-mode.on .bn{color:#f1b94f}
       <div class="field"><label class="fl">양식</label><select id="presetSel"></select></div>
       <div class="field"><label class="fl">&nbsp;</label>
         <div class="bar" style="margin:0">
-          <button class="iconbtn" id="btnPresetNew" title="복제" aria-label="복제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4"/></svg></button>
+          <button class="iconbtn" id="btnPresetNew" title="복제" aria-label="복제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg></button>
           <button class="iconbtn" id="btnPresetBlank" title="새로 만들기" aria-label="새로 만들기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 7.5v17M7.5 16h17"/></svg></button>
           <button class="iconbtn" id="btnPresetRename" title="이름 바꾸기" aria-label="이름 바꾸기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m18.2 7.3 6.5 6.5L11 27.5H4.5V21Z"/><path d="m15.6 10 6.5 6.5" stroke="#e9b654"/></svg></button>
           <button class="iconbtn" id="btnPresetExport" title="내보내기" aria-label="내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn" id="btnPresetImport" title="가져오기 (ST 프리셋 포함)" aria-label="가져오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4"/></svg></button>
-          <button class="iconbtn danger" id="btnPresetDel" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+          <button class="iconbtn" id="btnPresetImport" title="가져오기 (ST 프리셋 포함)" aria-label="가져오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg></button>
+          <button class="iconbtn danger" id="btnPresetDel" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
         </div>
       </div>
     </div>
@@ -1229,7 +1260,7 @@ button.build-mode.on .bn{color:#f1b94f}
       <button class="primary" id="btnConnNew">연결 추가</button>
       <span class="sp"></span>
       <button class="ghost mini" id="btnDataExport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg>전체 백업</button>
-      <button class="ghost mini" id="btnDataImport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4"/></svg>백업 불러오기</button>
+      <button class="ghost mini" id="btnDataImport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>백업 불러오기</button>
     </div>
     <input type="file" id="dataFile" accept=".json" style="display:none">
   </div>
@@ -1314,7 +1345,7 @@ button.build-mode.on .bn{color:#f1b94f}
       <div class="cmdrow">
         <pre id="serveCmd">python -m http.server 8777</pre>
         <button class="cmdcopy" id="btnCopyCmd" title="명령 복사" aria-label="명령 복사">
-          <svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4"/></svg>
+          <svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg>
         </button>
       </div>
     </div>
@@ -1354,8 +1385,36 @@ let ABORT = null;
 let LAST_USAGE = null;
 let DRAFT_DIRTY = false, DRAFT_TIMER = null, BOOTING = true;
 
+const ASSET_PURPOSE_LABEL = {world:'세계', character:'인물', prompt:'프롬프트'};
+const ASSET_PURPOSE_KEYS = Object.keys(ASSET_PURPOSE_LABEL);
+function defaultAssetPurposes(kind){
+  return kind==='character' ? ['character'] : kind==='lorebook' ? ['world'] : [];
+}
+function cleanAssetPurposes(value, kind){
+  if(!Array.isArray(value)) return defaultAssetPurposes(kind);
+  return [...new Set(value.map(String).filter(x=>ASSET_PURPOSE_KEYS.includes(x)))];
+}
+function cleanAssetTags(value){
+  const raw=Array.isArray(value) ? value : String(value||'').split(',');
+  const seen=new Set(), out=[];
+  raw.forEach(item=>{
+    const tag=String(item||'').trim().replace(/^#+/,'').replace(/\s+/g,' ').slice(0,40);
+    const key=tag.toLocaleLowerCase();
+    if(!tag || seen.has(key) || out.length>=24) return;
+    seen.add(key); out.push(tag);
+  });
+  return out;
+}
+function normalizeAssetMetadata(a){
+  if(!a || typeof a!=='object') return a;
+  a.purposes=cleanAssetPurposes(a.purposes,a.kind);
+  a.tags=cleanAssetTags(a.tags);
+  return a;
+}
 function assetCore(a){
-  const out = {id:a.id, kind:a.kind, name:a.name||'', use:a.use!==false};
+  normalizeAssetMetadata(a);
+  const out = {id:a.id, kind:a.kind, name:a.name||'', use:a.use!==false,
+    purposes:clone(a.purposes), tags:clone(a.tags)};
   if(a.kind==='character') out.fields = clone(a.fields||{});
   else if(a.kind==='lorebook') out.entries = clone(a.entries||[]);
   else out.body = a.body||'';
@@ -1365,7 +1424,9 @@ function assetCore(a){
   return out;
 }
 function ensureAssetOriginal(a){
+  normalizeAssetMetadata(a);
   if(!a.original) a.original = assetCore(a);
+  else normalizeAssetMetadata(a.original);
   return a;
 }
 function normalizeAssetFolders(){
@@ -1376,6 +1437,7 @@ function normalizeAssetFolders(){
   });
   const ids=new Set(S.assetFolders.map(f=>f.id));
   S.assets.forEach(a=>{
+    normalizeAssetMetadata(a);
     a.favorite=!!a.favorite;
     if(!a.favorite || !ids.has(a.folderId)) delete a.folderId;
   });
@@ -3535,11 +3597,11 @@ const MAT_HINT = {
   character: '세계 로어북 · 기존 캐릭터 카드',
   prompt: '캐릭터 카드 · 세계 설정 · 기존 프롬프트'
 };
-const STAR_SVG = on=>`<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9Z" ${on?'fill="currentColor"':'fill="none"'} stroke="#e9b654"/></svg>`;
+const STAR_SVG = on=>`<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9Z" ${on?'fill="currentColor"':'fill="none"'} stroke="currentColor"/></svg>`;
 const FOLDER_ADD_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 9.5h8l2.2 2.6h10.8v11.4a2.5 2.5 0 0 1-2.5 2.5H8a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M20 15.5v7M16.5 19h7" stroke="#e9b654"/></svg>';
 const PENCIL_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m7.5 24.5 1.2-5.2L20.5 7.5a2.4 2.4 0 0 1 3.4 0l.6.6a2.4 2.4 0 0 1 0 3.4L12.7 23.3Z"/><path d="m18.8 9.2 4 4M8.7 19.3l4 4" stroke="#e9b654"/></svg>';
-const TRASH_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg>';
-let ASSET_FOLDER_FILTER='all', ASSET_FOLDER_SCROLL=0, ASSET_SEARCH='', EDITING_ASSET_FOLDER_ID=null, PENDING_ASSET_FOLDER_DELETE=null;
+const TRASH_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg>';
+let ASSET_FOLDER_FILTER='all', ASSET_PURPOSE_FILTER='all', ASSET_FOLDER_SCROLL=0, ASSET_SEARCH='', EDITING_ASSET_FOLDER_ID=null, PENDING_ASSET_FOLDER_DELETE=null;
 
 function folderById(id){ return S.assetFolders.find(f=>f.id===id); }
 function assetMatchesFolder(a){
@@ -3550,10 +3612,15 @@ function assetMatchesFolder(a){
 }
 function assetMatchesSearch(a){
   const q=ASSET_SEARCH.trim().toLowerCase(); if(!q) return true;
-  const parts=[a.name,a.kind,a.from,a.body];
+  normalizeAssetMetadata(a);
+  const parts=[a.name,a.kind,a.from,a.body,...a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]||x),...a.tags,...a.tags.map(x=>'#'+x)];
   if(a.kind==='character') Object.entries(a.fields||{}).forEach(([k,v])=>parts.push(k,v));
   if(a.kind==='lorebook') (a.entries||[]).forEach(en=>parts.push(en.comment,(en.keys||[]).join(' '),en.content));
   return parts.filter(Boolean).join('\n').toLowerCase().includes(q);
+}
+function assetMatchesPurpose(a){
+  normalizeAssetMetadata(a);
+  return ASSET_PURPOSE_FILTER==='all' || a.purposes.includes(ASSET_PURPOSE_FILTER);
 }
 function folderOptions(a){
   return `<option value="" ${!a.folderId?'selected':''}>미분류</option>`+
@@ -3570,7 +3637,8 @@ function renderAssetFolderBar(){
   const selectedId=ASSET_FOLDER_FILTER.startsWith('folder:')?ASSET_FOLDER_FILTER.slice(7):null;
   const insideFavorites=ASSET_FOLDER_FILTER!=='all';
   $('#assetFolderBar').innerHTML = `<div class="asset-folder-row asset-scope-row">${chip('all','전체 재료',S.assets.length,ASSET_FOLDER_FILTER==='all')}${chip('favorites','즐겨찾기',fav,insideFavorites)}`+
-    `<input type="search" class="asset-search" value="${esc(ASSET_SEARCH)}" placeholder="재료 이름·내용 검색" aria-label="재료 검색">`+
+    `<select class="asset-purpose-filter" aria-label="쓰임새 필터"><option value="all">모든 쓰임새</option>${ASSET_PURPOSE_KEYS.map(k=>`<option value="${k}" ${ASSET_PURPOSE_FILTER===k?'selected':''}>${ASSET_PURPOSE_LABEL[k]}</option>`).join('')}</select>`+
+    `<input type="search" class="asset-search" value="${esc(ASSET_SEARCH)}" placeholder="이름·내용·#태그 검색" aria-label="재료 검색">`+
     `<button class="iconbtn danger asset-clear-temp" title="즐겨찾기 외 전체 삭제" aria-label="즐겨찾기 외 전체 삭제">${TRASH_SVG}</button></div>`+
     (insideFavorites?`<div class="favorite-folder-row"><div class="folder-scroll" id="assetFolderScroll">${chip('favorites','모두',fav)}${chip('unfiled','미분류',unfiled)}`+
       S.assetFolders.map(f=>chip('folder:'+f.id,f.name,S.assets.filter(a=>a.favorite&&a.folderId===f.id).length)).join('')+'</div>'+
@@ -3636,7 +3704,7 @@ function renderAssets(keepFolderBar){
     renderMat(); renderNebulaPicker(); return;
   }
   renderMat();
-  const shown=S.assets.filter(a=>assetMatchesFolder(a)&&assetMatchesSearch(a)).sort((a,b)=>Number(!!b.favorite)-Number(!!a.favorite));
+  const shown=S.assets.filter(a=>assetMatchesFolder(a)&&assetMatchesPurpose(a)&&assetMatchesSearch(a)).sort((a,b)=>Number(!!b.favorite)-Number(!!a.favorite));
   box.innerHTML = (shown.length ? shown.map(a=>{
     ensureAssetOriginal(a);
     const on = a.kind==='lorebook' ? a.entries.filter(e=>e.use).length : 0;
@@ -3644,6 +3712,8 @@ function renderAssets(keepFolderBar){
       : a.kind==='character' ? `${Object.keys(a.fields).length}개 항목 · ${tok(Object.values(a.fields).join(''))} 토큰쯤`
       : `${tok(a.body)} 토큰쯤`;
     const kindLabel = {character:'캐릭터', lorebook:'로어북', text:'텍스트'}[a.kind];
+    const purposeHtml=a.purposes.map(k=>`<span class="asset-purpose">${ASSET_PURPOSE_LABEL[k]}</span>`).join('');
+    const tagHtml=a.tags.map(t=>`<button class="asset-tag" data-tag="${esc(t)}" title="이 태그로 검색">#${esc(t)}</button>`).join('');
     return `<div class="asset ${a.kind}" data-id="${a.id}">
       <div class="asset-head">
         <label style="flex:none;display:flex;align-items:center">
@@ -3658,14 +3728,15 @@ function renderAssets(keepFolderBar){
           <button class="iconbtn a-star ${a.favorite?'on':''}" title="${a.favorite?'즐겨찾기 해제':'즐겨찾기 · 삭제 보호와 폴더 분류'}" aria-label="${a.favorite?'즐겨찾기 해제':'즐겨찾기'}">${STAR_SVG(!!a.favorite)}</button>
           <button class="iconbtn a-edit" title="수정" aria-label="수정"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m7.5 24.5 1.2-5.2L20.5 7.5a2.4 2.4 0 0 1 3.4 0l.6.6a2.4 2.4 0 0 1 0 3.4L12.7 23.3Z"/><path d="m18.8 9.2 4 4M8.7 19.3l4 4" stroke="#e9b654"/></svg></button>
           <button class="iconbtn a-copy" title="복제" aria-label="복제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="11" y="7" width="14" height="14" rx="2.5"/><rect x="7" y="11" width="14" height="14" rx="2.5" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn danger a-del" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+          <button class="iconbtn danger a-del" title="삭제" aria-label="삭제">${TRASH_SVG}</button>
         </span>
       </div>
+      ${purposeHtml||tagHtml?`<div class="asset-taxonomy">${purposeHtml}${tagHtml}</div>`:''}
       ${a.kind==='lorebook' ? entriesHtml(a) : ''}
       ${a.kind==='character' ? `<div class="entries"><pre style="white-space:pre-wrap;font-size:12px;color:var(--dim);margin:0;max-height:280px;overflow:auto">${esc(Object.keys(a.fields).map(k=>'['+k+']\n'+a.fields[k]).join('\n\n'))}</pre></div>`:''}
       ${assetEditorHtml(a)}
     </div>`;
-  }).join('') : (ASSET_SEARCH.trim()?'<div class="empty"><b>검색 결과가 없습니다</b>다른 이름이나 내용으로 찾아보세요.</div>':'<div class="empty"><b>이 폴더는 비어 있습니다</b>전체에서 재료를 즐겨찾기한 뒤 폴더를 골라 주세요.</div>'));
+  }).join('') : (ASSET_SEARCH.trim()||ASSET_PURPOSE_FILTER!=='all'?'<div class="empty"><b>검색 결과가 없습니다</b>검색어나 쓰임새 필터를 바꿔보세요.</div>':'<div class="empty"><b>이 폴더는 비어 있습니다</b>전체에서 재료를 즐겨찾기한 뒤 폴더를 골라 주세요.</div>'));
   renderNebulaPicker();
 }
 const EDIT_ASSETS = new Set();
@@ -3682,6 +3753,8 @@ function assetEditorHtml(a){
   return `<div class="asset-editor ${EDIT_ASSETS.has(a.id)?'open':''}">
     <div class="asset-editor-head"><span>재료 수정</span><span class="sp"></span><button class="iconbtn a-edit-close" title="닫기 · 이번 수정은 적용하지 않음" aria-label="닫기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m8.5 8.5 15 15M23.5 8.5l-15 15"/></svg></button></div>
     <div class="editrow"><label class="fl">재료 이름</label><input class="ae-name" value="${esc(a.name||'')}"></div>
+    <div class="editrow"><span class="fl">쓸 곳</span><div class="purpose-options" role="group" aria-label="${esc(a.name||'재료')} 쓸 곳">${ASSET_PURPOSE_KEYS.map(k=>`<label class="purpose-choice"><input type="checkbox" class="ae-purpose" value="${k}" ${a.purposes.includes(k)?'checked':''}><span>${ASSET_PURPOSE_LABEL[k]}</span></label>`).join('')}</div></div>
+    <div class="editrow"><label class="fl">태그</label><input class="ae-tags" value="${esc(a.tags.join(', '))}" placeholder="예: 마법학교, 라이벌, 겨울 · 쉼표로 구분"></div>
     ${body}
     <div class="bar asset-editor-actions">
       <button class="mini ghost a-compare">원본과 비교</button><button class="mini ghost a-original">원본으로 되돌리기</button>
@@ -3724,9 +3797,11 @@ function duplicateAsset(a){
   d.original=assetCore(d); S.assets.push(d); return d;
 }
 function assetReadable(a){
-  if(a.kind==='character') return `이름: ${a.name}\n\n`+Object.keys(a.fields||{}).map(k=>`[${k}]\n${a.fields[k]}`).join('\n\n');
-  if(a.kind==='lorebook') return `이름: ${a.name}\n\n`+(a.entries||[]).map((en,i)=>`[${i+1}] ${en.comment||'(제목 없음)'}\n키워드: ${(en.keys||[]).join(', ')}\n${en.content||''}`).join('\n\n');
-  return `이름: ${a.name}\n\n${a.body||''}`;
+  normalizeAssetMetadata(a);
+  const head=`이름: ${a.name}\n쓸 곳: ${a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]).join(', ')||'미분류'}\n태그: ${a.tags.join(', ')||'없음'}\n\n`;
+  if(a.kind==='character') return head+Object.keys(a.fields||{}).map(k=>`[${k}]\n${a.fields[k]}`).join('\n\n');
+  if(a.kind==='lorebook') return head+(a.entries||[]).map((en,i)=>`[${i+1}] ${en.comment||'(제목 없음)'}\n키워드: ${(en.keys||[]).join(', ')}\n${en.content||''}`).join('\n\n');
+  return head+(a.body||'');
 }
 function showAssetCompare(a){
   ensureAssetOriginal(a);
@@ -3739,9 +3814,10 @@ function renderNebulaPicker(){
   const box = $('#nebulaList'), count = $('#nebulaCount'); if(!box || !count) return;
   const n = S.assets.filter(a=>a.use).length;
   count.textContent = `선택 ${n}/${S.assets.length}개`;
-  box.innerHTML = S.assets.length ? S.assets.map(a=>`
+  const ordered=[...S.assets].map(normalizeAssetMetadata).sort((a,b)=>Number(b.purposes.includes(S.opts.group))-Number(a.purposes.includes(S.opts.group)));
+  box.innerHTML = ordered.length ? ordered.map(a=>`
     <label class="nebula-row"><input type="checkbox" class="n-use" data-id="${a.id}" ${a.use?'checked':''}>
-      <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${{character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind}</span></label>`).join('')
+      <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${a.purposes.includes(S.opts.group)?'추천 · ':''}${a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]).join(' · ')||'미분류'} · ${{character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind}</span></label>`).join('')
     : '<div class="note">성운이 비어 있습니다. 재료 탭에서 파일이나 글을 먼저 넣어 주세요.</div>';
 }
 function materialChanged(){ save(); renderDigest(); renderMat(); renderNebulaPicker(); renderOneshot(); touchDraft(); }
@@ -3797,6 +3873,10 @@ $('#assetFolderBar').addEventListener('input', e=>{
   if(!e.target.classList.contains('asset-search')) return;
   ASSET_SEARCH=e.target.value; renderAssets(true);
 });
+$('#assetFolderBar').addEventListener('change', e=>{
+  if(!e.target.classList.contains('asset-purpose-filter')) return;
+  ASSET_PURPOSE_FILTER=e.target.value; renderAssets();
+});
 $('#assetFolderBar').addEventListener('keydown', e=>{
   if(e.target.classList.contains('asset-search')&&e.key==='Escape'){
     e.preventDefault(); ASSET_SEARCH=''; e.target.value=''; renderAssets(true);
@@ -3823,6 +3903,8 @@ $('#assetClearModal').addEventListener('click', e=>{ if(e.target.id==='assetClea
 $('#assetList').addEventListener('click', e=>{
   const wrap = e.target.closest('.asset'); if(!wrap) return;
   const a = assetById(wrap.dataset.id); if(!a) return;
+  const tag=e.target.closest('.asset-tag');
+  if(tag){ ASSET_FOLDER_FILTER='all'; ASSET_PURPOSE_FILTER='all'; ASSET_SEARCH='#'+tag.dataset.tag; renderAssets(); return; }
   if(e.target.closest('.a-star')){ a.favorite=!a.favorite; if(!a.favorite) delete a.folderId; save(); renderAssets(); touchDraft(); toast(a.favorite?'즐겨찾기에 고정했습니다':'즐겨찾기에서 해제했습니다'); return; }
   if(e.target.closest('.a-del')){ if(!confirm(a.favorite?`“${a.name}” 즐겨찾기 재료를 영구 삭제할까요?`:`“${a.name}” 재료를 삭제할까요?`)) return; S.assets = S.assets.filter(x=>x.id!==a.id); EDIT_ASSETS.delete(a.id); EDIT_BASELINE.delete(a.id); EDIT_WAS_DIRTY.delete(a.id); renderAssets(); materialChanged(); return; }
   if(e.target.closest('.a-copy')){ const d=duplicateAsset(a); renderAssets(); materialChanged(); toast(`“${d.name}”을 만들었습니다`); return; }
@@ -3847,6 +3929,10 @@ $('#assetList').addEventListener('change', e=>{
   const a = assetById(wrap.dataset.id); if(!a) return;
   if(e.target.classList.contains('a-folder')){ if(e.target.value) a.folderId=e.target.value; else delete a.folderId; save(); renderAssets(); return; }
   if(e.target.classList.contains('a-use')){ a.use = e.target.checked; renderAssets(); materialChanged(); return; }
+  if(e.target.classList.contains('ae-purpose')){
+    a.purposes=$$('.ae-purpose',wrap).filter(x=>x.checked).map(x=>x.value);
+    touchDraft(); return;
+  }
   if(e.target.classList.contains('e-use')){
     const row = e.target.closest('.erow');
     const en = a.entries.find(x=>x.id===row.dataset.eid);
@@ -3865,6 +3951,7 @@ $('#assetList').addEventListener('input', e=>{
   if(!wrap) return;
   const a = assetById(wrap.dataset.id); if(!a) return;
   if(e.target.classList.contains('ae-name')) a.name = e.target.value;
+  else if(e.target.classList.contains('ae-tags')) a.tags=cleanAssetTags(e.target.value);
   else if(e.target.classList.contains('ae-body')) a.body = e.target.value;
   else if(e.target.classList.contains('ae-field')) a.fields[e.target.dataset.key] = e.target.value;
   else {
@@ -3916,17 +4003,23 @@ $('#pasteIn').addEventListener('input', e=>{
   const n = e.target.value.length;
   $('#pasteInfo').textContent = n ? `${n}자 · ${tok(e.target.value)} 토큰쯤` : '0자';
 });
+function resetPasteForm(){
+  $('#pasteName').value=''; $('#pasteTags').value=''; $('#pasteIn').value=''; $('#pasteInfo').textContent='0자';
+  $$('#pastePurposes input').forEach(x=>{ x.checked=false; });
+}
 $('#btnPasteCancel').addEventListener('click', ()=>{
-  $('#pasteName').value=''; $('#pasteIn').value=''; $('#pasteInfo').textContent='0자'; $('#pasteBox').hidden = true;
+  resetPasteForm(); $('#pasteBox').hidden = true;
 });
 $('#btnPasteAdd').addEventListener('click', ()=>{
   const t = $('#pasteIn').value;
   if(!t.trim()) return toast('내용이 비어 있습니다', 1);
   const first = t.trim().split(/\n/)[0].slice(0, 24);
   const typedName = $('#pasteName').value.trim();
+  const purposes=$$('#pastePurposes input').filter(x=>x.checked).map(x=>x.value);
+  const tags=cleanAssetTags($('#pasteTags').value);
   S.assets.push({ id:uid(), kind:'text',
-    name: typedName || (first ? first + (t.length>24?'…':'') : '붙여넣은 텍스트'), body:t, use:true });
-  $('#pasteName').value=''; $('#pasteIn').value=''; $('#pasteInfo').textContent='0자'; $('#pasteBox').hidden = true;
+    name: typedName || (first ? first + (t.length>24?'…':'') : '붙여넣은 텍스트'), body:t, purposes, tags, use:true });
+  resetPasteForm(); $('#pasteBox').hidden = true;
   renderAssets(); materialChanged(); toast('재료에 넣었습니다');
 });
 $('#pasteIn').addEventListener('keydown', e=>{
@@ -4116,7 +4209,7 @@ function renderCast(){
       <div class="rl">${esc(c.seed?c.seed.line:'')}</div>
       <div class="bar" style="margin-top:9px">
         <button class="mini ghost c-open" data-i="${i}">작업대로</button>
-        <button class="iconbtn danger c-del" data-i="${i}" title="인물 삭제" aria-label="인물 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+        <button class="iconbtn danger c-del" data-i="${i}" title="인물 삭제" aria-label="인물 삭제">${TRASH_SVG}</button>
       </div></div>`).join('')}</div>`;
   if(p.relations && p.relations.length){
     h += `<div class="sect-label">관계</div>` + p.relations.map(e=>`
@@ -4450,7 +4543,7 @@ $('#btnToAsset').addEventListener('click', ()=>{
   const P = activePreset();
   S.assets.push({ id:uid(), kind:'text',
     name: guessName(S.project.card.fields) + ' (' + P.name + ')',
-    body: fieldsToText(S.project.card.fields), use:true });
+    body: fieldsToText(S.project.card.fields), purposes:[S.opts.group], tags:[], use:true });
   renderAssets(); toast('재료에 넣었습니다 — 다른 양식에서 이어서 쓸 수 있습니다');
 });
 $('#btnDlText').addEventListener('click', ()=>
@@ -4497,7 +4590,7 @@ $('#btnDlBook').addEventListener('click', e=> guard(e.target,'쪼개는 중', as
   const nm = (S.project.card.fields.title || '세계').replace(/[\\/:*?"<>|]/g,'_');
   dl(nm+'-lorebook.json', JSON.stringify(toWorldInfo(entries),null,2));
   S.assets.push({ id:uid(), kind:'lorebook', name:nm+' (여기서 만든 것)',
-    entries: entries.map((x,i)=>({...x, id:'e'+i+uid(), enabled:true, use:true})), use:true });
+    entries: entries.map((x,i)=>({...x, id:'e'+i+uid(), enabled:true, use:true})), purposes:['world'], tags:[], use:true });
   renderAssets();
   toast(entries.length+'개 항목 — 내려받고 재료에도 넣었습니다');
 }));
@@ -4615,8 +4708,9 @@ $('#btnTalkCopy').addEventListener('click', ()=>
   copy(S.chat.msgs.map(m=>(m.role==='user'?'나: ':'상대: ')+m.content).join('\n\n')));
 $('#btnTalkToAsset').addEventListener('click', ()=>{
   if(!S.chat.msgs.length) return toast('대화가 없습니다',1);
+  const purpose={world:'world',char:'character',prompt:'prompt'}[S.chat.role];
   S.assets.push({ id:uid(), kind:'text', name:'대화 기록 '+new Date().toLocaleTimeString('ko-KR'),
-    body: S.chat.msgs.map(m=>(m.role==='user'?'[나] ':'[상대] ')+m.content).join('\n\n'), use:true });
+    body: S.chat.msgs.map(m=>(m.role==='user'?'[나] ':'[상대] ')+m.content).join('\n\n'), purposes:purpose?[purpose]:[], tags:[], use:true });
   renderAssets(); toast('재료에 넣었습니다');
 });
 
@@ -4688,7 +4782,7 @@ function renderLib(){
       <button class="mini ghost l-md">글</button>
       <button class="mini ghost l-json">JSON</button>
       <button class="mini ghost l-png">PNG</button>
-      <button class="iconbtn danger l-del" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+      <button class="iconbtn danger l-del" title="삭제" aria-label="삭제">${TRASH_SVG}</button>
     </div>`).join('');
 }
 $('#libSearch').addEventListener('input', e=>{ libQuery = e.target.value.toLowerCase().trim(); renderLib(); });
@@ -4945,7 +5039,7 @@ function renderSchema(){
         <span class="rowtools">
           <button class="s-up" title="위로" aria-label="위로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 25.5V6.5M8 14.5l8-8 8 8"/></svg></button>
           <button class="s-dn" title="아래로" aria-label="아래로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.5v19M8 17.5l8 8 8-8"/></svg></button>
-          <button class="s-del danger" title="칸 삭제" aria-label="칸 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+          <button class="s-del danger" title="칸 삭제" aria-label="칸 삭제">${TRASH_SVG}</button>
         </span>
       </summary>
       <div class="stbody">
@@ -5022,7 +5116,7 @@ function renderCommon(){
         <span class="rowtools">
           <button class="c-up" title="위로" aria-label="위로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 25.5V6.5M8 14.5l8-8 8 8"/></svg></button>
           <button class="c-dn" title="아래로" aria-label="아래로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.5v19M8 17.5l8 8 8-8"/></svg></button>
-          <button class="c-del danger" title="구획 삭제" aria-label="구획 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+          <button class="c-del danger" title="구획 삭제" aria-label="구획 삭제">${TRASH_SVG}</button>
         </span>
       </summary>
       <div class="stbody">
@@ -5246,7 +5340,7 @@ function renderConns(){
         <span class="cn">${esc(c.name)}</span>
         ${c.id===S.activeConn ? '<span class="c-use-state" title="현재 생성 작업에 사용하는 연결">쓰는 중</span>' : '<button class="mini ghost c-use">이걸로 쓰기</button>'}
         <button class="mini ghost c-test" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시">확인</button>
-        <button class="iconbtn danger c-del" title="연결 삭제" aria-label="연결 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+        <button class="iconbtn danger c-del" title="연결 삭제" aria-label="연결 삭제">${TRASH_SVG}</button>
       </div>
       ${connCheckHtml(c)}
       <div class="row">
