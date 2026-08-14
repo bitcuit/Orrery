@@ -530,6 +530,14 @@ button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0
 .lockbtn .lic{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .lockbtn:hover{color:#eef4fc;background:rgba(123,164,207,0.1)}
 .fld.locked .lockbtn{color:#eeb650}
+.continuebox{margin-top:12px;padding:14px 15px;border-radius:12px;background:rgba(121,168,211,0.045);
+  box-shadow:inset 0 0 0 1px rgba(138,182,225,0.1)}
+.continuebox.cut{background:rgba(233,182,84,0.055);box-shadow:inset 0 0 0 1px rgba(233,182,84,0.22)}
+.continuebox .continue-title{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.continuebox .continue-title b{font-size:13px;color:#dbe5f1;font-weight:520}
+.continuebox.cut .continue-title b{color:#f0c36b}
+.continuebox textarea{min-height:62px;margin-top:9px}
+.continuebox .bar{margin-top:8px}
 
 /* ---------- 검증 ---------- */
 .viol{border-left:2px solid var(--bad);border-radius:12px;padding:14px 16px;margin-bottom:10px;
@@ -615,6 +623,7 @@ button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0
   box-shadow:inset 0 1px 0 rgba(198,224,248,0.035)}
 .empty b{display:block;font-family:var(--body);font-size:16px;color:#d8e1ed;
   margin-bottom:6px;font-weight:450;letter-spacing:-0.02em}
+.empty-actions{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:14px}
 .busy{display:inline-block;width:12px;height:12px;border:1px solid rgba(233,182,84,0.3);
   border-top-color:var(--brass);border-radius:50%;position:relative;
   animation:spin .9s linear infinite;vertical-align:-1.5px;margin-right:7px}
@@ -838,15 +847,15 @@ button.build-mode.on .bn{color:#f1b94f}
 
     <span class="gsep"></span>
 
-    <button data-group="world">
+    <button type="button" data-group="world">
       <svg class="gico" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="9.2"/><path d="M16 3.4v3.1M16 25.5v3.1M3.4 16h3.1M25.5 16h3.1"/><path d="M16 11.15c.75 3.3 1.55 4.1 4.85 4.85-3.3.75-4.1 1.55-4.85 4.85-.75-3.3-1.55-4.1-4.85-4.85 3.3-.75 4.1-1.55 4.85-4.85Z" fill="#e9b654" stroke="none"/></svg>
       <span class="gtext"><span class="gsub">세계</span><span class="gname">항성</span></span>
     </button>
-    <button data-group="character">
+    <button type="button" data-group="character">
       <svg class="gico" viewBox="0 0 32 32" fill="none" aria-hidden="true"><ellipse cx="16" cy="16" rx="14" ry="5.2" transform="rotate(-22 16 16)"/><circle cx="16" cy="16" r="7.6" fill="#e9b654" stroke="none"/><g transform="rotate(-22 16 16)"><path d="M2 16A14 5.2 0 0 0 30 16"/></g></svg>
       <span class="gtext"><span class="gsub">인물</span><span class="gname">행성</span></span>
     </button>
-    <button data-group="prompt">
+    <button type="button" data-group="prompt">
       <svg class="gico" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="10"/><circle cx="16" cy="16" r="5.6"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/><circle cx="23.4" cy="8.9" r="1.8" fill="#e9b654" stroke="none"/><circle cx="8.3" cy="23" r="1.2" fill="#e9b654" stroke="none"/></svg>
       <span class="gtext"><span class="gsub">프롬프트</span><span class="gname">궤도</span></span>
     </button>
@@ -1050,10 +1059,16 @@ button.build-mode.on .bn{color:#f1b94f}
       <button class="ghost" id="btnReroll" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 7.5v6.4h-6.4"/><path d="M25.6 13.9A10 10 0 1 0 26 18.6"/></svg>안 잠근 칸만 다시</button>
     </div>
     <div class="field" style="margin-top:12px">
-      <label class="fl" for="rerollNote">추가 지시</label>
-      <input id="rerollNote" placeholder="다시 굴릴 때만 쓰입니다 — 예: 더 조용한 사람으로">
+      <label class="fl" for="rerollNote">다시 쓰기 지시</label>
+      <input id="rerollNote" placeholder="안 잠근 칸을 다시 쓸 때만 사용 — 예: 더 조용한 사람으로">
     </div>
     <div id="cardOut" style="margin-top:6px"></div>
+    <div class="continuebox" id="continueBox" hidden>
+      <div class="continue-title"><b id="continueTitle">이어서 만들기</b><span class="note" id="continueHint"></span></div>
+      <label class="fl" for="continueNote">이어쓰기 지시 <span class="note">· 선택</span></label>
+      <textarea id="continueNote" rows="2" placeholder="비우면 잘린 곳이나 마지막 칸부터 자연스럽게 잇습니다 · 예: 배경 칸을 더 이어서 관계 변화까지 써줘"></textarea>
+      <div class="bar"><span class="note" id="continueMeta"></span><span class="sp"></span><button class="primary" id="btnContinue">이어서 만들기</button></div>
+    </div>
     <div class="bar" id="cardBar" style="display:none">
       <button class="primary" id="btnSaveLib"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9z" stroke="#e9b654"/></svg>고정하기</button>
       <button class="ghost" id="btnCopyText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg>글로 복사</button>
@@ -3374,10 +3389,83 @@ function extractJson(text){
   return JSON.parse(t.slice(s,end+1));
 }
 
+function stripJsonFence(text){
+  return String(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'');
+}
+function joinResponseChunks(first, next){
+  const a=String(first||''), b=stripJsonFence(next);
+  if(!b) return a;
+  if(b.startsWith(a.trim())) return b;
+  const limit=Math.min(1200,a.length,b.length);
+  for(let n=limit;n>=3;n--){ if(a.slice(-n)===b.slice(0,n)) return a+b.slice(n); }
+  return a+b;
+}
+async function parseJsonReply(conn, msgs, opts, raw, retryOnce){
+  try{ return {json:extractJson(raw), raw, continued:false}; }
+  catch(firstErr){
+    if(retryOnce===false){ const err=new Error('응답을 해석하지 못했습니다.'); err.raw=raw; throw err; }
+    const cut=/중간에 끊겼/.test(firstErr.message||'');
+    log(cut ? 'JSON 출력이 중간에 끊겨 이어받습니다.' : 'JSON 해석 실패 — 한 번 다시 시도합니다: '+firstErr.message,'err');
+    const follow = cut
+      ? msgs.concat([
+          {role:'assistant', content:raw},
+          {role:'user', content:'방금 출력이 응답 한도 때문에 중간에 끊겼다. 앞부분이나 JSON 시작을 반복하지 말고, 마지막 문자 바로 다음부터 남은 JSON만 이어서 끝내라. 코드펜스·설명은 쓰지 마라.'}
+        ])
+      : msgs.concat([
+          {role:'assistant', content:raw.slice(0,1200)},
+          {role:'user', content:'방금 출력이 JSON으로 해석되지 않았다. 설명·코드펜스 없이 유효한 JSON 하나만 다시 출력하라.'}
+        ]);
+    let raw2;
+    try{ raw2=await callProvider(conn,follow,opts); }
+    catch(callErr){ callErr.raw=raw; throw callErr; }
+    const candidates=cut ? [joinResponseChunks(raw,raw2),raw2] : [raw2];
+    for(const candidate of candidates){
+      try{
+        const json=extractJson(candidate);
+        if(cut) log('끊긴 JSON을 이어받아 복구했습니다.','ok');
+        return {json,raw:candidate,continued:cut};
+      }catch(_){ }
+    }
+    const err=new Error(cut?'이어받은 응답도 JSON으로 끝나지 않았습니다.':'응답을 JSON으로 해석하지 못했습니다.');
+    err.raw=candidates[0]||raw2||raw; throw err;
+  }
+}
+function decodeJsonFragment(raw){
+  let s=String(raw||'');
+  if(/\\$/.test(s)) s=s.slice(0,-1);
+  try{ return JSON.parse('"'+s+'"'); }
+  catch(_){
+    return s.replace(/\\u([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)))
+      .replace(/\\n/g,'\n').replace(/\\r/g,'\r').replace(/\\t/g,'\t')
+      .replace(/\\"/g,'"').replace(/\\\\/g,'\\');
+  }
+}
+function readJsonStringFragment(text, start){
+  let raw='', escaped=false, closed=false;
+  for(let i=start;i<text.length;i++){
+    const ch=text[i];
+    if(!escaped && ch==='"'){ closed=true; break; }
+    raw+=ch;
+    if(escaped) escaped=false; else if(ch==='\\') escaped=true;
+  }
+  return {value:decodeJsonFragment(raw),closed};
+}
+function recoverPartialCard(raw, schema){
+  const text=stripJsonFence(raw), fields={}; let incompleteKey='';
+  (schema||[]).forEach(f=>{
+    const key=String(f.key||''); if(!key) return;
+    const safe=key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const m=new RegExp('"'+safe+'"\\s*:\\s*"','g').exec(text); if(!m) return;
+    const part=readJsonStringFragment(text,m.index+m[0].length);
+    fields[key]=part.value; if(!part.closed) incompleteKey=key;
+  });
+  return Object.keys(fields).length ? {fields,incompleteKey} : null;
+}
+
 async function runStage(stageName, vars, retryOnce){
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
-  const st = activePreset().stages[stageName];
+  const P = activePreset(), st = P.stages[stageName];
   if(!st) throw new Error('공정 정의가 없습니다: '+stageName);
   const v = baseVars(Object.assign({ source: sourceText() }, vars||{}));
   const commons = (P.common||[]).filter(c=>c.enabled && (c.content||'').trim())
@@ -3390,19 +3478,8 @@ async function runStage(stageName, vars, retryOnce){
     msgs.push({role:'user', content:'추가 요청 — 아래를 반드시 지킬 것.\n'+req});
   }
   const opts = {temperature:st.temperature, maxTokens:st.maxTokens};
-  let raw = await callProvider(conn, msgs, opts);
-  try{ return extractJson(raw); }
-  catch(e){
-    if(retryOnce===false) { const err=new Error('응답을 해석하지 못했습니다.'); err.raw=raw; throw err; }
-    log('JSON 해석 실패 — 한 번 다시 시도합니다: '+e.message,'err');
-    const msgs2 = msgs.concat([
-      {role:'assistant', content: raw.slice(0,1200)},
-      {role:'user', content:'방금 출력이 JSON으로 해석되지 않았다. 설명·코드펜스 없이 유효한 JSON 하나만 다시 출력하라.'}
-    ]);
-    const raw2 = await callProvider(conn, msgs2, opts);
-    try{ return extractJson(raw2); }
-    catch(e2){ const err=new Error('응답을 JSON으로 해석하지 못했습니다.'); err.raw = raw2 || raw; throw err; }
-  }
+  const raw = await callProvider(conn, msgs, opts);
+  return (await parseJsonReply(conn,msgs,opts,raw,retryOnce)).json;
 }
 
 /* --- 공정 실행 --- */
@@ -3410,7 +3487,7 @@ async function doDigest(){
   const src = sourceText();
   if(!src.trim()){
     throw new Error(activePreset().needs === 'required'
-      ? '이 양식은 읽을 대상이 있어야 합니다. 재료 탭에 넣어 주세요.'
+      ? '이 양식은 읽을 원본이 필요합니다. 재료를 넣거나 구상 칸에 원문을 붙여 주세요.'
       : '재료를 넣거나, 작업대의 구상 칸에 몇 마디만 적어 주세요.');
   }
   const d = await runStage('digest', { source: src, modeNote: modeNote('digest') });
@@ -3449,12 +3526,20 @@ async function doCross(a,b){
 function seedStr(s){ if(!s) return '(따로 고른 방향 없음 — 자료 전체에서 판단할 것)'; return `${s.line}\n(출발점: ${s.hook||'-'} / 역할: ${s.angle||'-'})`; }
 
 async function doExpand(seed){
-  const j = await runStage('expand', { digest: digestStr(), seed: seedStr(seed),
-    modeNote: modeNote('expand') });
+  const P=activePreset(); let j, recovered=null;
+  try{
+    j = await runStage('expand', { digest: digestStr(), seed: seedStr(seed),
+      modeNote: modeNote('expand') });
+  }catch(err){
+    recovered=err.raw && recoverPartialCard(err.raw,P.schema);
+    if(!recovered) throw err;
+    j=recovered.fields;
+    log(`끊긴 카드에서 ${Object.keys(j).length}개 칸을 먼저 복구했습니다.`,'err');
+  }
   const fields = {};
-  activePreset().schema.forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
+  P.schema.forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
   Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string') fields[k]=j[k]; });
-  return { fields, seed };
+  return { fields, seed, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[] };
 }
 async function doPatch(){
   const P = activePreset();
@@ -3470,6 +3555,55 @@ async function doPatch(){
   });
   unlocked.forEach(k=>{ if(j[k]!=null) S.project.card.fields[k] = String(j[k]); });
   return j;
+}
+function mergeContinuationText(current, addition){
+  const base=String(current||''), next=String(addition||'');
+  if(!base) return next.trimStart();
+  if(!next) return base;
+  if(next.startsWith(base)) return next;
+  const limit=Math.min(500,base.length,next.length);
+  for(let n=limit;n>=3;n--){ if(base.slice(-n)===next.slice(0,n)) return base+next.slice(n); }
+  if(/^\s/.test(next)) return base+next;
+  const clean=base.trimEnd();
+  const sep=/[.!?…。！？)”’"'\]}]$/.test(clean) ? '\n\n' : '';
+  return base+sep+next;
+}
+async function doContinueCard(instruction){
+  const card=S.project.card; if(!card) throw new Error('먼저 결과를 만들어 주세요.');
+  const conn=S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
+  const P=activePreset(), st=P.stages.expand||{};
+  const context=S.project.digest ? digestStr() : sourceText();
+  const note=String(instruction||'').trim();
+  const messages=[
+    {role:'system',content:`당신은 이미 작성된 ${ASSET_PURPOSE_LABEL[S.opts.group]||'창작'} 결과를 끊긴 지점부터 잇는 편집자다. 기존 문장을 요약·반복·교체하지 않고 새 내용만 덧붙인다.`},
+    {role:'user',content:`양식의 칸:\n${schemaSpec()}\n\n참고 맥락:\n${context||'(없음)'}\n\n현재 결과:\n${JSON.stringify(card.fields,null,1)}\n\n이어쓰기 지시:\n${note||'(별도 지시 없음 — 끝이 잘린 칸을 우선 찾고, 명확한 잘림이 없으면 마지막으로 내용이 있는 칸을 자연스럽게 확장)'}\n\n아래 형식의 유효한 JSON 하나만 출력하라.\n{"append":{"field_key":"기존 값 뒤에 붙일 새 문자열"}}\n- append에는 기존 양식에 있는 키만 넣어라.\n- 기존 내용을 다시 출력하지 말고 새로 붙일 부분만 써라.\n- 새 문자열 첫머리에 필요한 공백이나 줄바꿈을 포함하되, 잘린 단어를 잇는다면 공백 없이 시작하라.\n- 지시가 여러 칸을 요구하면 여러 키를 넣어도 된다.\n- 설명과 코드펜스는 쓰지 마라.`}
+  ];
+  const opts={temperature:st.temperature??0.75,maxTokens:Math.max(1200,st.maxTokens||2400)};
+  const raw=await callProvider(conn,messages,opts);
+  let j, recovered=null;
+  try{ j=(await parseJsonReply(conn,messages,opts,raw,true)).json; }
+  catch(err){
+    recovered=err.raw&&recoverPartialCard(err.raw,P.schema);
+    if(!recovered) throw err;
+    j={append:recovered.fields};
+    log('이어쓰기 응답도 끊겨 읽을 수 있는 부분까지만 붙였습니다.','err');
+  }
+  const source=(j&&typeof j==='object'&&(j.append||j.continuations||j.fields))||j||{};
+  const allowed=new Set(P.schema.map(f=>f.key));
+  const added={};
+  Object.keys(source||{}).forEach(k=>{
+    if(!allowed.has(k)||typeof source[k]!=='string'||!source[k]) return;
+    const before=String(card.fields[k]||''), after=mergeContinuationText(before,source[k]);
+    if(after===before) return;
+    card.fields[k]=after; added[k]=source[k];
+  });
+  const keys=Object.keys(added); if(!keys.length) throw new Error('이어 붙일 내용을 찾지 못했습니다. 지시에 칸 이름을 적어 다시 해보세요.');
+  card.continuations=Array.isArray(card.continuations)?card.continuations:[];
+  card.continuations.push({at:Date.now(),instruction:note,added});
+  if(card.continuations.length>20) card.continuations=card.continuations.slice(-20);
+  card.truncated=!!recovered; card.truncatedField=recovered&&recovered.incompleteKey||'';
+  return {keys,recovered:!!recovered};
 }
 async function doCheck(){
   const j = await runStage('check', { digest: digestStr(),
@@ -3673,15 +3807,17 @@ function openAssetFolderModal(folder){
 function renderMat(){
   const box = $('#matStatus'); if(!box) return;
   const P = activePreset(), st = assetStats(), brief = (S.opts.brief||'').trim();
+  const selectedAssets=S.assets.filter(a=>a.use).length;
   const req = P.needs === 'required';
   let cls='matrow', html='';
   if(st.tokens > 0){
     cls += ' ok';
-    const n = st.chars_n + st.books_n;
-    html = `<span class="pip"></span>재료 ${n?n+'개 · ':''}${st.tokens} 토큰쯤 읽습니다`;
+    html = selectedAssets
+      ? `<span class="pip"></span>재료 ${selectedAssets}개${brief?' + 구상':''} · ${st.tokens} 토큰쯤 읽습니다`
+      : `<span class="pip"></span>재료 없이 아래 구상만으로 시작합니다 · ${st.tokens} 토큰쯤`;
   } else if(req){
     cls += ' warn';
-    html = `<span class="pip"></span>이 양식은 읽을 대상이 있어야 합니다 — 넣은 재료가 없습니다`
+    html = `<span class="pip"></span>이 양식은 읽을 원본이 필요합니다 — 재료를 넣거나 구상 칸에 원문을 붙여 주세요`
          + ` <button class="mini ghost" id="matGo">재료 넣으러 가기</button>`;
   } else if(brief){
     cls += ' ok';
@@ -3700,7 +3836,8 @@ function renderAssets(keepFolderBar){
   $('#bAssets').textContent = S.assets.length;
   if(!keepFolderBar) renderAssetFolderBar();
   if(!S.assets.length){
-    box.innerHTML = '<div class="empty"><b>아직 비어 있습니다</b>넣은 것이 여기에 궤도를 잡습니다.</div>';
+    box.innerHTML = `<div class="empty"><b>재료 없이도 시작할 수 있습니다</b>구상만 적어 만들거나, 나중에 재료를 더해도 됩니다.
+      <div class="empty-actions"><button class="mini ghost" data-group-start="world">세계 만들기</button><button class="mini ghost" data-group-start="character">인물 만들기</button><button class="mini ghost" data-group-start="prompt">프롬프트 만들기</button></div></div>`;
     renderMat(); renderNebulaPicker(); return;
   }
   renderMat();
@@ -3818,7 +3955,7 @@ function renderNebulaPicker(){
   box.innerHTML = ordered.length ? ordered.map(a=>`
     <label class="nebula-row"><input type="checkbox" class="n-use" data-id="${a.id}" ${a.use?'checked':''}>
       <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${a.purposes.includes(S.opts.group)?'추천 · ':''}${a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]).join(' · ')||'미분류'} · ${{character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind}</span></label>`).join('')
-    : '<div class="note">성운이 비어 있습니다. 재료 탭에서 파일이나 글을 먼저 넣어 주세요.</div>';
+    : '<div class="note">고를 재료가 없습니다 · 그대로 구상만으로 만들 수 있습니다.</div>';
 }
 function materialChanged(){ save(); renderDigest(); renderMat(); renderNebulaPicker(); renderOneshot(); touchDraft(); }
 function deleteUnfavoriteAssets(){
@@ -3901,6 +4038,8 @@ $('#assetClearCancel').addEventListener('click', closeAssetClearModal);
 $('#assetClearModal').addEventListener('click', e=>{ if(e.target.id==='assetClearModal') closeAssetClearModal(); });
 
 $('#assetList').addEventListener('click', e=>{
+  const start=e.target.closest('[data-group-start]');
+  if(start){ applyGroup(start.dataset.groupStart); tab('studio'); return; }
   const wrap = e.target.closest('.asset'); if(!wrap) return;
   const a = assetById(wrap.dataset.id); if(!a) return;
   const tag=e.target.closest('.asset-tag');
@@ -4051,7 +4190,7 @@ function renderDigest(){
     ? `요약 ${tok(digestStr())} 토큰쯤 (재료 원본 ${assetStats().tokens})`
       + (stale ? ` · <span style="color:var(--brass)">${esc(stale)} — 다시 읽는 것을 권합니다</span>` : '')
     : '';
-  if(!d){ box.innerHTML = '<div class="empty"><b>아직 읽지 않았습니다</b>재료를 넣고 위 단추를 누르세요.</div>'; setSpine(); return; }
+  if(!d){ box.innerHTML = '<div class="empty"><b>아직 읽지 않았습니다</b>재료를 넣거나 구상만 적고 위 단추를 누르세요.</div>'; setSpine(); return; }
   const list = (arr, f) => (arr||[]).length ? '<ul>'+arr.map(x=>`<li>${esc(f?f(x):x)}</li>`).join('')+'</ul>' : '<div class="note">—</div>';
   box.innerHTML = `
     <div style="margin-bottom:13px">
@@ -4109,14 +4248,26 @@ $('#seedOut').addEventListener('click', e=>{
   renderSeeds(); touchDraft();
 });
 
+function renderContinue(){
+  const card=S.project.card, box=$('#continueBox'); if(!box) return;
+  box.hidden=!card; if(!card) return;
+  const count=Array.isArray(card.continuations)?card.continuations.length:0;
+  box.classList.toggle('cut',!!card.truncated);
+  $('#continueTitle').textContent=card.truncated?'출력이 중간에 끊겼습니다':'이어서 만들기';
+  $('#continueHint').textContent=card.truncated
+    ? `${card.truncatedField?card.truncatedField+' 칸부터 ':''}복구한 결과입니다 · 이어서 만들면 남은 내용을 붙입니다`
+    : '현재 결과는 그대로 두고 새 내용만 뒤에 붙입니다';
+  $('#continueMeta').textContent=count?`이어 쓴 기록 ${count}회 · 결과와 함께 임시 저장·백업됩니다`:'빈 지시로 눌러도 됩니다';
+  $('#btnContinue').disabled=false;
+}
 function renderCard(){
   const p = S.project, box = $('#cardOut'), P = activePreset();
   $('#btnReroll').disabled = !p.card;
-  $('#btnCheck').disabled = !p.card;
+  $('#btnCheck').disabled = !p.card || !!p.card.truncated;
   $('#cardBar').style.display = p.card ? 'flex' : 'none';
   if(!p.card){
     box.innerHTML = '<div class="empty"><b>아직 카드가 없습니다</b>씨앗을 하나 고르고 펼치세요.</div>';
-    setSpine(); return;
+    renderContinue(); setSpine(); return;
   }
   box.innerHTML = P.schema.map(f=>{
     const v = p.card.fields[f.key]||'';
@@ -4132,7 +4283,7 @@ function renderCard(){
       <textarea rows="${Math.min(10, Math.max(2, Math.ceil(v.length/62)))}">${esc(v)}</textarea>
     </div>`;
   }).join('');
-  setSpine(); renderQA();
+  renderContinue(); setSpine(); renderQA();
 }
 $('#cardOut').addEventListener('click', async e=>{
   const fld = e.target.closest('.fld'); if(!fld) return;
@@ -4225,7 +4376,9 @@ function renderCast(){
 $('#castOut').addEventListener('click', e=>{
   const o = e.target.closest('.c-open'), d = e.target.closest('.c-del');
   if(o){ const c = S.project.cast[+o.dataset.i];
-    S.project.card = {fields:clone(c.fields), seed:c.seed}; S.project.locked={};
+    S.project.card = {fields:clone(c.fields), seed:c.seed, truncated:!!c.truncated,
+      truncatedField:c.truncatedField||'', continuations:clone(c.continuations||[])}; S.project.locked={};
+    $('#continueNote').value='';
     S.project.violations=null; S.project.verdict=null;
     renderCard(); renderCheck(); toast('작업대로 옮겼습니다');
     $('#cardOut').scrollIntoView({behavior:'smooth',block:'center'}); }
@@ -4326,15 +4479,25 @@ $('#btnExpand').addEventListener('click', e=> guard(e.target,'펼치는 중', as
   const P = activePreset();
   const seed = P.skipSeed ? null : S.project.seeds.find(s=>s.id===S.project.sel[0]);
   S.project.card = await doExpand(seed);
+  $('#continueNote').value='';
   S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
   S.project.libId = null;
   renderCard(); renderCheck(); saveRecord();
-  if(S.opts.check && !activePreset().skipCheck){ try{ await doCheck(); renderCheck(); }catch(err){ log('검증 건너뜀: '+err.message,'err'); } }
-  toast('카드를 펼쳤습니다');
+  if(S.opts.check && !activePreset().skipCheck && !S.project.card.truncated){ try{ await doCheck(); renderCheck(); }catch(err){ log('검증 건너뜀: '+err.message,'err'); } }
+  toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'카드를 펼쳤습니다');
 }));
 $('#btnReroll').addEventListener('click', e=> guard(e.target,'다시 쓰는 중', async()=>{
   await doPatch(); renderCard(); saveRecord(); toast('안 잠근 칸을 다시 썼습니다');
 }));
+$('#btnContinue').addEventListener('click', e=> guard(e.currentTarget,'잇는 중', async()=>{
+  const result=await doContinueCard($('#continueNote').value);
+  S.project.violations=null; S.project.verdict=null; S.project.qa=[];
+  renderCard(); renderCheck(); saveRecord(); touchDraft();
+  toast(`${result.keys.length}개 칸에 이어 붙였습니다${result.recovered?' · 응답이 다시 잘려 읽힌 부분까지 반영했습니다':''}`);
+}));
+$('#continueNote').addEventListener('keydown', e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); $('#btnContinue').click(); }
+});
 $('#btnLockAll').addEventListener('click', ()=>{ activePreset().schema.forEach(f=>S.project.locked[f.key]=true); renderCard(); touchDraft(); });
 $('#btnUnlockAll').addEventListener('click', ()=>{ S.project.locked={}; renderCard(); touchDraft(); });
 $('#btnCheck').addEventListener('click', e=> guard(e.target,'대조 중', async()=>{
@@ -4377,7 +4540,7 @@ async function doOneShot(){
   const src = sourceText();
   if(!src.trim()){
     throw new Error(P.needs === 'required'
-      ? '이 양식은 읽을 대상이 있어야 합니다. 재료 탭에 넣어 주세요.'
+      ? '이 양식은 읽을 원본이 필요합니다. 재료를 넣거나 구상 칸에 원문을 붙여 주세요.'
       : '재료를 넣거나, 작업대의 구상 칸에 몇 마디만 적어 주세요.');
   }
   const st = P.stages.expand;
@@ -4400,30 +4563,27 @@ async function doOneShot(){
     msgs.push({role:'user', content:'추가 요청 — 아래를 반드시 지킬 것.\n'+req});
   }
   const opts = { temperature: st.temperature, maxTokens: Math.max(st.maxTokens||2400, 2400) };
-  let raw = await callProvider(conn, msgs, opts);
-  let j;
-  try{ j = extractJson(raw); }
-  catch(e){
-    log('JSON 해석 실패 — 한 번 다시 시도합니다: '+e.message,'err');
-    const raw2 = await callProvider(conn, msgs.concat([
-      {role:'assistant', content: raw.slice(0,1200)},
-      {role:'user', content:'방금 출력이 JSON으로 해석되지 않았다. 설명·코드펜스 없이 유효한 JSON 하나만 다시 출력하라.'}
-    ]), opts);
-    try{ j = extractJson(raw2); }
-    catch(e2){ const err = new Error('응답을 JSON으로 해석하지 못했습니다.'); err.raw = raw2 || raw; throw err; }
+  const raw = await callProvider(conn, msgs, opts);
+  let j, recovered=null;
+  try{ j=(await parseJsonReply(conn,msgs,opts,raw,true)).json; }
+  catch(err){
+    recovered=err.raw && recoverPartialCard(err.raw,P.schema);
+    if(!recovered) throw err;
+    j=recovered.fields;
+    log(`끊긴 한 번에 만들기 결과에서 ${Object.keys(j).length}개 칸을 먼저 복구했습니다.`,'err');
   }
   const fields = {};
   P.schema.forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
   Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string') fields[k]=j[k]; });
   if(!Object.keys(fields).length) throw new Error('결과에서 칸을 찾지 못했습니다. 단계별로 해보세요.');
-  return { fields, seed:null };
+  return { fields, seed:null, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[] };
 }
 function renderOneshot(){
   const P = activePreset(), el = $('#oneshotNote'); if(!el) return;
   const stages = 1 + (P.skipSeed?0:1) + 1 + ((S.opts.check && !P.skipCheck)?1:0);
   const selected = S.assets.filter(a=>a.use).length;
-  el.innerHTML = `성운에서 고른 재료 ${selected}개와 구상을 사용해 API 호출 <b>1회</b>로 끝냅니다. 단계별로 하면 ${stages}회.`
-    + ` 씨앗 고르기와 자동 검증은 건너뛰고, 재료를 요약 없이 통째로 보냅니다.`;
+  el.innerHTML = `${selected?`성운에서 고른 재료 ${selected}개와 구상`:'구상'}을 사용해 API 호출 <b>1회</b>로 끝냅니다. 단계별로 하면 ${stages}회.`
+    + ` 씨앗 고르기와 자동 검증은 건너뛰고${selected?', 재료를 요약 없이 통째로 보냅니다.':'.'}`;
   renderBuildMode();
 }
 function renderBuildMode(){
@@ -4443,10 +4603,11 @@ $('#buildModeBox').addEventListener('click', e=>{
 });
 $('#btnOneShot').addEventListener('click', e=> guard(e.target,'만드는 중', async()=>{
   S.project.card = await doOneShot();
+  $('#continueNote').value='';
   S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
   S.project.libId = null;
   renderCard(); renderCheck(); saveRecord();
-  toast('한 번에 만들었습니다 — 마음에 안 드는 칸만 다시 굴리세요');
+  toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'한 번에 만들었습니다 — 마음에 안 드는 칸만 다시 굴리세요');
   $('#cardOut').scrollIntoView({behavior:'smooth', block:'start'});
 }));
 
@@ -4741,7 +4902,9 @@ function saveRecord(){
     name: guessName(f), fields: clone(f),
     presetId: P.id, presetName: P.name, group: P.group || 'character',
     world: (S.project.digest && (S.project.digest.title || S.project.digest.subject)) || '',
-    seedLine, updated: Date.now()
+    seedLine, truncated:!!S.project.card.truncated,
+    truncatedField:S.project.card.truncatedField||'',
+    continuations:clone(S.project.card.continuations||[]), updated: Date.now()
   });
   pruneLib(); save(); renderLib(); touchDraft();
   return rec;
@@ -4810,7 +4973,9 @@ $('#libList').addEventListener('click', async e=>{
     try{ dlBlob(fn+'.png', await makeCardPng(rec.fields)); }catch(err){ toast(err.message,1); } return; }
   if(e.target.closest('.l-open')){
     if(rec.presetId && S.presets.find(x=>x.id===rec.presetId)) switchPreset(rec.presetId);
-    S.project.card = {fields:clone(rec.fields), seed:null};
+    S.project.card = {fields:clone(rec.fields), seed:null, truncated:!!rec.truncated,
+      truncatedField:rec.truncatedField||'', continuations:clone(rec.continuations||[])};
+    $('#continueNote').value='';
     S.project.libId = rec.id; S.project.locked={};
     S.project.violations=null; S.project.verdict=null; S.project.qa=[];
     renderCard(); renderCheck(); renderQA(); tab('studio'); toast('작업대로 불러왔습니다');
@@ -4979,6 +5144,7 @@ function switchPreset(id){
     syncLibFilter(); renderLib();
   }
   S.project.card = null; S.project.locked = {}; S.project.qa = [];
+  if($('#continueNote')) $('#continueNote').value='';
   S.project.violations = null; S.project.verdict = null;
   S.project.libId = null;
   save();
@@ -4994,6 +5160,7 @@ function applyGroup(g){
   if(list.length && !list.find(p=>p.id===S.activePreset)) S.activePreset = list[0].id;
   // 작업 중이던 것은 분류마다 따로 둔다
   S.project.card = null; S.project.locked = {}; S.project.qa = [];
+  if($('#continueNote')) $('#continueNote').value='';
   S.project.violations = null; S.project.verdict = null;
   S.project.seeds = []; S.project.sel = []; S.project.libId = null;
   renderDigest();
