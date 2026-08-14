@@ -114,7 +114,7 @@ body.boot main .panel:nth-of-type(3){animation-delay:.22s}
 .topctl{display:flex;gap:4px;align-items:center;flex-wrap:nowrap;flex:none}
 .topctl button{min-height:40px}
 .topctl button.mini{padding:8px 12px;font-size:13px;color:#aeb9ca;border:0;background:transparent;border-radius:10px}
-.topctl button.mini:hover{color:#eef4fc;background:rgba(123,164,207,0.08)}
+.topctl button.mini:not(:disabled):hover{color:#eef4fc;background:rgba(123,164,207,0.08)}
 .topctl button.mini .ic{color:inherit}
 .topctl select{min-height:40px}
 .topctl button{white-space:nowrap;flex:none}
@@ -280,21 +280,23 @@ button{
   font-size:13px;line-height:1.25;
   transition:color .18s,border-color .18s,background-color .18s,transform .18s var(--ease);
 }
-button:hover{color:#eef4fc;background:rgba(123,164,207,0.1)}
+button:not(:disabled):hover{color:#eef4fc;background:rgba(123,164,207,0.1)}
 button:active:not(:disabled){transform:scale(.97)}
 button:disabled{opacity:.35;cursor:not-allowed;transform:none}
 button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline:2px solid rgba(243,183,76,0.9);outline-offset:3px}
 button.primary{color:#dfe8f4;border-color:rgba(164,188,219,0.3);
   background:var(--s3);font-weight:500}
-button.primary:hover{color:#f8d187;background:rgba(233,182,84,0.14);border-color:rgba(233,182,84,0.6)}
+button.primary:not(:disabled):hover{color:#f8d187;background:rgba(233,182,84,0.14);border-color:rgba(233,182,84,0.6)}
 button.primary:active:not(:disabled){color:#f1b94f;border-color:rgba(233,182,84,0.7)}
 button.ghost{border-color:rgba(164,188,219,0.16);background:transparent}
-button.ghost:hover{background:rgba(123,164,207,0.08)}
+button.ghost:not(:disabled):hover{background:rgba(123,164,207,0.08)}
 button.mini{padding:5px 12px;min-height:34px;font-size:12px;
   border-color:transparent;background:transparent;color:#8ea0b8}
-button.mini:hover{color:#eef4fc;background:rgba(123,164,207,0.09)}
+button.mini:not(:disabled):hover{color:#eef4fc;background:rgba(123,164,207,0.09)}
 button.danger{color:#d4a094;border-color:transparent;background:transparent}
-button.danger:hover{color:#f0c4ba;background:rgba(224,122,110,0.1)}
+button.danger:not(:disabled):hover{color:#f0c4ba;background:rgba(224,122,110,0.1)}
+.c-use-state{display:inline-flex;align-items:center;min-height:34px;padding:5px 12px;border-radius:9px;
+  font-size:12px;color:var(--brass);background:rgba(233,182,84,0.08);white-space:nowrap}
 input,select,textarea{font-size:16px;
   background:var(--s3);
   backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);border:1px solid rgba(164,188,219,0.15);
@@ -372,6 +374,11 @@ label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
 .entries.open{display:block}
 .asset-editor{display:none;margin-top:12px;padding:13px;border-top:1px solid rgba(138,182,225,0.1);background:rgba(2,8,17,0.28);border-radius:0 0 10px 10px}
 .asset-editor.open{display:block}
+.asset-editor-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:#dbe5f1;font-size:13px;font-weight:560}
+.asset-editor-head .iconbtn{width:34px;height:34px;min-height:34px}
+.asset-editor-actions{justify-content:flex-end}
+.asset-tools{display:flex;align-items:center;gap:2px}
+.asset-tools .iconbtn{width:34px;height:34px;min-height:34px}
 .asset-editor .editrow{display:grid;grid-template-columns:minmax(90px,150px) 1fr;gap:10px;align-items:start;margin-bottom:10px}
 .asset-editor .editrow:last-child{margin-bottom:0}
 .asset-editor textarea{min-height:72px}
@@ -537,6 +544,10 @@ label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
 .conn.on{box-shadow:0 0 0 1px rgba(233,182,84,0.45), inset 0 1px 0 rgba(198,224,248,0.035)}
 .conn-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:11px}
 .conn-h .cn{font-weight:560;flex:1;min-width:100px;color:#e9f0f9}
+.conn-check{display:flex;align-items:center;gap:7px;margin:-2px 0 13px;padding:8px 10px;border-radius:8px;
+  background:rgba(121,168,211,0.045);font-family:var(--mono);font-size:11px;color:#8ea0b8}
+.conn-check.ok{color:#a3d9b1;background:rgba(125,212,160,0.06)}
+.conn-check.no{color:#f0a898;background:rgba(224,122,110,0.06)}
 .dot{width:7px;height:7px;border-radius:50%;background:#87a8df;flex:none;
   box-shadow:0 0 8px rgba(135,168,223,0.54)}
 .dot.ok{background:var(--good);box-shadow:0 0 8px var(--good)}
@@ -579,6 +590,16 @@ label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
 .modal-h h2{flex:1;font-size:var(--fs-lg)}
 .modal-b{padding:16px 20px 20px;overflow:auto}
 .modal-b p{margin:0 0 11px;font-size:var(--fs-meta);color:#9baac0;line-height:1.65}
+.backup-always{padding:11px 13px;margin-bottom:10px;border-radius:9px;background:rgba(121,168,211,0.055);
+  color:#9baac0;font-size:12px;line-height:1.6}
+.backup-always b{display:block;color:#dbe5f1;margin-bottom:2px}
+.backup-list{display:grid;gap:7px;margin:0 0 13px}
+.backup-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(121,168,211,0.04);cursor:pointer}
+.backup-opt:hover{background:rgba(121,168,211,0.075)}
+.backup-opt input{width:auto;min-height:0;margin:3px 0 0;accent-color:var(--brass);flex:none}
+.backup-opt span{font-size:12px;color:#aeb9ca;line-height:1.55}
+.backup-opt b{display:block;color:#dbe5f1;font-size:13px}
+.backup-warn{display:block;font-size:11px;color:#eeb650;margin-top:2px}
 .cmdrow{position:relative;margin:0 0 6px}
 .cmdrow pre{margin:0;padding-right:48px}
 .cmdcopy{position:absolute;top:50%;right:8px;translate:0 -50%;
@@ -675,7 +696,17 @@ details.adv>div{padding-top:13px}
 .sw input:checked + i::after{translate:14px 0;background:#f0b64c}
 .stage-ed h4{margin:0 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:#dda94c}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
-.oneshot{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin-bottom:26px}
+.build-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 14px}
+button.build-mode{min-height:78px;padding:14px 16px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:4px;
+  border-color:rgba(164,188,219,0.16);background:var(--s2)}
+button.build-mode .bn{font-family:var(--body);font-size:15px;font-weight:560;color:#e9f0f9}
+button.build-mode .bd{font-size:12px;line-height:1.5;color:#8296ae;font-weight:400}
+button.build-mode.on{background:rgba(233,182,84,0.08);border-color:rgba(233,182,84,0.5);
+  box-shadow:0 8px 30px rgba(233,182,84,0.08)}
+button.build-mode.on .bn{color:#f1b94f}
+.oneshot{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin-bottom:18px;padding:14px 16px;
+  border-radius:11px;background:rgba(121,168,211,0.045)}
+.oneshot[hidden]{display:none}
 .oneshot button{font-size:14px}
 .oneshot .note{flex:none;margin:0;max-width:560px}
 .stagedlabel{font-weight:500;font-size:12px;letter-spacing:.06em;
@@ -704,6 +735,7 @@ details.adv>div{padding-top:13px}
 .formrow .note{flex:1 1 220px;min-width:0}
 @media(max-width:760px){
   .grid2{grid-template-columns:1fr}
+  .build-choices{grid-template-columns:1fr}
   main{padding:0 14px 90px;margin-top:16px}
   .formrow{flex-direction:column;align-items:stretch;gap:8px;padding-bottom:14px;margin-bottom:16px}
   .formrow select{flex:1 1 auto}
@@ -739,7 +771,7 @@ details.adv>div{padding-top:13px}
   <div class="topctl">
     <span class="dot" id="connDot"></span>
     <select id="connSel"></select>
-    <button id="btnTest" class="mini"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="9.4"/><path d="m11.4 16.4 3.2 3.3 6.6-7.2" stroke="#e9b654"/></svg><span class="btxt">확인</span></button>
+    <button id="btnTest" class="mini" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="9.4"/><path d="m11.4 16.4 3.2 3.3 6.6-7.2" stroke="#e9b654"/></svg><span class="btxt">확인</span></button>
     <span class="tsep"></span>
     <button class="mini" id="btnMore" title="메뉴" aria-label="메뉴" aria-expanded="false"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6.5 10h19M6.5 16h19M6.5 22h13"/></svg></button>
     <div class="topmore" id="topMore">
@@ -814,6 +846,10 @@ details.adv>div{padding-top:13px}
     </div>
     <input type="file" id="fileIn" multiple accept=".png,.json,.charx,.txt,.md" style="display:none">
     <div class="pastebox" id="pasteBox" hidden>
+      <div class="field">
+        <label class="fl" for="pasteName">재료 이름</label>
+        <input id="pasteName" placeholder="비워두면 본문 첫 줄에서 자동으로 만듭니다">
+      </div>
       <label class="fl" for="pasteIn">붙여넣을 텍스트</label>
       <textarea id="pasteIn" rows="8" placeholder="설정 텍스트를 여기에 붙여넣으세요. 길어도 됩니다 — 이 칸 안에서 스크롤됩니다."></textarea>
       <div class="bar" style="margin-top:9px">
@@ -845,6 +881,10 @@ details.adv>div{padding-top:13px}
     <label class="fl" for="optExtra">요청</label>
     <textarea id="optExtra" rows="2" placeholder="여기 적은 내용이 모든 단계에 함께 전달됩니다.  예: 전투보다 생활감 위주로 / 30대 이상 / 고유명사는 짧게 / 존댓말로"></textarea>
     <p class="note" id="reqNote"></p>
+    <details class="nebula-pick" id="nebulaPick">
+      <summary>성운에서 재료 가져오기 · <span id="nebulaCount">선택 0개</span></summary>
+      <div class="nebula-list" id="nebulaList"></div>
+    </details>
   </div>
   <div class="panel" id="modePanel">
     <h2 id="modeTitle">인물을 어떻게 뽑을까요</h2>
@@ -886,11 +926,21 @@ details.adv>div{padding-top:13px}
     </details>
   </div>
 
-  <div class="oneshot">
+  <div class="build-choices" id="buildModeBox" aria-label="만드는 방법">
+    <button class="build-mode on" data-build="staged">
+      <span class="bn">단계별로 만들기</span>
+      <span class="bd">재료를 읽고 후보를 고른 뒤 확장·검증합니다.</span>
+    </button>
+    <button class="build-mode" data-build="oneshot">
+      <span class="bn">한 번에 만들기</span>
+      <span class="bd">선택한 성운 재료를 통째로 보내 빠르게 완성합니다.</span>
+    </button>
+  </div>
+  <div class="oneshot" id="oneshotBox" hidden>
     <button class="primary" id="btnOneShot">한 번에 만들기</button>
     <span class="note" id="oneshotNote"></span>
   </div>
-  <div class="stagedlabel">또는 단계별로 — 아래에서 하나씩</div>
+  <div class="stagedlabel" id="buildGuide">단계별 만들기 — 아래 1단계부터 하나씩</div>
 
   <ol class="spine" id="spine">
     <li data-st="digest"><span class="n">1</span><span class="t" id="spine1">세계 읽기</span></li>
@@ -908,10 +958,6 @@ details.adv>div{padding-top:13px}
       <textarea id="optBrief" rows="2"></textarea>
       <p class="note" id="briefNote"></p>
     </div>
-    <details class="nebula-pick" id="nebulaPick">
-      <summary>성운에서 가져오기 · <span id="nebulaCount">선택 0개</span></summary>
-      <div class="nebula-list" id="nebulaList"></div>
-    </details>
     <div class="bar">
       <button class="primary" id="btnDigest"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 8.5h7.2a3.3 3.3 0 0 1 3.3 2 3.3 3.3 0 0 1 3.3-2h7.2v15h-7.2a3.3 3.3 0 0 0-3.3 2 3.3 3.3 0 0 0-3.3-2H5.5Z"/><path d="M16 10.5v15" stroke="#e9b654"/></svg>세계 읽기</button>
       <span class="sp"></span>
@@ -1157,8 +1203,8 @@ details.adv>div{padding-top:13px}
     <div class="bar">
       <button class="primary" id="btnConnNew">연결 추가</button>
       <span class="sp"></span>
-      <button class="ghost mini" id="btnDataExport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg>설정 내보내기</button>
-      <button class="ghost mini" id="btnDataImport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4"/></svg>설정 가져오기</button>
+      <button class="ghost mini" id="btnDataExport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg>전체 백업</button>
+      <button class="ghost mini" id="btnDataImport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4"/></svg>백업 불러오기</button>
     </div>
     <input type="file" id="dataFile" accept=".json" style="display:none">
   </div>
@@ -1188,6 +1234,22 @@ details.adv>div{padding-top:13px}
   <div class="modal-in" style="max-width:980px">
     <div class="modal-h"><h2 id="assetCompareTitle">재료 원본과 수정본</h2><button class="mini" id="assetCompareClose">닫기</button></div>
     <div class="compare-grid"><div><h3>처음 불러온 원본</h3><pre id="assetCompareOriginal"></pre></div><div><h3>현재 수정본</h3><pre id="assetCompareCurrent"></pre></div></div>
+  </div>
+</div>
+
+<div class="modal" id="backupModal" hidden>
+  <div class="modal-in">
+    <div class="modal-h"><h2>전체 백업</h2><button class="mini" id="backupClose" aria-label="닫기">닫기</button></div>
+    <div class="modal-b">
+      <div class="backup-always"><b>항상 포함</b>연결 주소·모델, 양식, 옵션, 고정한 기록 · 실행 로그는 포함하지 않습니다.</div>
+      <div class="backup-list">
+        <label class="backup-opt"><input type="checkbox" id="backupAssets" checked><span><b>불러온 재료</b>성운에 넣은 캐릭터·로어북·텍스트와 수정 원본</span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupProject" checked><span><b>현재 작업과 중간 결과</b>읽은 요약, 별씨앗, 만든 카드, 검증·캐스트 결과</span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupChat" checked><span><b>대화 기록</b>교신에서 주고받은 내용과 역할 설정</span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupKeys" checked><span><b>API 키·액세스 토큰</b><span class="backup-warn">민감한 정보입니다. 다른 사람에게 보낼 파일이라면 끄세요.</span></span></label>
+      </div>
+      <div class="bar"><span class="sp"></span><button class="primary" id="backupDownload">백업 파일 만들기</button></div>
+    </div>
   </div>
 </div>
 
@@ -1234,7 +1296,7 @@ let S = {
   connections: [], activeConn: null,
   assets: [],
   presets: [], activePreset: null,
-  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', group:'world' },
+  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'staged', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', group:'world' },
   project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null },
   library: [],
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
@@ -1243,6 +1305,7 @@ let S = {
 };
 let LOG = [];
 let ABORT = null;
+let LAST_USAGE = null;
 let DRAFT_DIRTY = false, DRAFT_TIMER = null, BOOTING = true;
 
 function assetCore(a){
@@ -1351,6 +1414,30 @@ function renderLog(){
     `<span class="l-t">${l.ts}</span> <span class="l-${l.kind}">${esc(l.msg)}</span>`
   ).join('\n') || '<span class="l-i">아직 기록이 없습니다.</span>';
   $('#logBox').scrollTop = $('#logBox').scrollHeight;
+}
+function responseUsage(j){
+  const meta = j && j.meta || {};
+  const u = (j && (j.usage || j.usageMetadata)) || meta.billed_units || meta.tokens || {};
+  const numberFrom = (...values)=>{
+    for(const value of values){
+      if(value===undefined || value===null || value==='') continue;
+      const n=Number(value); if(Number.isFinite(n)) return n;
+    }
+    return null;
+  };
+  const input = numberFrom(u.prompt_tokens, u.input_tokens, u.promptTokenCount, u.inputTokens);
+  const output = numberFrom(u.completion_tokens, u.output_tokens, u.candidatesTokenCount, u.outputTokens);
+  const total = numberFrom(u.total_tokens, u.totalTokenCount, u.totalTokens,
+    input!=null && output!=null ? input+output : null);
+  return input==null && output==null && total==null ? null : {input, output, total};
+}
+function usageLabel(u){
+  if(!u) return '';
+  const parts=[];
+  if(u.input!=null) parts.push(`입력 ${u.input}`);
+  if(u.output!=null) parts.push(`출력 ${u.output}`);
+  if(u.total!=null && (!parts.length || u.input==null || u.output==null || u.total!==u.input+u.output)) parts.push(`합계 ${u.total}`);
+  return parts.join(' · ')+' 토큰';
 }
 function dl(name, text, mime){
   const b = new Blob([text], {type: mime||'application/json;charset=utf-8'});
@@ -1537,6 +1624,7 @@ async function callProvider(conn, messages, opts){
     if(est > room*0.85) log(`컨텍스트 여유가 적습니다 — 보낼 것 ${est} / 상한 ${conn.contextLimit}`,'err');
   }
   const req = p.chat(conn, messages, o);
+  LAST_USAGE = null;
   ABORT = new AbortController();
   const t0 = Date.now();
   log(`→ ${p.label} / ${conn.model} · 보낼 것 ${est} 토큰쯤 · 응답 상한 ${o.maxTokens||2000}`);
@@ -1558,8 +1646,9 @@ async function callProvider(conn, messages, opts){
     throw new Error(`${res.status} · ${detail}`);
   }
   let j; try{ j = JSON.parse(txt); }catch(e){ throw new Error('응답이 JSON이 아닙니다: '+txt.slice(0,200)); }
+  LAST_USAGE = responseUsage(j);
   const out = p.parse(j) || '';
-  log(`← ${out.length}자 · ${((Date.now()-t0)/1000).toFixed(1)}초`,'ok');
+  log(`← ${out.length}자${LAST_USAGE?' · '+usageLabel(LAST_USAGE):''} · ${((Date.now()-t0)/1000).toFixed(1)}초`,'ok');
   if(S.logVerbose) log(out);
   if(!out.trim()) throw new Error('모델이 빈 응답을 돌려줬습니다. (필터에 걸렸거나 토큰이 모자랐을 수 있습니다)');
   return out;
@@ -3415,9 +3504,11 @@ function renderAssets(){
         <span class="asset-meta">${meta}</span>
         ${a.kind==='lorebook' ? '<button class="mini ghost a-toggle">항목 고르기</button>':''}
         ${a.kind==='character' ? '<button class="mini ghost a-peek">내용</button>':''}
-        <button class="mini ghost a-edit">수정</button>
-        <button class="mini ghost a-copy">복제</button>
-        <button class="mini danger a-del">✕</button>
+        <span class="asset-tools">
+          <button class="iconbtn a-edit" title="수정" aria-label="수정"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m7.5 24.5 1.2-5.2L20.5 7.5a2.4 2.4 0 0 1 3.4 0l.6.6a2.4 2.4 0 0 1 0 3.4L12.7 23.3Z"/><path d="m18.8 9.2 4 4M8.7 19.3l4 4" stroke="#e9b654"/></svg></button>
+          <button class="iconbtn a-copy" title="복제" aria-label="복제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="11" y="7" width="14" height="14" rx="2.5"/><rect x="7" y="11" width="14" height="14" rx="2.5" stroke="#e9b654"/></svg></button>
+          <button class="iconbtn danger a-del" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
+        </span>
       </div>
       ${a.kind==='lorebook' ? entriesHtml(a) : ''}
       ${a.kind==='character' ? `<div class="entries"><pre style="white-space:pre-wrap;font-size:12px;color:var(--dim);margin:0;max-height:280px;overflow:auto">${esc(Object.keys(a.fields).map(k=>'['+k+']\n'+a.fields[k]).join('\n\n'))}</pre></div>`:''}
@@ -3439,11 +3530,12 @@ function assetEditorHtml(a){
     </div>`).join('');
   else body = `<div class="editrow"><label class="fl">본문</label><textarea class="ae-body" rows="8">${esc(a.body||'')}</textarea></div>`;
   return `<div class="asset-editor ${EDIT_ASSETS.has(a.id)?'open':''}">
+    <div class="asset-editor-head"><span>재료 수정</span><span class="sp"></span><button class="iconbtn a-edit-close" title="닫기 · 이번 수정은 적용하지 않음" aria-label="닫기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m8.5 8.5 15 15M23.5 8.5l-15 15"/></svg></button></div>
     <div class="editrow"><label class="fl">재료 이름</label><input class="ae-name" value="${esc(a.name||'')}"></div>
     ${body}
-    <div class="bar">
+    <div class="bar asset-editor-actions">
       <button class="mini ghost a-compare">원본과 비교</button><button class="mini ghost a-original">원본으로 되돌리기</button>
-      <span class="sp"></span><button class="mini ghost a-edit-cancel">수정 취소</button><button class="mini primary a-edit-done">수정 마치기</button>
+      <button class="mini primary a-edit-done">수정</button>
     </div>
   </div>`;
 }
@@ -3500,15 +3592,15 @@ function renderNebulaPicker(){
       <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${{character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind}</span></label>`).join('')
     : '<div class="note">성운이 비어 있습니다. 재료 탭에서 파일이나 글을 먼저 넣어 주세요.</div>';
 }
-function materialChanged(){ renderDigest(); renderMat(); renderNebulaPicker(); touchDraft(); }
+function materialChanged(){ renderDigest(); renderMat(); renderNebulaPicker(); renderOneshot(); touchDraft(); }
 
 $('#assetList').addEventListener('click', e=>{
   const wrap = e.target.closest('.asset'); if(!wrap) return;
   const a = assetById(wrap.dataset.id); if(!a) return;
-  if(e.target.closest('.a-del')){ S.assets = S.assets.filter(x=>x.id!==a.id); EDIT_ASSETS.delete(a.id); EDIT_BASELINE.delete(a.id); EDIT_WAS_DIRTY.delete(a.id); renderAssets(); materialChanged(); return; }
+  if(e.target.closest('.a-del')){ if(!confirm(`“${a.name}” 재료를 삭제할까요?`)) return; S.assets = S.assets.filter(x=>x.id!==a.id); EDIT_ASSETS.delete(a.id); EDIT_BASELINE.delete(a.id); EDIT_WAS_DIRTY.delete(a.id); renderAssets(); materialChanged(); return; }
   if(e.target.closest('.a-copy')){ const d=duplicateAsset(a); renderAssets(); materialChanged(); toast(`“${d.name}”을 만들었습니다`); return; }
   if(e.target.closest('.a-edit')){ if(!EDIT_BASELINE.has(a.id)){ EDIT_BASELINE.set(a.id,assetCore(a)); EDIT_WAS_DIRTY.set(a.id,DRAFT_DIRTY); } EDIT_ASSETS.add(a.id); renderAssets(); $(`.asset[data-id="${a.id}"] .asset-editor`).scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
-  if(e.target.closest('.a-edit-cancel')){ const base=EDIT_BASELINE.get(a.id), wasDirty=EDIT_WAS_DIRTY.get(a.id); if(base) replaceAssetFrom(a,base); EDIT_BASELINE.delete(a.id); EDIT_WAS_DIRTY.delete(a.id); EDIT_ASSETS.delete(a.id); renderAssets(); renderDigest(); renderMat(); renderNebulaPicker(); if(wasDirty){ DRAFT_DIRTY=true; touchDraft(); }else clearDraft(); toast('이번 수정을 취소했습니다'); return; }
+  if(e.target.closest('.a-edit-close')){ const base=EDIT_BASELINE.get(a.id), wasDirty=EDIT_WAS_DIRTY.get(a.id); if(base) replaceAssetFrom(a,base); EDIT_BASELINE.delete(a.id); EDIT_WAS_DIRTY.delete(a.id); EDIT_ASSETS.delete(a.id); renderAssets(); renderDigest(); renderMat(); renderNebulaPicker(); if(wasDirty){ DRAFT_DIRTY=true; touchDraft(); }else clearDraft(); return; }
   if(e.target.closest('.a-original')){ if(!confirm('처음 불러온 내용으로 되돌릴까요?')) return; replaceAssetFrom(a,ensureAssetOriginal(a).original); renderAssets(); materialChanged(); toast('처음 불러온 내용으로 되돌렸습니다'); return; }
   if(e.target.closest('.a-compare')){ showAssetCompare(a); return; }
   if(e.target.closest('.a-edit-done')){ EDIT_BASELINE.delete(a.id); EDIT_WAS_DIRTY.delete(a.id); EDIT_ASSETS.delete(a.id); renderAssets(); materialChanged(); toast('재료 수정을 반영했습니다'); return; }
@@ -3590,22 +3682,23 @@ $('#fileIn').addEventListener('change', e=>{ addFiles(Array.from(e.target.files)
 $('#btnPaste').addEventListener('click', ()=>{
   const box = $('#pasteBox');
   box.hidden = !box.hidden;
-  if(!box.hidden){ $('#pasteIn').focus(); if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+  if(!box.hidden){ $('#pasteName').focus(); if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth', block:'nearest'}); }
 });
 $('#pasteIn').addEventListener('input', e=>{
   const n = e.target.value.length;
   $('#pasteInfo').textContent = n ? `${n}자 · ${tok(e.target.value)} 토큰쯤` : '0자';
 });
 $('#btnPasteCancel').addEventListener('click', ()=>{
-  $('#pasteIn').value=''; $('#pasteInfo').textContent='0자'; $('#pasteBox').hidden = true;
+  $('#pasteName').value=''; $('#pasteIn').value=''; $('#pasteInfo').textContent='0자'; $('#pasteBox').hidden = true;
 });
 $('#btnPasteAdd').addEventListener('click', ()=>{
   const t = $('#pasteIn').value;
   if(!t.trim()) return toast('내용이 비어 있습니다', 1);
   const first = t.trim().split(/\n/)[0].slice(0, 24);
+  const typedName = $('#pasteName').value.trim();
   S.assets.push({ id:uid(), kind:'text',
-    name: first ? first + (t.length>24?'…':'') : '붙여넣은 텍스트', body:t, use:true });
-  $('#pasteIn').value=''; $('#pasteInfo').textContent='0자'; $('#pasteBox').hidden = true;
+    name: typedName || (first ? first + (t.length>24?'…':'') : '붙여넣은 텍스트'), body:t, use:true });
+  $('#pasteName').value=''; $('#pasteIn').value=''; $('#pasteInfo').textContent='0자'; $('#pasteBox').hidden = true;
   renderAssets(); materialChanged(); toast('재료에 넣었습니다');
 });
 $('#pasteIn').addEventListener('keydown', e=>{
@@ -3799,7 +3892,7 @@ function renderCast(){
       <div class="rl">${esc(c.seed?c.seed.line:'')}</div>
       <div class="bar" style="margin-top:9px">
         <button class="mini ghost c-open" data-i="${i}">작업대로</button>
-        <button class="mini danger c-del" data-i="${i}">✕</button>
+        <button class="iconbtn danger c-del" data-i="${i}" title="인물 삭제" aria-label="인물 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
       </div></div>`).join('')}</div>`;
   if(p.relations && p.relations.length){
     h += `<div class="sect-label">관계</div>` + p.relations.map(e=>`
@@ -3819,7 +3912,7 @@ $('#castOut').addEventListener('click', e=>{
     S.project.violations=null; S.project.verdict=null;
     renderCard(); renderCheck(); toast('작업대로 옮겼습니다');
     $('#cardOut').scrollIntoView({behavior:'smooth',block:'center'}); }
-  if(d){ S.project.cast.splice(+d.dataset.i,1); S.project.relations=null; renderCast(); }
+  if(d){ const c=S.project.cast[+d.dataset.i]; if(!confirm(`“${c&&c.fields&&c.fields.name||'이 인물'}”을 캐스트에서 삭제할까요?`)) return; S.project.cast.splice(+d.dataset.i,1); S.project.relations=null; renderCast(); touchDraft(); }
 });
 
 
@@ -4011,9 +4104,26 @@ async function doOneShot(){
 function renderOneshot(){
   const P = activePreset(), el = $('#oneshotNote'); if(!el) return;
   const stages = 1 + (P.skipSeed?0:1) + 1 + ((S.opts.check && !P.skipCheck)?1:0);
-  el.innerHTML = `API 호출 <b>1회</b>로 끝냅니다. 단계별로 하면 ${stages}회.`
-    + ` 대신 씨앗 고르기와 검증을 건너뛰고, 재료를 요약 없이 통째로 보냅니다.`;
+  const selected = S.assets.filter(a=>a.use).length;
+  el.innerHTML = `성운에서 고른 재료 ${selected}개와 구상을 사용해 API 호출 <b>1회</b>로 끝냅니다. 단계별로 하면 ${stages}회.`
+    + ` 씨앗 고르기와 자동 검증은 건너뛰고, 재료를 요약 없이 통째로 보냅니다.`;
+  renderBuildMode();
 }
+function renderBuildMode(){
+  const mode = S.opts.buildMode==='oneshot' ? 'oneshot' : 'staged';
+  $$('#buildModeBox .build-mode').forEach(b=>{
+    const on=b.dataset.build===mode;
+    b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on));
+  });
+  $('#oneshotBox').hidden = mode!=='oneshot';
+  $('#buildGuide').textContent = mode==='oneshot'
+    ? '한 번에 만든 뒤에도 아래에서 칸 수정·재굴림·검증을 이어갈 수 있습니다'
+    : '단계별 만들기 — 아래 1단계부터 하나씩';
+}
+$('#buildModeBox').addEventListener('click', e=>{
+  const b=e.target.closest('.build-mode'); if(!b) return;
+  S.opts.buildMode=b.dataset.build; save(); renderBuildMode();
+});
 $('#btnOneShot').addEventListener('click', e=> guard(e.target,'만드는 중', async()=>{
   S.project.card = await doOneShot();
   S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
@@ -4611,7 +4721,7 @@ function renderSchema(){
         <span class="rowtools">
           <button class="s-up" title="위로" aria-label="위로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 25.5V6.5M8 14.5l8-8 8 8"/></svg></button>
           <button class="s-dn" title="아래로" aria-label="아래로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.5v19M8 17.5l8 8 8-8"/></svg></button>
-          <button class="s-del danger" title="칸 삭제" aria-label="칸 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m8.5 8.5 15 15M23.5 8.5l-15 15"/></svg></button>
+          <button class="s-del danger" title="칸 삭제" aria-label="칸 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
         </span>
       </summary>
       <div class="stbody">
@@ -4688,7 +4798,7 @@ function renderCommon(){
         <span class="rowtools">
           <button class="c-up" title="위로" aria-label="위로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 25.5V6.5M8 14.5l8-8 8 8"/></svg></button>
           <button class="c-dn" title="아래로" aria-label="아래로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.5v19M8 17.5l8 8 8-8"/></svg></button>
-          <button class="c-del danger" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m8.5 8.5 15 15M23.5 8.5l-15 15"/></svg></button>
+          <button class="c-del danger" title="구획 삭제" aria-label="구획 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
         </span>
       </summary>
       <div class="stbody">
@@ -4885,7 +4995,16 @@ function renderConnSel(){
   sel.innerHTML = S.connections.length
     ? S.connections.map(c=>`<option value="${c.id}" ${c.id===S.activeConn?'selected':''}>${esc(c.name)}</option>`).join('')
     : '<option value="">연결 없음</option>';
-  $('#connDot').className = 'dot' + (S.activeConn ? '' : '');
+  const active=connById(S.activeConn);
+  $('#connDot').className = 'dot '+(active&&active._ok===true?'ok':active&&active._ok===false?'no':'');
+}
+function connCheckHtml(c){
+  const last=c._lastTest; if(!last) return '';
+  const at=new Date(last.at||Date.now()).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  const detail=last.ok
+    ? (last.usage ? usageLabel(last.usage) : '토큰 사용량 미제공')
+    : '연결 실패 · 로그에서 원인을 확인하세요';
+  return `<div class="conn-check ${last.ok?'ok':'no'}"><span>${last.ok?'확인됨':'확인 실패'}</span><span>·</span><span>${esc(at)}</span><span>·</span><span>${esc(detail)}</span></div>`;
 }
 function renderConns(){
   const box = $('#connList');
@@ -4901,10 +5020,11 @@ function renderConns(){
       <div class="conn-h">
         <span class="dot ${c._ok===true?'ok':c._ok===false?'no':''}"></span>
         <span class="cn">${esc(c.name)}</span>
-        <button class="mini ghost c-use">${c.id===S.activeConn?'쓰는 중':'이걸로 쓰기'}</button>
-        <button class="mini ghost c-test">확인</button>
-        <button class="mini danger c-del">✕</button>
+        ${c.id===S.activeConn ? '<span class="c-use-state" title="현재 생성 작업에 사용하는 연결">쓰는 중</span>' : '<button class="mini ghost c-use">이걸로 쓰기</button>'}
+        <button class="mini ghost c-test" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시">확인</button>
+        <button class="iconbtn danger c-del" title="연결 삭제" aria-label="연결 삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8" stroke="#e9b654"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
       </div>
+      ${connCheckHtml(c)}
       <div class="row">
         <div class="field"><label class="fl">이름</label><input class="c-name" value="${esc(c.name)}"></div>
         <div class="field"><label class="fl">종류</label><select class="c-prov">${
@@ -4943,6 +5063,11 @@ function renderConns(){
   }).join('');
 }
 function connById(id){ return S.connections.find(c=>c.id===id); }
+function invalidateConnTest(c, wrap){
+  c._ok=null; delete c._lastTest;
+  if(wrap){ const result=$('.conn-check',wrap); if(result) result.remove(); const dot=$('.dot',wrap); if(dot) dot.className='dot'; }
+  if(c.id===S.activeConn) $('#connDot').className='dot';
+}
 $('#btnConnNew').addEventListener('click', ()=>{
   const c = { id:uid(), name:'새 연결', provider:'openai', apiKey:'', baseUrl:'', model:'gpt-4o' };
   S.connections.push(c); if(!S.activeConn) S.activeConn = c.id;
@@ -4952,11 +5077,12 @@ $('#connList').addEventListener('input', e=>{
   const w = e.target.closest('.conn'); if(!w) return;
   const c = connById(w.dataset.id); if(!c) return;
   const m = {'c-name':'name','c-key':'apiKey','c-url':'baseUrl','c-model':'model','c-project':'project','c-location':'location'};
-  for(const cls in m) if(e.target.classList.contains(cls)){ c[m[cls]] = e.target.value; save(); if(cls==='c-name') renderConnSel(); }
+  for(const cls in m) if(e.target.classList.contains(cls)){ c[m[cls]] = e.target.value; if(cls!=='c-name') invalidateConnTest(c,w); save(); if(cls==='c-name') renderConnSel(); }
   const num = {'c-maxtok':'maxTokens','c-ctx':'contextLimit','c-temp':'temperature','c-topp':'topP'};
   for(const cls in num) if(e.target.classList.contains(cls)){
     const v = e.target.value.trim();
     if(v==='') delete c[num[cls]]; else c[num[cls]] = parseFloat(v);
+    invalidateConnTest(c,w);
     save();
   }
 });
@@ -4965,7 +5091,7 @@ $('#connList').addEventListener('change', e=>{
   const c = connById(w.dataset.id); if(!c) return;
   if(e.target.classList.contains('c-prov')){
     c.provider = e.target.value;
-    c.baseUrl = ''; c._models = null; c._ok = null;
+    c.baseUrl = ''; c._models = null; invalidateConnTest(c,w);
     c.model = (PROV[c.provider].mlist||[])[0] || '';
     save(); renderConns();
   }
@@ -4974,6 +5100,7 @@ $('#connList').addEventListener('click', async e=>{
   const w = e.target.closest('.conn'); if(!w) return;
   const c = connById(w.dataset.id); if(!c) return;
   if(e.target.closest('.c-del')){
+    if(!confirm(`“${c.name}” 연결을 삭제할까요?`)) return;
     S.connections = S.connections.filter(x=>x.id!==c.id);
     if(S.activeConn===c.id) S.activeConn = S.connections[0] ? S.connections[0].id : null;
     save(); renderConns(); renderConnSel(); return;
@@ -4995,45 +5122,97 @@ async function testConn(c, btn){
   busy(btn, true, '확인 중');
   try{
     const out = await callProvider(c, [{role:'user',content:'"확인"이라고만 답하라.'}], {maxTokens:24, temperature:0});
-    c._ok = true; toast('연결됐습니다 — '+out.trim().slice(0,30));
-  }catch(err){ c._ok = false; showErr(err); }
-  finally{ busy(btn,false); save(); renderConns(); }
+    c._ok = true;
+    c._lastTest = {at:Date.now(), ok:true, usage:LAST_USAGE ? clone(LAST_USAGE) : null};
+    toast(LAST_USAGE ? '연결됐습니다 · '+usageLabel(LAST_USAGE) : '연결됐습니다 — '+out.trim().slice(0,30));
+  }catch(err){ c._ok = false; c._lastTest={at:Date.now(),ok:false,usage:null}; showErr(err); }
+  finally{ busy(btn,false); save(); renderConns(); renderConnSel(); }
 }
 
 $('#btnConnHelp').addEventListener('click', ()=>{ $('#connHelp').hidden = false; });
 $('#connHelpClose').addEventListener('click', ()=>{ $('#connHelp').hidden = true; });
 $('#connHelp').addEventListener('click', e=>{ if(e.target.id==='connHelp') $('#connHelp').hidden = true; });
 $('#btnCopyCmd').addEventListener('click', ()=> copy($('#serveCmd').textContent));
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#connHelp').hidden) $('#connHelp').hidden=true; if(!$('#assetCompare').hidden) $('#assetCompare').hidden=true; } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#connHelp').hidden) $('#connHelp').hidden=true; if(!$('#assetCompare').hidden) $('#assetCompare').hidden=true; if(!$('#backupModal').hidden) $('#backupModal').hidden=true; } });
 
 $('#btnTest').addEventListener('click', async e=>{
   const c = connById(S.activeConn);
   if(!c) return toast('먼저 연결을 만들어 주세요',1);
-  await testConn(c, e.target);
+  await testConn(c, e.currentTarget);
   $('#connDot').className = 'dot '+(c._ok?'ok':'no');
 });
 $('#connSel').addEventListener('change', e=>{ S.activeConn = e.target.value; save(); renderConns(); });
 
-$('#btnDataExport').addEventListener('click', ()=>{
-  dl('orrery-settings.json', JSON.stringify({
-    connections:S.connections, activeConn:S.activeConn,
-    presets:S.presets, activePreset:S.activePreset, opts:S.opts, library:S.library }, null, 2));
+function backupConnections(includeKeys){
+  return S.connections.map(c=>{
+    const out=clone(c);
+    delete out._ok; delete out._lastTest; delete out._models;
+    if(!includeKeys) delete out.apiKey;
+    return out;
+  });
+}
+function makeBackup(options){
+  const o=Object.assign({assets:true,project:true,chat:true,apiKeys:true},options||{});
+  const out={
+    app:'Orrery', backupVersion:2, exportedAt:new Date().toISOString(),
+    includes:{assets:!!o.assets,project:!!o.project,chat:!!o.chat,apiKeys:!!o.apiKeys,logs:false},
+    connections:backupConnections(o.apiKeys), activeConn:S.activeConn,
+    presets:clone(S.presets), activePreset:S.activePreset, opts:clone(S.opts), library:clone(S.library)
+  };
+  if(o.assets) out.assets=S.assets.map(a=>clone(ensureAssetOriginal(a)));
+  if(o.project) out.project=clone(S.project);
+  if(o.chat){ out.chat=clone(S.chat); out.customTalkPrompts=clone(S.customTalkPrompts||{}); }
+  return out;
+}
+$('#btnDataExport').addEventListener('click', ()=>{ $('#backupModal').hidden=false; });
+$('#backupClose').addEventListener('click', ()=>{ $('#backupModal').hidden=true; });
+$('#backupModal').addEventListener('click', e=>{ if(e.target.id==='backupModal') $('#backupModal').hidden=true; });
+$('#backupDownload').addEventListener('click', ()=>{
+  const data=makeBackup({
+    assets:$('#backupAssets').checked, project:$('#backupProject').checked,
+    chat:$('#backupChat').checked, apiKeys:$('#backupKeys').checked
+  });
+  const day=new Date().toISOString().slice(0,10);
+  dl(`orrery-backup-${day}.json`,JSON.stringify(data,null,2));
+  $('#backupModal').hidden=true;
+  toast('백업 파일을 만들었습니다 · 실행 로그는 제외했습니다');
 });
 $('#btnDataImport').addEventListener('click', ()=> $('#dataFile').click());
 $('#dataFile').addEventListener('change', async e=>{
   const f = e.target.files[0]; e.target.value=''; if(!f) return;
   try{
     const d = JSON.parse(await f.text());
-    if(d.connections) S.connections = d.connections;
+    if(!d || typeof d!=='object' || !(d.connections || d.presets || d.library || d.assets || d.project || d.chat))
+      throw new Error('Orrery 백업 파일이 아닙니다.');
+    if(!confirm('백업에 포함된 항목을 현재 데이터에 덮어쓸까요?\n백업에서 제외된 항목은 현재 상태를 유지합니다.')) return;
+    if(d.connections) S.connections = d.connections.map(c=>{
+      const out=clone(c); delete out._ok; delete out._lastTest; delete out._models;
+      if(out.apiKey==null) out.apiKey=''; return out;
+    });
     if(d.presets && d.presets.length) S.presets = d.presets;
     if(d.opts) Object.assign(S.opts, d.opts);
     if(S.opts.mode==='c2p') S.opts.mode='foil';
     if(!S.opts.modeBy) S.opts.modeBy = {world:'new',character:S.opts.mode||'w2c',prompt:'new'};
     if(d.library) S.library = d.library.map(r=>Object.assign({
       star:false, group:'character', presetName:'', updated:r.at||Date.now() }, r));
+    if(Array.isArray(d.assets)){
+      S.assets=d.assets.map(a=>ensureAssetOriginal(clone(a)));
+      EDIT_ASSETS.clear(); EDIT_BASELINE.clear(); EDIT_WAS_DIRTY.clear();
+    }
+    if(d.project) S.project=Object.assign({
+      digest:null,digestSrc:'',seeds:[],sel:[],card:null,locked:{},violations:null,verdict:null,
+      cast:[],relations:null,qa:[],libId:null,digestBy:{},digestMeta:null
+    },clone(d.project));
+    if(d.chat){
+      S.chat=Object.assign({role:'world',msgs:[],ctx:{assets:true,digest:true,card:false}},clone(d.chat));
+      S.chat.ctx=Object.assign({assets:true,digest:true,card:false},S.chat.ctx||{});
+    }
+    if(d.customTalkPrompts) S.customTalkPrompts=clone(d.customTalkPrompts);
     S.activeConn = d.activeConn || (S.connections[0]&&S.connections[0].id) || null;
     S.activePreset = d.activePreset || S.presets[0].id;
-    save(); bootUI(); toast('설정을 가져왔습니다');
+    save(); bootUI();
+    if(Array.isArray(d.assets) || d.project) touchDraft();
+    toast('백업을 불러왔습니다');
   }catch(err){ toast('가져오기 실패: '+err.message,1); }
 });
 
