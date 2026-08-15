@@ -713,6 +713,10 @@ button.cmdcopy{position:absolute;top:50%;right:8px;translate:0 -50%;
 .msg.wrap{align-self:stretch;max-width:100%;background:rgba(233,182,84,0.055);
   border-left:2px solid rgba(233,182,84,0.8);border-bottom-left-radius:13px}
 .msg.wrap .who{color:#d9a83f}
+.wrapnudge{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;
+  padding:9px 13px;border-radius:10px;font-size:12.5px;color:#e7d3a4;
+  background:rgba(233,182,84,0.07);box-shadow:inset 0 0 0 1px rgba(233,182,84,0.22)}
+.wrapnudge[hidden]{display:none}
 .chatin{border-top:1px solid rgba(138,182,225,0.1);padding:13px;display:flex;gap:12px;align-items:flex-end;
   background:var(--s3)}
 .chatin textarea{min-height:48px;max-height:160px;font-family:var(--body);font-size:14px}
@@ -1204,6 +1208,12 @@ button.build-mode.on .bn{color:#f1b94f}
       <summary>보낼 재료 고르기 <span class="note" id="talkPickCount"></span></summary>
       <div class="nebula-list" id="talkAssetList"></div>
     </details>
+    <div class="wrapnudge" id="wrapNudge" hidden>
+      <span id="wrapNudgeText"></span>
+      <span class="sp"></span>
+      <button type="button" class="mini primary" id="btnWrapNudge">지금 마무리</button>
+      <button type="button" class="mini ghost" id="btnWrapNudgeDismiss" aria-label="닫기">나중에</button>
+    </div>
     <div class="chatwrap">
       <div class="chatlog" id="chatLog"></div>
       <div class="chatin">
@@ -4866,7 +4876,20 @@ function renderChat(){
   $('#ctxTok').textContent = (t ? `함께 보낼 분량 ${t} 토큰쯤` : '함께 보낼 것 없음')
     + (ct ? ` · 대화 ${ct} 토큰쯤` : '');
   renderTalkAssets();
+  renderWrapNudge(ct);
 }
+const WRAP_NUDGE_AT = 2500;
+function renderWrapNudge(convoTok){
+  const el = $('#wrapNudge'); if(!el) return;
+  const ct = convoTok!=null ? convoTok : tok((S.chat.summary||'')+S.chat.msgs.map(m=>m.content).join('\n'));
+  const show = ct >= WRAP_NUDGE_AT && S.chat.msgs.length >= 4 && !S.chat.nudgeOff;
+  el.hidden = !show;
+  if(show) $('#wrapNudgeText').textContent = `대화가 ${ct} 토큰쯤으로 길어졌습니다. 마무리하면 다음 입력부터 가벼워집니다.`;
+}
+$('#btnWrapNudge').addEventListener('click', ()=>{ $('#wrapNudge').hidden=true; wrapTalk(); });
+$('#btnWrapNudgeDismiss').addEventListener('click', ()=>{
+  S.chat.nudgeOff=true; save(); $('#wrapNudge').hidden=true;
+});
 function assetTok(a){
   if(a.kind==='lorebook') return tok((a.entries||[]).filter(e=>e.use).map(e=>e.content).join(''));
   if(a.kind==='character') return tok(Object.values(a.fields||{}).join(''));
@@ -4904,6 +4927,7 @@ async function wrapTalk(){
     ], {temperature:0.3, maxTokens:1000});
     S.chat.summary = out.trim();
     S.chat.msgs = [];
+    S.chat.nudgeOff = false;
     save(); renderChat();
     toast(`대화를 정리했습니다 — ${before} 토큰 → ${tok(out)} 토큰`);
   }catch(err){ showErr(err); }
@@ -4977,7 +5001,7 @@ $('#btnTalkResetRole').addEventListener('click', ()=>{
 });
 $('#btnTalkClear').addEventListener('click', ()=>{
   if((!S.chat.msgs.length && !S.chat.summary) || confirm('대화와 정리를 모두 비울까요?')){
-    S.chat.msgs=[]; S.chat.summary=''; save(); renderChat();
+    S.chat.msgs=[]; S.chat.summary=''; S.chat.nudgeOff=false; save(); renderChat();
   }
 });
 function talkTranscript(marks){
