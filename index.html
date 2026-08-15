@@ -448,6 +448,13 @@ button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0
 .nebula-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;background:rgba(121,168,211,0.045);font-size:12px}
 .nebula-row input{width:auto;accent-color:var(--brass)}
 .nebula-row .sp{min-width:8px}
+.lb-toggle{flex:none;padding:3px 9px;font-size:11px;border-radius:7px;color:#9baac0;
+  border:1px solid rgba(138,182,225,0.2);background:transparent;min-height:0}
+.lb-toggle:not(:disabled):hover{color:#eef4fc;background:rgba(123,164,207,0.1)}
+.lb-entries{display:grid;gap:5px;margin:5px 0 4px 22px}
+.lb-entries[hidden]{display:none}
+.lb-entry{background:rgba(121,168,211,0.03);font-size:11.5px}
+.lb-entry input:disabled{opacity:.4}
 .entry-tools{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
 .entry-tools input[type=search]{flex:1;min-width:120px;padding:5px 13px;font-size:12px;min-height:32px}
 .elist{max-height:300px;overflow:auto;border-radius:12px;background:var(--s3);
@@ -1207,6 +1214,7 @@ button.build-mode.on .bn{color:#f1b94f}
       <label><input type="checkbox" id="ctxCard"> 지금 만든 것</label>
       <span class="note" id="ctxTok"></span>
       <span class="sp"></span>
+      <button type="button" class="mini ghost" id="btnTalkToCard" disabled>결론을 카드에 반영</button><button type="button" class="qhelp" aria-label="결론을 카드에 반영이란" data-tip="지금 작업대에 있는 카드를, 이 대화에서 정해진 내용대로 고칩니다. 잠근 칸은 그대로 두고, 대화에서 바뀐 부분만 반영합니다. 작업대에 카드가 있어야 눌립니다.">?</button>
       <button type="button" class="mini ghost" id="btnTalkWrap">대화 마무리</button><button type="button" class="qhelp" aria-label="대화 마무리란" data-tip="대화가 길어질수록 매번 보내는 입력이 커집니다. 지금까지의 대화를 요약 하나로 압축해 토큰을 줄이고, 그 요약 위에서 대화를 이어갑니다.">?</button>
     </div>
     <details class="nebula-pick" id="talkPick" style="margin:0 0 12px">
@@ -1272,6 +1280,7 @@ button.build-mode.on .bn{color:#f1b94f}
           <button class="iconbtn" id="btnPresetOff" title="작업대에서 숨기기" aria-label="작업대에서 숨기기"><svg class="ic ic-eye" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3.5 16S8 8.5 16 8.5 28.5 16 28.5 16 24 23.5 16 23.5 3.5 16 3.5 16Z"/><circle cx="16" cy="16" r="3.4" stroke="#e9b654"/></svg><svg class="ic ic-eyeoff" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6.5 11.5S4.5 14 3.5 16c0 0 4.5 7.5 12.5 7.5 1.9 0 3.6-.4 5.1-1M12.2 9c1.2-.3 2.5-.5 3.8-.5 8 0 12.5 7.5 12.5 7.5-.8 1.3-1.8 2.7-3 3.9"/><path d="M13.6 13.6a3.4 3.4 0 0 0 4.8 4.8" stroke="#e9b654"/><path d="M5 5l22 22" stroke="#e9b654"/></svg></button>
           <button class="iconbtn" id="btnPresetExport" title="내보내기" aria-label="내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg></button>
           <button class="iconbtn" id="btnPresetImport" title="가져오기 (ST 프리셋 포함)" aria-label="가져오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg></button>
+          <button class="iconbtn" id="btnPresetRestore" title="기본 양식 불러오기 (지운 기본 양식 다시 추가)" aria-label="기본 양식 불러오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 7.5v6.4h-6.4"/><path d="M25.6 13.9A10 10 0 1 0 26 18.6"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/></svg></button>
           <button class="iconbtn danger" id="btnPresetDel" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg></button>
         </div>
       </div>
@@ -1353,6 +1362,18 @@ button.build-mode.on .bn{color:#f1b94f}
       <label class="fl" for="assetFolderName">폴더 이름</label>
       <input id="assetFolderName" maxlength="50" autocomplete="off" placeholder="예: 세계관 · 인물 · 프롬프트">
       <div class="bar" style="justify-content:flex-end;margin-top:14px"><button class="mini ghost" id="assetFolderCancel">취소</button><button class="mini primary" id="assetFolderSave">만들기</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="restoreModal" hidden>
+  <div class="modal-in" style="max-width:520px">
+    <div class="modal-h"><h2>기본 양식 불러오기</h2><button class="mini" id="restoreClose" aria-label="닫기">닫기</button></div>
+    <div class="modal-b">
+      <p class="note" style="margin-bottom:12px">지금 목록에 없는 내장 기본 양식입니다. 넣을 것만 골라 추가하세요. 이미 있는 양식은 건드리지 않습니다.</p>
+      <div class="bar" style="margin:0 0 10px"><button class="mini ghost" id="restoreAll">모두 선택</button><button class="mini ghost" id="restoreNone">모두 해제</button></div>
+      <div class="nebula-list" id="restoreList"></div>
+      <div class="bar" style="justify-content:flex-end;margin-top:14px"><button class="mini ghost" id="restoreCancel">취소</button><button class="mini primary" id="restoreConfirm">선택한 것 추가</button></div>
     </div>
   </div>
 </div>
@@ -3691,6 +3712,39 @@ async function doContinueCard(instruction){
   card.truncated=!!recovered; card.truncatedField=recovered&&recovered.incompleteKey||'';
   return {keys,recovered:!!recovered};
 }
+// 대화에서 정해진 내용을 지금 카드에 반영 (잠근 칸은 건드리지 않음)
+async function doChatToCard(){
+  const card=S.project.card; if(!card) throw new Error('먼저 작업대에서 카드를 만들어 주세요.');
+  if(!S.chat.msgs.length && !S.chat.summary) throw new Error('반영할 대화가 없습니다.');
+  const conn=S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) throw new Error('먼저 연결을 만들어 주세요.');
+  const P=activePreset();
+  const locked = P.schema.filter(f=>S.project.locked[f.key]).map(f=>f.key);
+  const editable = P.schema.filter(f=>!S.project.locked[f.key]).map(f=>f.key);
+  if(!editable.length) throw new Error('모든 칸이 잠겨 있습니다. 반영할 칸을 열어 주세요.');
+  const convo = (S.chat.summary?'[지금까지의 정리]\n'+S.chat.summary+'\n\n':'')
+    + S.chat.msgs.map(m=>(m.role==='user'?'[나] ':'[상대] ')+m.content).join('\n\n');
+  const messages=[
+    {role:'system',content:`당신은 이미 작성된 카드를, 아래 대화에서 정해진 내용대로 고치는 편집자다. 대화에서 실제로 합의되거나 결정된 것만 반영하고, 언급되지 않은 칸은 절대 바꾸지 마라. 새 설정을 멋대로 지어내지 마라. ${(S.opts.lang||'한국어')} 로 쓴다.`},
+    {role:'user',content:`카드의 칸:\n${schemaSpec()}\n\n지금 카드:\n${JSON.stringify(card.fields,null,1)}\n\n바꾸면 안 되는(잠긴) 칸: ${locked.join(', ')||'(없음)'}\n고칠 수 있는 칸: ${editable.join(', ')}\n\n대화:\n${convo}\n\n아래 형식의 유효한 JSON 하나만 출력하라.\n{"updates":{"칸_키":"그 칸의 새 전체 값"}}\n- updates에는 대화에서 실제로 바뀐 칸만, 고칠 수 있는 칸 중에서만 넣어라.\n- 값은 기존 값을 덮어쓸 전체 문장으로 써라(일부만 쓰지 마라).\n- 바뀐 칸이 없으면 {"updates":{}} 를 출력하라.\n- 설명·코드펜스는 쓰지 마라.`}
+  ];
+  const opts={temperature:0.5,maxTokens:Math.max(1600,(P.stages.expand&&P.stages.expand.maxTokens)||2400)};
+  const raw=await callProvider(conn,messages,opts);
+  let j;
+  try{ j=(await parseJsonReply(conn,messages,opts,raw,true)).json; }
+  catch(err){ const rec=err.raw&&recoverPartialCard(err.raw,P.schema); if(!rec) throw err; j={updates:rec.fields}; }
+  const upd=(j&&typeof j==='object'&&(j.updates||j.fields))||{};
+  const allowed=new Set(editable);
+  const changed=[];
+  Object.keys(upd||{}).forEach(k=>{
+    if(!allowed.has(k)||typeof upd[k]!=='string') return;
+    const v=String(upd[k]);
+    if(!v.trim()||v===String(card.fields[k]||'')) return;
+    card.fields[k]=v; changed.push(k);
+  });
+  if(!changed.length) throw new Error('대화에서 바꿀 내용을 찾지 못했습니다. 카드 칸에 대해 무엇을 바꿀지 대화에서 정해보세요.');
+  return {keys:changed};
+}
 async function doCheck(){
   const j = await runStage('check', { digest: digestStr(),
     card: JSON.stringify(S.project.card.fields, null, 1) });
@@ -4912,6 +4966,8 @@ function renderChat(){
     + (ct ? ` · 대화 ${ct} 토큰쯤` : '');
   renderTalkAssets();
   renderWrapNudge(ct);
+  const toCard = $('#btnTalkToCard');
+  if(toCard) toCard.disabled = !(S.project.card && (S.chat.msgs.length || S.chat.summary));
 }
 const WRAP_NUDGE_AT = 2500;
 function renderWrapNudge(convoTok){
@@ -4921,6 +4977,14 @@ function renderWrapNudge(convoTok){
   el.hidden = !show;
   if(show) $('#wrapNudgeText').textContent = `대화가 ${ct} 토큰쯤으로 길어졌습니다. 마무리하면 다음 입력부터 가벼워집니다.`;
 }
+$('#btnTalkToCard').addEventListener('click', e=> guard(e.currentTarget,'반영 중', async()=>{
+  const P=activePreset();
+  if(!confirm(`이 대화의 결론을 “${P.name}” 카드에 반영합니다. 잠근 칸은 그대로 두고 바뀐 칸만 덮어씁니다. 계속할까요?`)) return;
+  const r=await doChatToCard();
+  S.project.violations=null; S.project.verdict=null; S.project.qa=[];
+  renderCard(); renderCheck(); saveRecord(); touchDraft();
+  toast(`${r.keys.length}개 칸에 반영했습니다 — 작업대에서 확인하세요`);
+}));
 $('#btnWrapNudge').addEventListener('click', ()=>{ $('#wrapNudge').hidden=true; wrapTalk(); });
 $('#btnWrapNudgeDismiss').addEventListener('click', ()=>{
   S.chat.nudgeOff=true; save(); $('#wrapNudge').hidden=true;
@@ -4930,20 +4994,47 @@ function assetTok(a){
   if(a.kind==='character') return tok(Object.values(a.fields||{}).join(''));
   return tok(a.body||'');
 }
+const TALK_LB_OPEN = new Set();
+function talkAssetRow(a){
+  const kindLabel = {character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind;
+  // 로어북은 항목 단위로 펼쳐 개별 선택
+  if(a.kind==='lorebook' && (a.entries||[]).length){
+    const on = a.entries.filter(e=>e.use).length, open = TALK_LB_OPEN.has(a.id);
+    const head = `<label class="nebula-row"><input type="checkbox" class="t-use" data-id="${a.id}" ${a.use?'checked':''}>
+      <span>${esc(a.name)}</span><span class="sp"></span>
+      <button type="button" class="lb-toggle" data-id="${a.id}">${on}/${a.entries.length} 항목 ${open?'▴':'▾'}</button></label>`;
+    const entries = a.entries.map((en,i)=>`
+      <label class="nebula-row lb-entry"><input type="checkbox" class="t-entry" data-id="${a.id}" data-ei="${i}" ${en.use?'checked':''} ${a.use?'':'disabled'}>
+        <span>${esc(en.comment||en.key||(en.keys&&en.keys.join(', '))||'항목 '+(i+1))}</span><span class="sp"></span><span class="note">${tok(en.content||'')} 토큰쯤</span></label>`).join('');
+    return `<div class="lb-pick" data-id="${a.id}">${head}<div class="lb-entries" ${open?'':'hidden'}>${entries}</div></div>`;
+  }
+  return `<label class="nebula-row"><input type="checkbox" class="t-use" data-id="${a.id}" ${a.use?'checked':''}>
+      <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${kindLabel} · ${assetTok(a)} 토큰쯤</span></label>`;
+}
 function renderTalkAssets(){
   const box = $('#talkAssetList'), count = $('#talkPickCount'); if(!box) return;
   const n = S.assets.filter(a=>a.use).length;
   count.textContent = S.assets.length ? `선택 ${n}/${S.assets.length}개` : '성운이 비어 있습니다';
-  box.innerHTML = S.assets.length ? S.assets.map(a=>`
-    <label class="nebula-row"><input type="checkbox" class="t-use" data-id="${a.id}" ${a.use?'checked':''}>
-      <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${{character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind} · ${assetTok(a)} 토큰쯤</span></label>`).join('')
+  box.innerHTML = S.assets.length ? S.assets.map(talkAssetRow).join('')
     : '<div class="note">재료 탭에서 파일이나 글을 먼저 넣어 주세요.</div>';
 }
 $('#talkAssetList').addEventListener('change', e=>{
-  if(!e.target.classList.contains('t-use')) return;
-  const a = assetById(e.target.dataset.id); if(!a) return;
-  a.use = e.target.checked;
-  renderAssets(); materialChanged(); renderChat();
+  if(e.target.classList.contains('t-use')){
+    const a = assetById(e.target.dataset.id); if(!a) return;
+    a.use = e.target.checked;
+    renderAssets(); materialChanged(); renderChat();
+  } else if(e.target.classList.contains('t-entry')){
+    const a = assetById(e.target.dataset.id); if(!a || !a.entries) return;
+    const en = a.entries[+e.target.dataset.ei]; if(!en) return;
+    en.use = e.target.checked;
+    renderAssets(); materialChanged(); renderChat();
+  }
+});
+$('#talkAssetList').addEventListener('click', e=>{
+  const t = e.target.closest('.lb-toggle'); if(!t) return;
+  const id = t.dataset.id;
+  if(TALK_LB_OPEN.has(id)) TALK_LB_OPEN.delete(id); else TALK_LB_OPEN.add(id);
+  renderTalkAssets();
 });
 async function wrapTalk(){
   if(S.chat.msgs.length < 2) return toast('마무리할 대화가 아직 없습니다',1);
@@ -5631,6 +5722,40 @@ $('#btnPresetDel').addEventListener('click', ()=>{
 });
 $('#btnPresetExport').addEventListener('click', ()=>
   dl('orrery-preset-'+activePreset().name.replace(/\s+/g,'_')+'.json', JSON.stringify(activePreset(),null,2)));
+
+// 기본 양식 불러오기 — 지금 목록에 없는 내장 기본 양식을 골라 다시 추가
+function missingBuiltins(){
+  const have = new Set(S.presets.map(p=>p.id));
+  return builtinPresets().filter(b=>!have.has(b.id));
+}
+function renderRestoreList(){
+  const miss = missingBuiltins(), box = $('#restoreList');
+  box.innerHTML = miss.length ? miss.map(b=>`
+    <label class="nebula-row"><input type="checkbox" class="r-add" data-id="${b.id}" checked>
+      <span>${esc(b.name)}</span><span class="sp"></span><span class="note">${GROUP_LABEL[b.group]||b.group||'인물'}</span></label>`).join('')
+    : '<div class="note">빠진 기본 양식이 없습니다 — 이미 모두 있습니다.</div>';
+  $('#restoreConfirm').disabled = !miss.length;
+}
+$('#btnPresetRestore').addEventListener('click', ()=>{
+  renderRestoreList(); $('#restoreModal').hidden = false;
+});
+$('#restoreClose').addEventListener('click', ()=>{ $('#restoreModal').hidden = true; });
+$('#restoreCancel').addEventListener('click', ()=>{ $('#restoreModal').hidden = true; });
+$('#restoreModal').addEventListener('click', e=>{ if(e.target.id==='restoreModal') $('#restoreModal').hidden = true; });
+$('#restoreAll').addEventListener('click', ()=> $$('#restoreList .r-add').forEach(c=>c.checked=true));
+$('#restoreNone').addEventListener('click', ()=> $$('#restoreList .r-add').forEach(c=>c.checked=false));
+$('#restoreConfirm').addEventListener('click', ()=>{
+  const pick = new Set($$('#restoreList .r-add').filter(c=>c.checked).map(c=>c.dataset.id));
+  if(!pick.size){ $('#restoreModal').hidden = true; return; }
+  const add = builtinPresets().filter(b=>pick.has(b.id));
+  add.forEach(b=>{ if(!b.common) b.common=[]; S.presets.push(b); });
+  // 원래 내장 순서를 최대한 유지
+  const order = builtinPresets().map(b=>b.id);
+  S.presets.sort((x,y)=>{ const ix=order.indexOf(x.id), iy=order.indexOf(y.id); return (ix<0?99:ix)-(iy<0?99:iy); });
+  save(); renderPresetSel(); renderGroup(); renderSchema(); renderStages(); applyGroupUi(); renderOneshot();
+  $('#restoreModal').hidden = true;
+  toast(`기본 양식 ${add.length}개를 추가했습니다`);
+});
 $('#btnResetStages').addEventListener('click', ()=>{
   const p = activePreset();
   const d = builtinPresets().find(b=>b.id===p.id);
