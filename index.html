@@ -1303,10 +1303,10 @@ button.build-mode.on .bn{color:#f1b94f}
     <div class="panel-h">
       <h2>공통 지시문</h2>
       <span class="sp"></span>
-      <button class="ghost mini" id="btnLoadCommon" title="파일에 넣어둔 내 기본 공통 지시문 불러오기">불러오기</button>
+      <button class="ghost mini" id="btnLoadCommon" title="앱 기본 공통 지시문 불러오기">불러오기</button>
       <button class="iconbtn" id="btnAddCommon" title="구획 추가" aria-label="구획 추가"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 7.5v17M7.5 16h17"/></svg></button>
     </div>
-    <p class="hint">모든 공정 앞에 순서대로 들어갑니다. 끄면 잠시 빼둘 수 있습니다. ST 프리셋을 가져오면 여기로 들어옵니다. 자주 쓰는 지시문은 파일의 <code>myCommonLibrary</code>에 넣어두고 '불러오기'로 꺼내 쓸 수 있습니다.</p>
+    <p class="hint">모든 공정 앞에 순서대로 들어갑니다. 끄면 잠시 빼둘 수 있습니다. ST 프리셋을 가져오면 여기로 들어옵니다. 앱 기본으로 둘 지시문은 파일의 <code>builtinCommon</code>에 넣어두고 '불러오기'로 꺼내 쓸 수 있습니다.</p>
     <div id="commonBox" class="stlist"></div>
   </div>
 
@@ -1379,9 +1379,9 @@ button.build-mode.on .bn{color:#f1b94f}
 
 <div class="modal" id="commonLibModal" hidden>
   <div class="modal-in" style="max-width:560px">
-    <div class="modal-h"><h2>내 기본 공통 지시문 불러오기</h2><button class="mini" id="commonLibClose" aria-label="닫기">닫기</button></div>
+    <div class="modal-h"><h2>기본 공통 지시문 불러오기</h2><button class="mini" id="commonLibClose" aria-label="닫기">닫기</button></div>
     <div class="modal-b">
-      <p class="note" style="margin-bottom:12px">파일의 <code>myCommonLibrary</code>에 직접 넣어둔 지시문입니다. 넣을 것만 골라 추가하세요. 이미 있는 것은 표시됩니다.</p>
+      <p class="note" style="margin-bottom:12px">파일의 <code>builtinCommon</code>에 넣어둔 앱 기본 공통 지시문입니다. 넣을 것만 골라 추가하세요. 이미 있는 것은 표시됩니다.</p>
       <label class="nebula-row" style="margin-bottom:10px"><input type="checkbox" id="commonLibAllPresets"><span>지금 양식이 아니라 <b>각 항목의 분류에 맞는 양식 전부</b>에 넣기 <span class="note">(항목의 배지 기준)</span></span></label>
       <div class="bar" style="margin:0 0 10px"><button class="mini ghost" id="commonLibAll">모두 선택</button><button class="mini ghost" id="commonLibNone">모두 해제</button></div>
       <div class="nebula-list" id="commonLibList"></div>
@@ -3443,11 +3443,13 @@ function builtinPresets(){ return [
 ]; }
 
 /* ============================================================
-   [ 내 기본 공통 지시문 — 여기에 직접 붙여넣는 공간 ]
+   [ 기본 공통 지시문 — 이 앱에 기본으로 올라가는 공통 지시문 ]
 
-   여기 배열에 넣은 지시문은 파일에 박혀서, 저장을 지우거나 다른 기기에서
-   열어도 항상 '불러오기'로 다시 꺼내 쓸 수 있는 나만의 기본 공통 지시문이 됩니다.
-   ※ 이 배열은 비어 있어도 됩니다 — 넣고 싶은 것만 직접 채우세요.
+   여기 배열에 넣은 지시문은 index.html(=이 사이트)에 박혀서, 배포하면
+   모든 사용자에게 기본으로 함께 올라갑니다. builtinPresets 와 같은 성격의
+   '앱 기본값'이며, '불러오기'로 언제든 양식에 꺼내 쓸 수 있습니다.
+   ※ 이 배열은 비어 있어도 됩니다 — 기본으로 넣을 것만 직접 채우세요.
+   ※ 공개 배포 시 여기 넣은 내용은 이 사이트를 쓰는 모두에게 나갑니다.
 
    쓰는 법:
    1) 아래 배열에 { name, content } 를 원하는 만큼 추가한다.
@@ -3470,7 +3472,7 @@ function builtinPresets(){ return [
      { name:'내 문체 규칙', content:'문장은 짧게. 부사를 남발하지 마라.' },
      { name:'인물 전용 지침', groups:['character'], content:'결함이 대가를 치르게 하라.' },
    ============================================================ */
-function myCommonLibrary(){ return [
+function builtinCommon(){ return [
   // 여기에 { name:'...', content:'...', groups:[...] } 를 직접 추가하세요. (비어 있어도 됨)
 ]; }
 
@@ -5673,16 +5675,16 @@ $('#btnAddCommon').addEventListener('click', ()=>{
   save(); renderCommon();
 });
 
-// 내가 파일(myCommonLibrary)에 직접 넣어둔 공통 지시문을 골라 넣기
+// 파일(builtinCommon)에 넣어둔 앱 기본 공통 지시문을 골라 넣기
 const ALL_GROUPS = ['world','character','prompt'];
 function normalizeGroups(g){
   if(!g || g==='all') return ALL_GROUPS.slice();
   const arr = (Array.isArray(g)?g:[g]).filter(x=>ALL_GROUPS.includes(x));
   return arr.length ? arr : ALL_GROUPS.slice();
 }
-function myCommonItems(){
+function builtinCommonItems(){
   let list = [];
-  try{ list = myCommonLibrary() || []; }catch(_){ list = []; }
+  try{ list = builtinCommon() || []; }catch(_){ list = []; }
   return list.filter(x=>x && typeof x.content==='string' && x.content.trim())
     .map((x,i)=>({ name:String(x.name||('지시문 '+(i+1))), content:String(x.content),
       role:(x.role==='user'||x.role==='assistant')?x.role:'system',
@@ -5696,13 +5698,13 @@ function groupBadges(groups){
     : groups.map(g=>GROUP_LABEL[g]||g).join('·');
 }
 function renderCommonLibList(){
-  const items = myCommonItems(), P = activePreset(), box = $('#commonLibList');
+  const items = builtinCommonItems(), P = activePreset(), box = $('#commonLibList');
   box.innerHTML = items.length ? items.map((it,i)=>{
     const have = commonExistsIn(P, it);
     return `<label class="nebula-row"><input type="checkbox" class="cl-add" data-i="${i}" ${have?'':'checked'} ${have?'disabled':''}>
       <span>${esc(it.name)}</span><span class="gbadge">${groupBadges(it.groups)}</span><span class="sp"></span><span class="note">${it.role} · ${tok(it.content)} 토큰쯤${have?' · 이미 있음':''}</span></label>`;
   }).join('')
-    : '<div class="note">파일의 <code>myCommonLibrary</code>가 비어 있습니다. 그 배열에 { name, content } 를 직접 넣고 새로고침하세요.</div>';
+    : '<div class="note">파일의 <code>builtinCommon</code>가 비어 있습니다. 앱 기본으로 둘 지시문을 그 배열에 { name, content } 로 넣고 새로고침하세요.</div>';
   $('#commonLibConfirm').disabled = !items.some((it)=>!commonExistsIn(P, it));
 }
 $('#btnLoadCommon').addEventListener('click', ()=>{
@@ -5715,7 +5717,7 @@ $('#commonLibModal').addEventListener('click', e=>{ if(e.target.id==='commonLibM
 $('#commonLibAll').addEventListener('click', ()=> $$('#commonLibList .cl-add:not(:disabled)').forEach(c=>c.checked=true));
 $('#commonLibNone').addEventListener('click', ()=> $$('#commonLibList .cl-add').forEach(c=>c.checked=false));
 $('#commonLibConfirm').addEventListener('click', ()=>{
-  const items = myCommonItems();
+  const items = builtinCommonItems();
   const pick = $$('#commonLibList .cl-add').filter(c=>c.checked && !c.disabled).map(c=>items[+c.dataset.i]).filter(Boolean);
   if(!pick.length){ $('#commonLibModal').hidden = true; return; }
   const byGroup = $('#commonLibAllPresets').checked;
