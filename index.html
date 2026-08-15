@@ -3504,11 +3504,30 @@ function builtinCommon(){
         groups: g.length?g:undefined, role: el.dataset.role||undefined });
     });
   }catch(_){ }
+  // (딸깍 반영) prompt-editor.html 이 같은 브라우저 저장소에 써둔 것 — 파일/커밋과 무관, 브라우저에만 존재
+  try{
+    const raw = localStorage.getItem(COMMON_EXTRA_KEY);
+    if(raw){ const arr = JSON.parse(raw);
+      if(Array.isArray(arr)) arr.forEach(x=>{ if(x && typeof x.content==='string' && x.content.trim())
+        out.push({ name:x.name||'', content:x.content,
+          groups:(x.groups && x.groups.length)?x.groups:undefined, role:x.role||undefined }); });
+    }
+  }catch(_){ }
   // (간단) JS 배열 — content 는 백틱 `...` 권장. 백틱/${ 있으면 위 원문 방식 사용
   return out.concat([
     // { name:`문체 규칙`, content:`문장은 짧게. 부사를 남발하지 마라.` },              // 전부
     // { name:`인물 지침`, groups:['character'], content:`character's 결함이 대가를 치르게 하라.` },
   ]);
+}
+const COMMON_EXTRA_KEY = 'orrery.commonExtra.v1';
+// 지금 분류에 해당하는 기본 공통 지시문 — 모든 생성 앞에 자동으로 붙는다(딸깍 반영의 실제 적용부)
+function activeBuiltinCommons(v){
+  const g = S.opts.group || 'character';
+  try{
+    return builtinCommonItems()
+      .filter(it => it.groups.includes(g))
+      .map(it => ({ role: it.role, content: render(it.content, v) }));
+  }catch(_){ return []; }
 }
 
 const MODE_NOTE = {
@@ -3668,8 +3687,9 @@ async function runStage(stageName, vars, retryOnce){
   const P = activePreset(), st = P.stages[stageName];
   if(!st) throw new Error('공정 정의가 없습니다: '+stageName);
   const v = baseVars(Object.assign({ source: sourceText() }, vars||{}));
-  const commons = (P.common||[]).filter(c=>c.enabled && (c.content||'').trim())
-    .map(c=>({role:c.role||'system', content: render(c.content, v)}));
+  const commons = activeBuiltinCommons(v).concat(
+    (P.common||[]).filter(c=>c.enabled && (c.content||'').trim())
+      .map(c=>({role:c.role||'system', content: render(c.content, v)})));
   const msgs = commons.concat(
     st.blocks.map(b=>({role:b.role, content: render(b.content, v)}))
              .filter(m=>m.content.trim()));
@@ -4796,8 +4816,9 @@ async function doOneShot(){
     seed:   '(후보를 따로 고르지 않았다. 자료에서 가장 설득력 있는 방향을 스스로 정할 것.)',
     card:   '', cast:'', modeNote: modeNote('expand')
   });
-  const commons = (P.common||[]).filter(c=>c.enabled && (c.content||'').trim())
-    .map(c=>({role:c.role||'system', content: render(c.content, v)}));
+  const commons = activeBuiltinCommons(v).concat(
+    (P.common||[]).filter(c=>c.enabled && (c.content||'').trim())
+      .map(c=>({role:c.role||'system', content: render(c.content, v)})));
   const msgs = commons.concat(
     st.blocks.map(b=>({role:b.role, content: render(b.content, v)}))
              .filter(m=>m.content.trim()));
