@@ -3474,6 +3474,11 @@ function builtinPresets(){ return [
    ============================================================ */
 function builtinCommon(){ return [
   // 여기에 { name:'...', content:'...', groups:[...] } 를 직접 추가하세요. (비어 있어도 됨)
+  // groups 값: 'world'(세계) · 'character'(인물) · 'prompt'(프롬프트)
+  //   - 골라서 배열로:  groups:['character']  또는  groups:['character','prompt']
+  //   - 생략하거나 groups:'all'  → 세계·인물·프롬프트 전부에 공용
+  // 예) { name:'문체 규칙', content:'문장은 짧게.' },                         // 전부
+  //     { name:'인물 지침', groups:['character'], content:'결함이 대가를 치르게.' },
 ]; }
 
 const MODE_NOTE = {
