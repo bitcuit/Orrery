@@ -462,6 +462,9 @@ button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0
 .role-adv summary::before{content:"▸";font-size:9px;color:#657991}
 .role-adv[open] summary::before{content:"▾"}
 .role-adv .role-now{color:#aeb9ca;font-weight:600}
+.gbadge{flex:none;font-size:10.5px;letter-spacing:.02em;color:#87a8df;
+  padding:2px 7px;border-radius:6px;background:rgba(123,164,207,0.1);
+  box-shadow:inset 0 0 0 1px rgba(138,182,225,0.16)}
 .entry-tools{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
 .entry-tools input[type=search]{flex:1;min-width:120px;padding:5px 13px;font-size:12px;min-height:32px}
 .elist{max-height:300px;overflow:auto;border-radius:12px;background:var(--s3);
@@ -1379,7 +1382,7 @@ button.build-mode.on .bn{color:#f1b94f}
     <div class="modal-h"><h2>내 기본 공통 지시문 불러오기</h2><button class="mini" id="commonLibClose" aria-label="닫기">닫기</button></div>
     <div class="modal-b">
       <p class="note" style="margin-bottom:12px">파일의 <code>myCommonLibrary</code>에 직접 넣어둔 지시문입니다. 넣을 것만 골라 추가하세요. 이미 있는 것은 표시됩니다.</p>
-      <label class="nebula-row" style="margin-bottom:10px"><input type="checkbox" id="commonLibAllPresets"><span>지금 양식이 아니라 <b>모든 양식</b>에 넣기</span></label>
+      <label class="nebula-row" style="margin-bottom:10px"><input type="checkbox" id="commonLibAllPresets"><span>지금 양식이 아니라 <b>각 항목의 분류에 맞는 양식 전부</b>에 넣기 <span class="note">(항목의 배지 기준)</span></span></label>
       <div class="bar" style="margin:0 0 10px"><button class="mini ghost" id="commonLibAll">모두 선택</button><button class="mini ghost" id="commonLibNone">모두 해제</button></div>
       <div class="nebula-list" id="commonLibList"></div>
       <div class="bar" style="justify-content:flex-end;margin-top:14px"><button class="mini ghost" id="commonLibCancel">취소</button><button class="mini primary" id="commonLibConfirm">선택한 것 넣기</button></div>
@@ -3451,16 +3454,24 @@ function builtinPresets(){ return [
         - name    : 목록에 뜨는 이름
         - content : 실제로 들어갈 지시문 문장 (여러 줄 가능)
         - role    : (생략 가능) 'system' 기본. 'user'/'assistant' 도 됨
+        - groups  : (생략 가능) 어느 분류에 공용으로 쓸지 지정.
+                    'world'(세계) · 'character'(인물) · 'prompt'(프롬프트) 중
+                    골라 배열로 적는다. 생략하거나 'all' 이면 세 분류 전부.
+                    예) groups:['character']            → 인물에만
+                        groups:['character','prompt']   → 인물+프롬프트 공용
+                        groups:'all'  또는 생략          → 세계·인물·프롬프트 전부
    2) 파일을 저장하고 앱을 새로고침한다.
    3) 양식 탭 → '공통 지시문' 패널의 '불러오기' 단추를 누르면
-      여기 넣은 것들이 목록에 뜬다. 골라서 지금 양식(또는 모든 양식)에
-      한 번에 넣을 수 있고, 지우고 다시 불러와도 된다.
+      여기 넣은 것들이 목록에 뜬다(각 항목의 분류 배지도 함께). 골라서
+      지금 양식에 넣거나, '분류에 맞는 모든 양식에 넣기'로 groups에 적은
+      분류의 양식들에만 한 번에 넣을 수 있다. 지우고 다시 불러와도 된다.
 
    예시)
      { name:'내 문체 규칙', content:'문장은 짧게. 부사를 남발하지 마라.' },
+     { name:'인물 전용 지침', groups:['character'], content:'결함이 대가를 치르게 하라.' },
    ============================================================ */
 function myCommonLibrary(){ return [
-  // 여기에 { name:'...', content:'...' } 를 직접 추가하세요. (비어 있어도 됨)
+  // 여기에 { name:'...', content:'...', groups:[...] } 를 직접 추가하세요. (비어 있어도 됨)
 ]; }
 
 const MODE_NOTE = {
@@ -5663,22 +5674,33 @@ $('#btnAddCommon').addEventListener('click', ()=>{
 });
 
 // 내가 파일(myCommonLibrary)에 직접 넣어둔 공통 지시문을 골라 넣기
+const ALL_GROUPS = ['world','character','prompt'];
+function normalizeGroups(g){
+  if(!g || g==='all') return ALL_GROUPS.slice();
+  const arr = (Array.isArray(g)?g:[g]).filter(x=>ALL_GROUPS.includes(x));
+  return arr.length ? arr : ALL_GROUPS.slice();
+}
 function myCommonItems(){
   let list = [];
   try{ list = myCommonLibrary() || []; }catch(_){ list = []; }
   return list.filter(x=>x && typeof x.content==='string' && x.content.trim())
     .map((x,i)=>({ name:String(x.name||('지시문 '+(i+1))), content:String(x.content),
-      role:(x.role==='user'||x.role==='assistant')?x.role:'system' }));
+      role:(x.role==='user'||x.role==='assistant')?x.role:'system',
+      groups:normalizeGroups(x.groups) }));
 }
 function commonExistsIn(P, item){
   return (P.common||[]).some(c=>(c.content||'').trim()===item.content.trim());
+}
+function groupBadges(groups){
+  return groups.length===3 ? '전체'
+    : groups.map(g=>GROUP_LABEL[g]||g).join('·');
 }
 function renderCommonLibList(){
   const items = myCommonItems(), P = activePreset(), box = $('#commonLibList');
   box.innerHTML = items.length ? items.map((it,i)=>{
     const have = commonExistsIn(P, it);
     return `<label class="nebula-row"><input type="checkbox" class="cl-add" data-i="${i}" ${have?'':'checked'} ${have?'disabled':''}>
-      <span>${esc(it.name)}</span><span class="sp"></span><span class="note">${it.role} · ${tok(it.content)} 토큰쯤${have?' · 이미 있음':''}</span></label>`;
+      <span>${esc(it.name)}</span><span class="gbadge">${groupBadges(it.groups)}</span><span class="sp"></span><span class="note">${it.role} · ${tok(it.content)} 토큰쯤${have?' · 이미 있음':''}</span></label>`;
   }).join('')
     : '<div class="note">파일의 <code>myCommonLibrary</code>가 비어 있습니다. 그 배열에 { name, content } 를 직접 넣고 새로고침하세요.</div>';
   $('#commonLibConfirm').disabled = !items.some((it)=>!commonExistsIn(P, it));
@@ -5696,19 +5718,27 @@ $('#commonLibConfirm').addEventListener('click', ()=>{
   const items = myCommonItems();
   const pick = $$('#commonLibList .cl-add').filter(c=>c.checked && !c.disabled).map(c=>items[+c.dataset.i]).filter(Boolean);
   if(!pick.length){ $('#commonLibModal').hidden = true; return; }
-  const targets = $('#commonLibAllPresets').checked ? S.presets : [activePreset()];
-  let added = 0;
-  targets.forEach(P=>{
+  const byGroup = $('#commonLibAllPresets').checked;
+  let added = 0, touched = new Set();
+  const insertInto = (P, it)=>{
+    if(!P) return;
     if(!P.common) P.common = [];
-    pick.forEach(it=>{
-      if(commonExistsIn(P, it)) return;
-      P.common.push({ id:uid(), name:it.name, role:it.role, content:it.content, enabled:true });
-      added++;
-    });
+    if(commonExistsIn(P, it)) return;
+    P.common.push({ id:uid(), name:it.name, role:it.role, content:it.content, enabled:true });
+    added++; touched.add(P.id);
+  };
+  pick.forEach(it=>{
+    if(byGroup){
+      // 항목의 groups 에 해당하는 분류의 양식들에만 넣는다
+      S.presets.filter(P=>{ const pg=P.group||'character'; return pg==='all' || it.groups.includes(pg); })
+        .forEach(P=>insertInto(P, it));
+    } else {
+      insertInto(activePreset(), it);
+    }
   });
   save(); renderCommon();
   $('#commonLibModal').hidden = true;
-  toast(added ? `공통 지시문 ${pick.length}개를 ${targets.length>1?'모든 양식에 ':''}넣었습니다` : '넣을 것이 없습니다');
+  toast(added ? `공통 지시문 ${pick.length}개를 ${byGroup?`분류에 맞는 양식 ${touched.size}개에 `:''}넣었습니다` : '넣을 것이 없습니다');
 });
 $('#commonBox').addEventListener('click', e=>{
   const it = e.target.closest('.stitem'); if(!it) return;
