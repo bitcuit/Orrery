@@ -320,6 +320,20 @@ select{cursor:pointer}
 select option{background:#0a1626;color:#dbe5f1}
 label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
   color:#8ea0b8;margin-bottom:7px}
+/* 용어 도움말 ?표 */
+button.qhelp{display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;min-height:15px;min-width:15px;box-sizing:border-box;
+  margin-left:5px;padding:0;border:1px solid rgba(138,182,225,0.35);border-radius:50%;
+  background:transparent;color:#8fa5c0;font:600 10px/1 var(--mono);cursor:help;
+  vertical-align:1px;flex:none}
+button.qhelp:not(:disabled):hover,button.qhelp.on{color:#f0c36b;
+  border-color:rgba(233,182,84,0.55);background:rgba(233,182,84,0.08)}
+h2 .qhelp{vertical-align:2px}
+#tipbox{position:fixed;z-index:300;max-width:min(300px,calc(100vw - 24px));padding:10px 13px;
+  border-radius:10px;background:rgba(10,22,40,0.97);border:1px solid rgba(138,182,225,0.25);
+  box-shadow:0 8px 24px rgba(0,0,0,0.45);color:#c9d6e6;font-size:12.5px;line-height:1.55;
+  letter-spacing:0;font-weight:400;display:none;pointer-events:none;white-space:normal}
+#tipbox.on{display:block}
 .field{margin-bottom:14px}
 .row{display:flex;gap:12px;flex-wrap:wrap}
 .row>*{flex:1;min-width:150px}
@@ -977,15 +991,15 @@ button.build-mode.on .bn{color:#f1b94f}
       <div>
         <div class="row">
           <div class="field"><label class="fl">출력 언어</label><input id="optLang" value="한국어"></div>
-          <div class="field"><label class="fl">전체 톤</label><input id="optTone" placeholder="예: 냉소적, 축축한, 담백한"></div>
+          <div class="field"><label class="fl">전체 톤 <button type="button" class="qhelp" aria-label="전체 톤이란" data-tip="결과물 전체의 문체와 분위기입니다. 비워 두면 따로 지정하지 않고 재료의 분위기를 따라갑니다.">?</button></label><input id="optTone" placeholder="예: 냉소적, 축축한, 담백한"></div>
         </div>
         <div class="row">
-          <div class="field"><label class="fl">별씨앗 개수</label><input id="optSeedN" type="number" min="2" max="10" value="5"></div>
-          <div class="field"><label class="fl">캐스트 인원</label><input id="optCastN" type="number" min="2" max="8" value="3"></div>
+          <div class="field"><label class="fl">별씨앗 개수 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 카드로 펼치기 전의 한 줄짜리 후보 컨셉입니다. 재료를 읽고 이 개수만큼 뽑은 뒤, 마음에 드는 것 하나를 골라 카드로 펼칩니다.">?</button></label><input id="optSeedN" type="number" min="2" max="10" value="5"></div>
+          <div class="field"><label class="fl">캐스트 인원 <button type="button" class="qhelp" aria-label="캐스트 인원이란" data-tip="‘여러 명 + 관계망’ 방식에서 한 번에 뽑을 인물 수입니다. 같은 세계에서 이 인원을 만들고 서로를 어떻게 보는지 관계까지 짭니다.">?</button></label><input id="optCastN" type="number" min="2" max="8" value="3"></div>
           <div class="field"><label class="fl">성인 요소</label>
             <select id="optNsfw"><option value="0">제외</option><option value="1">허용</option></select></div>
         </div>
-        <div class="field"><label class="fl">검증 단계</label>
+        <div class="field"><label class="fl">검증 단계 <button type="button" class="qhelp" aria-label="검증 단계란" data-tip="카드를 만든 뒤 API를 한 번 더 호출해, 읽은 세계 설정과 모순되는 부분이 없는지 대조하는 단계입니다. 끄면 호출 횟수가 줄어듭니다.">?</button></label>
           <select id="optCheck"><option value="1">켬 — 세계 설정과 모순되는지 확인</option><option value="0">끔</option></select></div>
       </div>
     </details>
@@ -1034,7 +1048,7 @@ button.build-mode.on .bn{color:#f1b94f}
 
   <!-- 2 -->
   <div class="panel" id="seedPanel">
-    <h2>2 · 별씨앗</h2>
+    <h2>2 · 별씨앗 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 카드로 펼치기 전의 한 줄짜리 후보 컨셉입니다. 여기서 하나를 고르거나, 두 개를 골라 섞을 수 있습니다.">?</button></h2>
     <p class="hint">한 줄짜리 후보를 여러 개 뽑습니다. 마음에 드는 걸 고르거나, 둘을 골라 섞습니다.</p>
     <div class="bar">
       <button class="primary" id="btnSeeds"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.8c.95 4.7 2.05 5.8 6.75 6.75-4.7.95-5.8 2.05-6.75 6.75-.95-4.7-2.05-5.8-6.75-6.75 4.7-.95 5.8-2.05 6.75-6.75Z" fill="#e9b654" stroke="none"/><circle cx="24.6" cy="22.4" r="1.1" fill="#e9b654" stroke="none" opacity=".7"/></svg>씨앗 뽑기</button>
@@ -1116,7 +1130,7 @@ button.build-mode.on .bn{color:#f1b94f}
 
   <!-- 캐스트 -->
   <div class="panel" id="castPanel" style="display:none">
-    <h2>캐스트 · 관계망</h2>
+    <h2>캐스트 · 관계망 <button type="button" class="qhelp" aria-label="캐스트란" data-tip="캐스트는 ‘여러 명 + 관계망’ 방식으로 함께 뽑은 인물들의 무리입니다. 서로를 어떻게 보는지 시선을 양방향으로 짭니다.">?</button></h2>
     <p class="hint">뽑은 인물들이 서로를 어떻게 보는지 짭니다. 시선은 양쪽이 다릅니다.</p>
     <div class="bar">
       <button class="primary" id="btnCast">인물 뽑기</button>
@@ -5830,6 +5844,61 @@ function dragScroll(el){
   el.addEventListener('click', e=>{ if(moved){ e.stopPropagation(); e.preventDefault(); moved=false; } }, true);
 }
 dragScroll(document.querySelector('.ctxbar2'));
+
+/* 용어 도움말 툴팁 — 데스크톱은 hover, 모바일은 탭으로 여닫기 */
+(function(){
+  const tip = document.createElement('div'); tip.id = 'tipbox';
+  document.body.appendChild(tip);
+  let cur = null;
+  function place(){
+    if(!cur) return;
+    const r = cur.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = r.left + r.width/2 - tw/2;
+    x = Math.max(12, Math.min(x, innerWidth - tw - 12));
+    let y = r.bottom + 8;
+    if(y + th > innerHeight - 12) y = r.top - th - 8;
+    tip.style.left = x+'px'; tip.style.top = y+'px';
+  }
+  function show(btn){
+    if(cur) cur.classList.remove('on');
+    cur = btn; btn.classList.add('on');
+    tip.textContent = btn.dataset.tip || '';
+    tip.classList.add('on');
+    place();
+  }
+  function hide(){
+    if(cur) cur.classList.remove('on');
+    cur = null; tip.classList.remove('on');
+  }
+  // 마우스만 hover로 — 터치는 pointerover가 탭 직전에 와서 click 토글과 겹친다
+  document.addEventListener('pointerover', e=>{
+    if(e.pointerType!=='mouse') return;
+    const b = e.target.closest('.qhelp'); if(b && cur!==b) show(b);
+  });
+  document.addEventListener('pointerout', e=>{
+    if(e.pointerType!=='mouse') return;
+    const b = e.target.closest('.qhelp'); if(b && cur===b) hide();
+  });
+  document.addEventListener('click', e=>{
+    const b = e.target.closest('.qhelp');
+    if(b){
+      e.preventDefault();
+      // 마우스는 hover로 이미 떠 있으니 클릭으로 닫지 않는다 — 토글은 터치용
+      if(cur===b){ if(e.pointerType!=='mouse') hide(); }
+      else show(b);
+      return;
+    }
+    if(cur) hide();
+  });
+  window.addEventListener('keydown', e=>{ if(e.key==='Escape') hide(); });
+  // 스크롤 중에는 닫지 않고 앵커를 따라간다 — 화면 밖으로 나가면 닫기
+  window.addEventListener('scroll', ()=>{
+    if(!cur) return;
+    const r = cur.getBoundingClientRect();
+    if(r.bottom < 0 || r.top > innerHeight) hide(); else place();
+  }, true);
+  window.addEventListener('resize', place);
+})();
 
 /* 모바일 햄버거 메뉴 */
 (function(){
