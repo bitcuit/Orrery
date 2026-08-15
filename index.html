@@ -455,6 +455,13 @@ button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0
 .lb-entries[hidden]{display:none}
 .lb-entry{background:rgba(121,168,211,0.03);font-size:11.5px}
 .lb-entry input:disabled{opacity:.4}
+.role-adv{margin-top:10px}
+.role-adv summary{cursor:pointer;font-size:11.5px;color:#8ea0b8;list-style:none;
+  display:inline-flex;align-items:center;gap:6px}
+.role-adv summary::-webkit-details-marker{display:none}
+.role-adv summary::before{content:"▸";font-size:9px;color:#657991}
+.role-adv[open] summary::before{content:"▾"}
+.role-adv .role-now{color:#aeb9ca;font-weight:600}
 .entry-tools{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
 .entry-tools input[type=search]{flex:1;min-width:120px;padding:5px 13px;font-size:12px;min-height:32px}
 .elist{max-height:300px;overflow:auto;border-radius:12px;background:var(--s3);
@@ -5613,7 +5620,7 @@ function renderCommon(){
           <input type="checkbox" class="c-on" ${c.enabled?'checked':''}><i></i>
         </label>
         <span class="nm">${esc(c.name||'(이름 없음)')}</span>
-        <span class="rolechip">${esc(c.role||'system')}</span>
+        ${c.role && c.role!=='system' ? `<span class="rolechip">${esc(c.role)}</span>` : ''}
         <span class="meta">${tok(c.content||'')}tk</span>
         <span class="rowtools">
           <button class="c-up" title="위로" aria-label="위로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 25.5V6.5M8 14.5l8-8 8 8"/></svg></button>
@@ -5622,18 +5629,21 @@ function renderCommon(){
         </span>
       </summary>
       <div class="stbody">
-        <div class="row" style="margin-bottom:8px">
-          <div class="field" style="flex:1;min-width:150px;margin:0"><label class="fl">이름</label>
-            <input class="c-name" value="${esc(c.name||'')}"></div>
-          <div class="field" style="flex:0 0 130px;margin:0"><label class="fl">역할</label>
-            <select class="c-role">
-              <option value="system" ${c.role==='system'?'selected':''}>system</option>
-              <option value="user" ${c.role==='user'?'selected':''}>user</option>
-              <option value="assistant" ${c.role==='assistant'?'selected':''}>assistant</option>
-            </select></div>
-        </div>
+        <div class="field" style="margin:0 0 8px"><label class="fl">이름</label>
+          <input class="c-name" value="${esc(c.name||'')}"></div>
         <div class="field" style="margin:0"><label class="fl">내용</label>
           <textarea class="c-body" rows="${Math.min(14, Math.max(3, (c.content||'').split('\n').length))}">${esc(c.content||'')}</textarea></div>
+        <details class="role-adv" ${c.role && c.role!=='system' ? 'open' : ''}>
+          <summary>고급 · 역할: <b class="role-now">${esc(c.role||'system')}</b></summary>
+          <div style="margin-top:8px;max-width:230px">
+            <select class="c-role">
+              <option value="system" ${(c.role||'system')==='system'?'selected':''}>system (기본 · 규칙/문체)</option>
+              <option value="user" ${c.role==='user'?'selected':''}>user (가져온 예시용)</option>
+              <option value="assistant" ${c.role==='assistant'?'selected':''}>assistant (가져온 예시용)</option>
+            </select>
+            <p class="note" style="margin-top:6px">손으로 쓰는 지시문은 <b>system</b>이면 됩니다. user·assistant는 주로 가져온 프리셋의 예시 대화용이고, Claude에선 순서 규칙 때문에 문제가 될 수 있습니다.</p>
+          </div>
+        </details>
       </div>
     </details>`).join('')
     || '<div class="empty" style="padding:18px"><b>아직 없습니다</b>+ 로 추가하거나, ST 프리셋을 가져오면 여기로 들어옵니다.</div>';
@@ -5723,8 +5733,11 @@ $('#commonBox').addEventListener('change', e=>{
     it.classList.toggle('off', !c.enabled);
     save(); return;
   }
-  if(e.target.classList.contains('c-role')){ c.role = e.target.value;
-    it.querySelector('.rolechip').textContent = c.role; save(); }
+  if(e.target.classList.contains('c-role')){
+    c.role = e.target.value; save();
+    const now = it.querySelector('.role-now'); if(now) now.textContent = c.role;
+    renderCommon(); // 요약의 역할 배지(system이면 숨김)를 갱신
+  }
 });
 $('#commonBox').addEventListener('input', e=>{
   const it = e.target.closest('.stitem'); if(!it) return;
