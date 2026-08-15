@@ -1293,9 +1293,10 @@ button.build-mode.on .bn{color:#f1b94f}
     <div class="panel-h">
       <h2>공통 지시문</h2>
       <span class="sp"></span>
+      <button class="ghost mini" id="btnLoadCommon" title="파일에 넣어둔 내 기본 공통 지시문 불러오기">불러오기</button>
       <button class="iconbtn" id="btnAddCommon" title="구획 추가" aria-label="구획 추가"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 7.5v17M7.5 16h17"/></svg></button>
     </div>
-    <p class="hint">모든 공정 앞에 순서대로 들어갑니다. 끄면 잠시 빼둘 수 있습니다. ST 프리셋을 가져오면 여기로 들어옵니다.</p>
+    <p class="hint">모든 공정 앞에 순서대로 들어갑니다. 끄면 잠시 빼둘 수 있습니다. ST 프리셋을 가져오면 여기로 들어옵니다. 자주 쓰는 지시문은 파일의 <code>myCommonLibrary</code>에 넣어두고 '불러오기'로 꺼내 쓸 수 있습니다.</p>
     <div id="commonBox" class="stlist"></div>
   </div>
 
@@ -1362,6 +1363,19 @@ button.build-mode.on .bn{color:#f1b94f}
       <label class="fl" for="assetFolderName">폴더 이름</label>
       <input id="assetFolderName" maxlength="50" autocomplete="off" placeholder="예: 세계관 · 인물 · 프롬프트">
       <div class="bar" style="justify-content:flex-end;margin-top:14px"><button class="mini ghost" id="assetFolderCancel">취소</button><button class="mini primary" id="assetFolderSave">만들기</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="commonLibModal" hidden>
+  <div class="modal-in" style="max-width:560px">
+    <div class="modal-h"><h2>내 기본 공통 지시문 불러오기</h2><button class="mini" id="commonLibClose" aria-label="닫기">닫기</button></div>
+    <div class="modal-b">
+      <p class="note" style="margin-bottom:12px">파일의 <code>myCommonLibrary</code>에 직접 넣어둔 지시문입니다. 넣을 것만 골라 추가하세요. 이미 있는 것은 표시됩니다.</p>
+      <label class="nebula-row" style="margin-bottom:10px"><input type="checkbox" id="commonLibAllPresets"><span>지금 양식이 아니라 <b>모든 양식</b>에 넣기</span></label>
+      <div class="bar" style="margin:0 0 10px"><button class="mini ghost" id="commonLibAll">모두 선택</button><button class="mini ghost" id="commonLibNone">모두 해제</button></div>
+      <div class="nebula-list" id="commonLibList"></div>
+      <div class="bar" style="justify-content:flex-end;margin-top:14px"><button class="mini ghost" id="commonLibCancel">취소</button><button class="mini primary" id="commonLibConfirm">선택한 것 넣기</button></div>
     </div>
   </div>
 </div>
@@ -3416,6 +3430,30 @@ function builtinPresets(){ return [
   defaultPreset(), presetCharEngine(), presetProfileKo(), presetGreeting(), presetDrives(), presetCharAudit(),
   presetSchemaForge()
   // , myHeroPreset()   ← 내가 만든 프리셋 함수를 이 줄처럼 추가
+]; }
+
+/* ============================================================
+   [ 내 기본 공통 지시문 — 여기에 직접 붙여넣는 공간 ]
+
+   여기 배열에 넣은 지시문은 파일에 박혀서, 저장을 지우거나 다른 기기에서
+   열어도 항상 '불러오기'로 다시 꺼내 쓸 수 있는 나만의 기본 공통 지시문이 됩니다.
+   ※ 이 배열은 비어 있어도 됩니다 — 넣고 싶은 것만 직접 채우세요.
+
+   쓰는 법:
+   1) 아래 배열에 { name, content } 를 원하는 만큼 추가한다.
+        - name    : 목록에 뜨는 이름
+        - content : 실제로 들어갈 지시문 문장 (여러 줄 가능)
+        - role    : (생략 가능) 'system' 기본. 'user'/'assistant' 도 됨
+   2) 파일을 저장하고 앱을 새로고침한다.
+   3) 양식 탭 → '공통 지시문' 패널의 '불러오기' 단추를 누르면
+      여기 넣은 것들이 목록에 뜬다. 골라서 지금 양식(또는 모든 양식)에
+      한 번에 넣을 수 있고, 지우고 다시 불러와도 된다.
+
+   예시)
+     { name:'내 문체 규칙', content:'문장은 짧게. 부사를 남발하지 마라.' },
+   ============================================================ */
+function myCommonLibrary(){ return [
+  // 여기에 { name:'...', content:'...' } 를 직접 추가하세요. (비어 있어도 됨)
 ]; }
 
 const MODE_NOTE = {
@@ -5612,6 +5650,55 @@ $('#btnAddCommon').addEventListener('click', ()=>{
   P.common.push(c);
   (window.__commonOpen || (window.__commonOpen=new Set())).add(c.id);
   save(); renderCommon();
+});
+
+// 내가 파일(myCommonLibrary)에 직접 넣어둔 공통 지시문을 골라 넣기
+function myCommonItems(){
+  let list = [];
+  try{ list = myCommonLibrary() || []; }catch(_){ list = []; }
+  return list.filter(x=>x && typeof x.content==='string' && x.content.trim())
+    .map((x,i)=>({ name:String(x.name||('지시문 '+(i+1))), content:String(x.content),
+      role:(x.role==='user'||x.role==='assistant')?x.role:'system' }));
+}
+function commonExistsIn(P, item){
+  return (P.common||[]).some(c=>(c.content||'').trim()===item.content.trim());
+}
+function renderCommonLibList(){
+  const items = myCommonItems(), P = activePreset(), box = $('#commonLibList');
+  box.innerHTML = items.length ? items.map((it,i)=>{
+    const have = commonExistsIn(P, it);
+    return `<label class="nebula-row"><input type="checkbox" class="cl-add" data-i="${i}" ${have?'':'checked'} ${have?'disabled':''}>
+      <span>${esc(it.name)}</span><span class="sp"></span><span class="note">${it.role} · ${tok(it.content)} 토큰쯤${have?' · 이미 있음':''}</span></label>`;
+  }).join('')
+    : '<div class="note">파일의 <code>myCommonLibrary</code>가 비어 있습니다. 그 배열에 { name, content } 를 직접 넣고 새로고침하세요.</div>';
+  $('#commonLibConfirm').disabled = !items.some((it)=>!commonExistsIn(P, it));
+}
+$('#btnLoadCommon').addEventListener('click', ()=>{
+  $('#commonLibAllPresets').checked = false;
+  renderCommonLibList(); $('#commonLibModal').hidden = false;
+});
+$('#commonLibClose').addEventListener('click', ()=>{ $('#commonLibModal').hidden = true; });
+$('#commonLibCancel').addEventListener('click', ()=>{ $('#commonLibModal').hidden = true; });
+$('#commonLibModal').addEventListener('click', e=>{ if(e.target.id==='commonLibModal') $('#commonLibModal').hidden = true; });
+$('#commonLibAll').addEventListener('click', ()=> $$('#commonLibList .cl-add:not(:disabled)').forEach(c=>c.checked=true));
+$('#commonLibNone').addEventListener('click', ()=> $$('#commonLibList .cl-add').forEach(c=>c.checked=false));
+$('#commonLibConfirm').addEventListener('click', ()=>{
+  const items = myCommonItems();
+  const pick = $$('#commonLibList .cl-add').filter(c=>c.checked && !c.disabled).map(c=>items[+c.dataset.i]).filter(Boolean);
+  if(!pick.length){ $('#commonLibModal').hidden = true; return; }
+  const targets = $('#commonLibAllPresets').checked ? S.presets : [activePreset()];
+  let added = 0;
+  targets.forEach(P=>{
+    if(!P.common) P.common = [];
+    pick.forEach(it=>{
+      if(commonExistsIn(P, it)) return;
+      P.common.push({ id:uid(), name:it.name, role:it.role, content:it.content, enabled:true });
+      added++;
+    });
+  });
+  save(); renderCommon();
+  $('#commonLibModal').hidden = true;
+  toast(added ? `공통 지시문 ${pick.length}개를 ${targets.length>1?'모든 양식에 ':''}넣었습니다` : '넣을 것이 없습니다');
 });
 $('#commonBox').addEventListener('click', e=>{
   const it = e.target.closest('.stitem'); if(!it) return;
