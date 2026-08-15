@@ -710,6 +710,9 @@ button.cmdcopy{position:absolute;top:50%;right:8px;translate:0 -50%;
   border-left:2px solid rgba(233,182,84,0.55)}
 .msg .who{font-weight:500;font-size:10px;letter-spacing:.1em;
   color:#788ba4;display:block;margin-bottom:5px}
+.msg.wrap{align-self:stretch;max-width:100%;background:rgba(233,182,84,0.055);
+  border-left:2px solid rgba(233,182,84,0.8);border-bottom-left-radius:13px}
+.msg.wrap .who{color:#d9a83f}
 .chatin{border-top:1px solid rgba(138,182,225,0.1);padding:13px;display:flex;gap:12px;align-items:flex-end;
   background:var(--s3)}
 .chatin textarea{min-height:48px;max-height:160px;font-family:var(--body);font-size:14px}
@@ -778,6 +781,10 @@ button.build-mode.on .bn{color:#f1b94f}
 .oneshot[hidden]{display:none}
 .oneshot button{font-size:14px}
 .oneshot .note{flex:none;margin:0;max-width:560px}
+/* 한 번에 만들기 모드 — 단계별 전용 요소 숨김 */
+#v-studio.os-mode #spine,#v-studio.os-mode #seedPanel,#v-studio.os-mode #digestBar,
+#v-studio.os-mode #digestOut,#v-studio.os-mode #btnExpand,#v-studio.os-mode .stepno{display:none}
+#v-studio.os-mode .oneshot{margin-bottom:4px}
 .stagedlabel{font-weight:500;font-size:12px;letter-spacing:.06em;
   color:#788ba4;margin:0 0 14px;
   display:flex;align-items:center;gap:10px}
@@ -1015,10 +1022,6 @@ button.build-mode.on .bn{color:#f1b94f}
       <span class="bd">선택한 성운 재료를 통째로 보내 빠르게 완성합니다.</span>
     </button>
   </div>
-  <div class="oneshot" id="oneshotBox" hidden>
-    <button class="primary" id="btnOneShot">한 번에 만들기</button>
-    <span class="note" id="oneshotNote"></span>
-  </div>
   <div class="stagedlabel" id="buildGuide">단계별 만들기 — 아래 1단계부터 하나씩</div>
 
   <ol class="spine" id="spine">
@@ -1030,14 +1033,18 @@ button.build-mode.on .bn{color:#f1b94f}
 
   <!-- 1 -->
   <div class="panel">
-    <h2 id="s1Title">1 · 세계 읽기</h2>
+    <h2><span class="stepno">1 · </span><span id="s1Title">세계 읽기</span></h2>
     <p class="hint" id="s1Hint"></p>
     <div class="field">
       <label class="fl" id="briefLabel" for="optBrief">구상</label>
       <textarea id="optBrief" rows="2"></textarea>
       <p class="note" id="briefNote"></p>
     </div>
-    <div class="bar">
+    <div class="oneshot" id="oneshotBox" hidden>
+      <button class="primary" id="btnOneShot">한 번에 만들기</button>
+      <span class="note" id="oneshotNote"></span>
+    </div>
+    <div class="bar" id="digestBar">
       <button class="primary" id="btnDigest"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 8.5h7.2a3.3 3.3 0 0 1 3.3 2 3.3 3.3 0 0 1 3.3-2h7.2v15h-7.2a3.3 3.3 0 0 0-3.3 2 3.3 3.3 0 0 0-3.3-2H5.5Z"/><path d="M16 10.5v15" stroke="#e9b654"/></svg>세계 읽기</button>
       <span class="sp"></span>
       <span class="tokchip" id="digestTok"></span>
@@ -1062,15 +1069,17 @@ button.build-mode.on .bn{color:#f1b94f}
   <!-- 3 -->
   <div class="panel">
     <div class="panel-h">
-      <h2>3 · 확장</h2>
+      <h2><span class="stepno">3 · </span>확장</h2>
       <span class="sp"></span>
       <button class="iconbtn" id="btnLockAll" title="전부 잠금" aria-label="전부 잠금"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 10 0V14" stroke="#e9b654"/></svg></button>
       <button class="iconbtn" id="btnUnlockAll" title="전부 해제" aria-label="전부 해제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 9.6-1.9" stroke="#e9b654"/></svg></button>
     </div>
-    <p class="hint">고른 별씨앗을 카드로 펼칩니다. 마음에 드는 칸은 잠그고 나머지만 다시 굴릴 수 있습니다.</p>
+    <p class="hint" id="s3Hint">고른 별씨앗을 카드로 펼칩니다. 마음에 드는 칸은 잠그고 나머지만 다시 굴릴 수 있습니다.</p>
     <div class="bar">
       <button class="primary" id="btnExpand" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 12V8a2.5 2.5 0 0 1 2.5-2.5h4M20 5.5h4A2.5 2.5 0 0 1 26.5 8v4M26.5 20v4a2.5 2.5 0 0 1-2.5 2.5h-4M12 26.5H8A2.5 2.5 0 0 1 5.5 24v-4"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/></svg>카드로 펼치기</button>
       <button class="ghost" id="btnReroll" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 7.5v6.4h-6.4"/><path d="M25.6 13.9A10 10 0 1 0 26 18.6"/></svg>안 잠근 칸만 다시</button>
+      <span class="sp"></span>
+      <button class="ghost mini" id="btnRawView" title="모델이 마지막으로 보낸 응답을 그대로 봅니다">출력 원문</button>
     </div>
     <div class="field" style="margin-top:12px">
       <label class="fl" for="rerollNote">다시 쓰기 지시</label>
@@ -1098,7 +1107,7 @@ button.build-mode.on .bn{color:#f1b94f}
 
   <!-- 4 -->
   <div class="panel" id="checkPanel">
-    <h2>4 · 검증</h2>
+    <h2><span class="stepno">4 · </span>검증</h2>
     <p class="hint">완성된 카드가 세계 설정과 어긋나는 곳을 찾습니다.</p>
     <div class="bar">
       <button class="primary" id="btnCheck" disabled>설정 대조</button>
@@ -1188,7 +1197,13 @@ button.build-mode.on .bn{color:#f1b94f}
       <label><input type="checkbox" id="ctxDigest" checked> 세계 요약</label>
       <label><input type="checkbox" id="ctxCard"> 지금 만든 것</label>
       <span class="note" id="ctxTok"></span>
+      <span class="sp"></span>
+      <button type="button" class="mini ghost" id="btnTalkWrap">대화 마무리</button><button type="button" class="qhelp" aria-label="대화 마무리란" data-tip="대화가 길어질수록 매번 보내는 입력이 커집니다. 지금까지의 대화를 요약 하나로 압축해 토큰을 줄이고, 그 요약 위에서 대화를 이어갑니다.">?</button>
     </div>
+    <details class="nebula-pick" id="talkPick" style="margin:0 0 12px">
+      <summary>보낼 재료 고르기 <span class="note" id="talkPickCount"></span></summary>
+      <div class="nebula-list" id="talkAssetList"></div>
+    </details>
     <div class="chatwrap">
       <div class="chatlog" id="chatLog"></div>
       <div class="chatin">
@@ -1326,6 +1341,16 @@ button.build-mode.on .bn{color:#f1b94f}
   </div>
 </div>
 
+<div class="modal" id="rawModal" hidden>
+  <div class="modal-in" style="max-width:760px">
+    <div class="modal-h"><h2>출력 원문</h2><span class="note" id="rawMeta"></span><button class="mini" id="rawCopy">복사</button><button class="mini" id="rawClose" aria-label="닫기">닫기</button></div>
+    <div class="modal-b">
+      <p class="note" style="margin-bottom:10px">모델이 마지막으로 보낸 응답 그대로입니다. 양식 인식에 실패하거나 중간에 끊겨도 여기서 내용을 건질 수 있습니다.</p>
+      <textarea id="rawText" readonly rows="18" style="width:100%;font-family:var(--mono);font-size:12px;line-height:1.6;white-space:pre-wrap"></textarea>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="assetClearModal" hidden>
   <div class="modal-in" style="max-width:430px">
     <div class="modal-h"><h2 id="assetClearTitle">즐겨찾기 외 전체 삭제</h2><button class="mini" id="assetClearClose" aria-label="닫기">닫기</button></div>
@@ -1412,6 +1437,7 @@ let S = {
 let LOG = [];
 let ABORT = null;
 let LAST_USAGE = null;
+let LAST_RAW = '', LAST_RAW_AT = 0;
 let DRAFT_DIRTY = false, DRAFT_TIMER = null, BOOTING = true;
 
 const ASSET_PURPOSE_LABEL = {world:'세계', character:'인물', prompt:'프롬프트'};
@@ -1823,6 +1849,7 @@ async function callProvider(conn, messages, opts){
   log(`← ${out.length}자${LAST_USAGE?' · '+usageLabel(LAST_USAGE):''} · ${((Date.now()-t0)/1000).toFixed(1)}초`,'ok');
   if(S.logVerbose) log(out);
   if(!out.trim()) throw new Error('모델이 빈 응답을 돌려줬습니다. (필터에 걸렸거나 토큰이 모자랐을 수 있습니다)');
+  LAST_RAW = out; LAST_RAW_AT = Date.now();
   return out;
 }
 async function fetchModels(conn){
@@ -4466,9 +4493,22 @@ function showErr(err){
   toast(m, 1); log('오류: '+m, 'err');
   if(err && err.raw){
     log('해석 못한 응답 전문:\n'+err.raw, 'err');
-    toast('응답을 해석하지 못했습니다. 기록 탭에 원문이 있습니다.', 1);
+    showRaw(err.raw, '해석하지 못한 응답');
   }
 }
+function showRaw(text, label){
+  $('#rawText').value = text || '';
+  $('#rawMeta').textContent = (label || '마지막 응답')
+    + (LAST_RAW_AT ? ' · ' + new Date(LAST_RAW_AT).toLocaleTimeString('ko-KR') : '');
+  $('#rawModal').hidden = false;
+}
+$('#rawClose').addEventListener('click', ()=>{ $('#rawModal').hidden = true; });
+$('#rawModal').addEventListener('click', e=>{ if(e.target.id==='rawModal') $('#rawModal').hidden = true; });
+$('#rawCopy').addEventListener('click', ()=> copy($('#rawText').value));
+$('#btnRawView').addEventListener('click', ()=>{
+  if(!LAST_RAW) return toast('아직 받은 응답이 없습니다',1);
+  showRaw(LAST_RAW);
+});
 async function guard(btn, label, fn){
   busy(btn, true, label);
   try{ await fn(); }
@@ -4608,8 +4648,18 @@ function renderBuildMode(){
   });
   $('#oneshotBox').hidden = mode!=='oneshot';
   $('#buildGuide').textContent = mode==='oneshot'
-    ? '한 번에 만든 뒤에도 아래에서 칸 수정·재굴림·검증을 이어갈 수 있습니다'
+    ? '한 번에 만들기 — 구상을 적고 단추 하나로 끝냅니다'
     : '단계별 만들기 — 아래 1단계부터 하나씩';
+  // 한 번에 모드에서는 단계별 전용 요소(스파인·읽기·별씨앗·펼치기)를 숨긴다
+  $('#v-studio').classList.toggle('os-mode', mode==='oneshot');
+  const u = GROUP_UI[S.opts.group] || GROUP_UI.world;
+  $('#s1Title').textContent = mode==='oneshot' ? '구상' : u.s1;
+  $('#s1Hint').textContent = mode==='oneshot'
+    ? '구상을 적고 아래 단추 하나로 끝냅니다. 성운에서 고른 재료는 요약 없이 통째로 함께 보냅니다.'
+    : u.hint;
+  $('#s3Hint').textContent = mode==='oneshot'
+    ? '만들어진 카드입니다. 마음에 드는 칸은 잠그고 나머지만 다시 굴릴 수 있습니다.'
+    : '고른 별씨앗을 카드로 펼칩니다. 마음에 드는 칸은 잠그고 나머지만 다시 굴릴 수 있습니다.';
 }
 $('#buildModeBox').addEventListener('click', e=>{
   const b=e.target.closest('.build-mode'); if(!b) return;
@@ -4801,17 +4851,65 @@ function talkContext(){
 }
 function renderChat(){
   const box = $('#chatLog');
-  if(!S.chat.msgs.length){
+  const wrapHtml = S.chat.summary
+    ? `<div class="msg bot wrap"><span class="who">지금까지의 정리</span>${esc(S.chat.summary)}</div>` : '';
+  if(!S.chat.msgs.length && !wrapHtml){
     box.innerHTML = '<div class="empty"><b>아직 아무 말도 안 했습니다</b>만든 것을 보여주고 물어보세요.</div>';
   } else {
-    box.innerHTML = S.chat.msgs.map(m=>
+    box.innerHTML = wrapHtml + S.chat.msgs.map(m=>
       `<div class="msg ${m.role==='user'?'user':'bot'}"><span class="who">${m.role==='user'?'나':'상대'}</span>${esc(m.content)}</div>`
     ).join('');
   }
   box.scrollTop = box.scrollHeight;
   const t = tok(talkContext());
-  $('#ctxTok').textContent = t ? `함께 보낼 분량 ${t} 토큰쯤` : '함께 보낼 것 없음';
+  const ct = tok((S.chat.summary||'')+S.chat.msgs.map(m=>m.content).join('\n'));
+  $('#ctxTok').textContent = (t ? `함께 보낼 분량 ${t} 토큰쯤` : '함께 보낼 것 없음')
+    + (ct ? ` · 대화 ${ct} 토큰쯤` : '');
+  renderTalkAssets();
 }
+function assetTok(a){
+  if(a.kind==='lorebook') return tok((a.entries||[]).filter(e=>e.use).map(e=>e.content).join(''));
+  if(a.kind==='character') return tok(Object.values(a.fields||{}).join(''));
+  return tok(a.body||'');
+}
+function renderTalkAssets(){
+  const box = $('#talkAssetList'), count = $('#talkPickCount'); if(!box) return;
+  const n = S.assets.filter(a=>a.use).length;
+  count.textContent = S.assets.length ? `선택 ${n}/${S.assets.length}개` : '성운이 비어 있습니다';
+  box.innerHTML = S.assets.length ? S.assets.map(a=>`
+    <label class="nebula-row"><input type="checkbox" class="t-use" data-id="${a.id}" ${a.use?'checked':''}>
+      <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${{character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind} · ${assetTok(a)} 토큰쯤</span></label>`).join('')
+    : '<div class="note">재료 탭에서 파일이나 글을 먼저 넣어 주세요.</div>';
+}
+$('#talkAssetList').addEventListener('change', e=>{
+  if(!e.target.classList.contains('t-use')) return;
+  const a = assetById(e.target.dataset.id); if(!a) return;
+  a.use = e.target.checked;
+  renderAssets(); materialChanged(); renderChat();
+});
+async function wrapTalk(){
+  if(S.chat.msgs.length < 2) return toast('마무리할 대화가 아직 없습니다',1);
+  const conn = S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) return toast('먼저 연결을 만들어 주세요',1);
+  if(!confirm('지금까지의 대화를 요약 하나로 압축합니다.\n원문이 필요하면 먼저 복사하거나 재료로 남겨 두세요. 계속할까요?')) return;
+  const btn = $('#btnTalkWrap');
+  busy(btn, true, '정리 중');
+  try{
+    const convo = (S.chat.summary ? '[이전 정리]\n'+S.chat.summary+'\n\n' : '')
+      + S.chat.msgs.map(m=>(m.role==='user'?'[나] ':'[상대] ')+m.content).join('\n\n');
+    const before = tok(convo);
+    const out = await callProvider(conn, [
+      {role:'system', content:'너는 진행 중인 창작 상담 대화를 이어가기 위한 압축 정리를 만든다. 새 의견이나 제안을 덧붙이지 않는다. '+(S.opts.lang||'한국어')+' 로 쓴다.'},
+      {role:'user', content:'아래 대화를 다음 항목으로 정리하라. 각 항목은 짧은 개조식으로, 없는 항목은 빼라.\n- 다룬 주제\n- 정해진 것·합의\n- 검토했지만 접은 것\n- 아직 열린 질문\n\n대화:\n'+convo}
+    ], {temperature:0.3, maxTokens:1000});
+    S.chat.summary = out.trim();
+    S.chat.msgs = [];
+    save(); renderChat();
+    toast(`대화를 정리했습니다 — ${before} 토큰 → ${tok(out)} 토큰`);
+  }catch(err){ showErr(err); }
+  finally{ busy(btn, false); }
+}
+$('#btnTalkWrap').addEventListener('click', wrapTalk);
 async function sendChat(){
   const inp = $('#chatIn'), text = inp.value.trim();
   if(!text) return;
@@ -4828,6 +4926,7 @@ async function sendChat(){
     sys.push(TALK_ROLE[roleKey]);
   }
   sys.push(`{{lang}} 로 답한다.`.replace('{{lang}}', S.opts.lang||'한국어'));
+  if(S.chat.summary) sys.push('아래는 지금까지 나눈 대화를 압축한 정리다. 이 맥락 위에서 이어서 대화한다.\n\n'+S.chat.summary);
   const ctx = talkContext();
   if(ctx) sys.push('아래는 상대가 지금 다루고 있는 자료다. 묻지 않은 것까지 통째로 다시 써주지 마라.\n\n'+ctx);
   const msgs = [{role:'system', content: sys.join('\n\n')}].concat(
@@ -4877,15 +4976,22 @@ $('#btnTalkResetRole').addEventListener('click', ()=>{
   });
 });
 $('#btnTalkClear').addEventListener('click', ()=>{
-  if(!S.chat.msgs.length || confirm('대화를 비울까요?')){ S.chat.msgs=[]; save(); renderChat(); }
+  if((!S.chat.msgs.length && !S.chat.summary) || confirm('대화와 정리를 모두 비울까요?')){
+    S.chat.msgs=[]; S.chat.summary=''; save(); renderChat();
+  }
 });
-$('#btnTalkCopy').addEventListener('click', ()=>
-  copy(S.chat.msgs.map(m=>(m.role==='user'?'나: ':'상대: ')+m.content).join('\n\n')));
+function talkTranscript(marks){
+  const parts=[];
+  if(S.chat.summary) parts.push((marks?'[지금까지의 정리]\n':'지금까지의 정리:\n')+S.chat.summary);
+  parts.push(...S.chat.msgs.map(m=>(m.role==='user'?(marks?'[나] ':'나: '):(marks?'[상대] ':'상대: '))+m.content));
+  return parts.join('\n\n');
+}
+$('#btnTalkCopy').addEventListener('click', ()=> copy(talkTranscript(false)));
 $('#btnTalkToAsset').addEventListener('click', ()=>{
-  if(!S.chat.msgs.length) return toast('대화가 없습니다',1);
+  if(!S.chat.msgs.length && !S.chat.summary) return toast('대화가 없습니다',1);
   const purpose={world:'world',char:'character',prompt:'prompt'}[S.chat.role];
   S.assets.push({ id:uid(), kind:'text', name:'대화 기록 '+new Date().toLocaleTimeString('ko-KR'),
-    body: S.chat.msgs.map(m=>(m.role==='user'?'[나] ':'[상대] ')+m.content).join('\n\n'), purposes:purpose?[purpose]:[], tags:[], use:true });
+    body: talkTranscript(true), purposes:purpose?[purpose]:[], tags:[], use:true });
   renderAssets(); toast('재료에 넣었습니다');
 });
 
@@ -5067,19 +5173,19 @@ function renderModeChooser(){
 
 const GROUP_UI = {
   world: {
-    s1:'1 · 세계 읽기', spine1:'세계 읽기', btn:'세계 읽기',
+    s1:'세계 읽기', spine1:'세계 읽기', btn:'세계 읽기',
     hint:'재료를 한 번 압축해 규칙·세력·용어·빈틈을 뽑습니다. 한 번 만들면 계속 재사용합니다.',
     brief:'구상', briefNote:'재료가 없어도 이것만으로 시작할 수 있습니다',
     ph:'예: 바다가 말라붙은 뒤의 항구도시, 소금 채굴, 물을 파는 길드'
   },
   character: {
-    s1:'1 · 재료 읽기', spine1:'재료 읽기', btn:'재료 읽기',
+    s1:'재료 읽기', spine1:'재료 읽기', btn:'재료 읽기',
     hint:'재료 탭에 넣은 세계와 인물을 압축해 읽습니다. 인물을 놓을 자리와 빈틈을 뽑아 다음 단계로 넘깁니다.',
     brief:'구상', briefNote:'원하는 방향이 있으면 적으세요',
     ph:'예: 항해길드에서 쫓겨난 사람. 30대. 말수가 적고 빚이 있음'
   },
   prompt: {
-    s1:'1 · 요구 정리', spine1:'요구 정리', btn:'요구 정리',
+    s1:'요구 정리', spine1:'요구 정리', btn:'요구 정리',
     hint:'무엇을 만들어야 하는지, 무엇이 정해졌고 무엇이 비었는지 먼저 정리합니다.',
     brief:'구상', briefNote:'여기가 주 입력입니다 — 무엇을 만들 프롬프트인지 적으세요',
     ph:'예: 설정집을 읽고 그 세계의 사건 사고를 뉴스 형식으로 뽑는 프롬프트'
