@@ -5812,12 +5812,16 @@ function dragScroll(el){
   let down=false, moved=false, sx=0, sl=0;
   el.addEventListener('pointerdown', e=>{
     down=true; moved=false; sx=e.clientX; sl=el.scrollLeft;
-    if(el.setPointerCapture) el.setPointerCapture(e.pointerId);
   });
   el.addEventListener('pointermove', e=>{
     if(!down) return;
     const dx = e.clientX - sx;
-    if(Math.abs(dx)>6){ moved=true; el.scrollLeft = sl - dx; e.preventDefault(); }
+    if(Math.abs(dx)>6){
+      // 캡처를 여기서 걸어야 함 — pointerdown에서 걸면 최신 크롬이
+      // click 대상을 컨테이너로 바꿔 버튼 클릭이 전부 먹히지 않는다
+      if(!moved && el.setPointerCapture){ try{ el.setPointerCapture(e.pointerId); }catch(_){} }
+      moved=true; el.scrollLeft = sl - dx; e.preventDefault();
+    }
   });
   const stop=()=>{ down=false; };
   el.addEventListener('pointerup', stop);
