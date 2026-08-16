@@ -372,8 +372,8 @@
       <label><input type="checkbox" id="ctxCard"> 지금 만든 것</label>
       <span class="note" id="ctxTok"></span>
       <span class="sp"></span>
-      <span class="labelhelp"><button type="button" class="mini ghost" id="btnTalkToCard" disabled>결론을 카드에 반영</button><button type="button" class="qhelp" aria-label="결론을 카드에 반영이란" data-tip="지금 작업대에 있는 카드를, 이 대화에서 정해진 내용대로 고칩니다. 잠근 칸은 그대로 두고, 대화에서 바뀐 부분만 반영합니다. 작업대에 카드가 있어야 눌립니다.">?</button></span>
-      <span class="labelhelp"><button type="button" class="mini ghost" id="btnTalkWrap">대화 마무리</button><button type="button" class="qhelp" aria-label="대화 마무리란" data-tip="대화가 길어질수록 매번 보내는 입력이 커집니다. 지금까지의 대화를 요약 하나로 압축해 토큰을 줄이고, 그 요약 위에서 대화를 이어갑니다.">?</button></span>
+      <button type="button" class="mini ghost" id="btnTalkToCard" title="지금 작업대에 있는 카드를, 이 대화에서 정해진 내용대로 고칩니다. 잠근 칸은 그대로 두고 바뀐 부분만 반영합니다. 작업대에 카드가 있어야 눌립니다." disabled>결론을 카드에 반영</button>
+      <button type="button" class="mini ghost" id="btnTalkWrap" title="대화가 길어질수록 매번 보내는 입력이 커집니다. 지금까지의 대화를 요약 하나로 압축해 토큰을 줄이고, 그 요약 위에서 이어갑니다.">대화 마무리</button>
     </div>
     <details class="nebula-pick" id="talkPick" style="margin:0 0 12px">
       <summary>보낼 재료 고르기 <span class="note" id="talkPickCount"></span></summary>
@@ -422,7 +422,7 @@
       <label class="libselall"><input type="checkbox" id="libSelAll"> 선택</label>
       <span class="note" id="libSelCount">0개 선택</span>
       <span class="sp"></span>
-      <button class="ghost mini" id="btnLibTranslate" disabled>영어로 번역</button>
+      <button class="mini" id="btnLibTranslate" disabled>영어로 번역</button>
     </div>
     <span id="bLib" hidden>0</span>
   </div>
