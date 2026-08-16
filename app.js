@@ -1972,32 +1972,29 @@ function builtinPresets(){ return [
 
 /* ============================================================
    [ 기본 공통 지시문 ]
-   실제 데이터는 별도 파일 prompts.js (window.BUILTIN_COMMON) 에 있다.
-   여기서는 그 파일 + '딸깍 반영'(localStorage) 을 읽어 합칠 뿐이다.
-   - 소스 기본값(배포됨): prompts.js 를 편집       ← 커밋되는 앱 기본값
-   - 로컬 실험(안 배포):  prompt-editor.html 의 '앱에 반영' ← 이 브라우저에만
+   두 곳 중 '하나만' 쓰인다(합치지 않음 — 중복 방지):
+   - 편집기 '앱에 반영'(localStorage)이 있으면 → 그게 앱의 현재값(대체)
+   - 반영이 없으면(또는 '반영 해제') → prompts.js(window.BUILTIN_COMMON)
+   즉 편집기에서 반영하면 그 내용이 곧 앱값이고, 반영 해제하면 prompts.js로 돌아간다.
+   prompts.js 는 커밋되는 배포 기본값, 반영본은 이 브라우저에만 남는다.
    ============================================================ */
-function builtinCommon(){
+const COMMON_EXTRA_KEY = 'orrery.commonExtra.v1';
+function normCommon(arr){
   const out = [];
-  // (1) prompts.js 의 window.BUILTIN_COMMON — 커밋되는 앱 기본값
-  try{
-    const arr = (typeof window!=='undefined' && Array.isArray(window.BUILTIN_COMMON)) ? window.BUILTIN_COMMON : [];
-    arr.forEach(x=>{ if(x && typeof x.content==='string' && x.content.trim())
-      out.push({ name:x.name||'', content:x.content,
-        groups:(x.groups && x.groups!=='all' && x.groups.length)?x.groups:undefined, role:x.role||undefined }); });
-  }catch(_){ }
-  // (2) 딸깍 반영 — prompt-editor.html 이 같은 브라우저 저장소에 써둔 것 (파일/커밋과 무관)
-  try{
-    const raw = localStorage.getItem(COMMON_EXTRA_KEY);
-    if(raw){ const arr = JSON.parse(raw);
-      if(Array.isArray(arr)) arr.forEach(x=>{ if(x && typeof x.content==='string' && x.content.trim())
-        out.push({ name:x.name||'', content:x.content,
-          groups:(x.groups && x.groups.length)?x.groups:undefined, role:x.role||undefined }); });
-    }
-  }catch(_){ }
+  (Array.isArray(arr)?arr:[]).forEach(x=>{ if(x && typeof x.content==='string' && x.content.trim())
+    out.push({ name:x.name||'', content:x.content,
+      groups:(x.groups && x.groups!=='all' && x.groups.length)?x.groups:undefined, role:x.role||undefined }); });
   return out;
 }
-const COMMON_EXTRA_KEY = 'orrery.commonExtra.v1';
+function builtinCommon(){
+  // (1) 편집기 반영본이 있으면 그것만 사용 (키가 존재하면 우선 — 빈 배열이면 '아무것도 없음'을 뜻함)
+  try{
+    const raw = localStorage.getItem(COMMON_EXTRA_KEY);
+    if(raw !== null){ return normCommon(JSON.parse(raw)); }
+  }catch(_){ }
+  // (2) 반영이 없으면 prompts.js (커밋되는 앱 기본값)
+  try{ return normCommon(typeof window!=='undefined' ? window.BUILTIN_COMMON : []); }catch(_){ return []; }
+}
 // 지금 분류에 해당하는 기본 공통 지시문 — 모든 생성 앞에 자동으로 붙는다(딸깍 반영의 실제 적용부)
 function activeBuiltinCommons(v){
   const g = S.opts.group || 'character';
