@@ -118,14 +118,15 @@ button.iconbtn{width:40px;height:40px;min-height:40px;padding:0;display:grid;pla
 }
 .iconbtn .ic,.iconbtn svg{display:block;place-self:center;width:24px;height:24px;margin:0;vertical-align:middle}
 .iconbtn:hover{color:#eef4fc;background:rgba(143,190,230,0.1);transform:translateY(-1px)}
-.iconbtn.danger{color:var(--danger-icon)}
+.iconbtn.danger{color:var(--icon)}
 .iconbtn.danger:hover{color:var(--danger-icon-hover);background:var(--danger-bg)}
 .iconbtn.on{color:var(--brass);background:rgba(233,182,84,0.12);
   box-shadow:0 0 0 1px rgba(233,182,84,0.45)}
 .iconbtn.on:hover{color:var(--brass)}
-/* 기본은 은청색, SVG의 황동 포인트는 유지한다. 삭제와 선택 상태는 버튼 자체의 의미 색상을 쓴다. */
-.iconbtn.danger [stroke="#e9b654"],button.danger [stroke="#e9b654"]{stroke:currentColor}
-.iconbtn.danger [fill="#e9b654"],button.danger [fill="#e9b654"]{fill:currentColor}
+/* 삭제 아이콘도 평소엔 다른 아이콘과 똑같이 은청색 + 황동 포인트 유지.
+   위험 신호(빨강)는 hover 때만 — 이때만 황동 포인트도 currentColor(빨강)로 덮는다. */
+.iconbtn.danger:hover [stroke="#e9b654"],button.danger:hover [stroke="#e9b654"]{stroke:currentColor}
+.iconbtn.danger:hover [fill="#e9b654"],button.danger:hover [fill="#e9b654"]{fill:currentColor}
 .topctl select{
   flex:0 1 auto;min-width:0;max-width:170px;
   background:transparent;border:none;
@@ -290,7 +291,7 @@ button.ghost:not(:disabled):hover{background:rgba(123,164,207,0.08)}
 button.mini{padding:5px 12px;min-height:34px;font-size:12px;
   border-color:transparent;background:transparent;color:#8ea0b8}
 button.mini:not(:disabled):hover{color:#eef4fc;background:rgba(123,164,207,0.09)}
-button.danger{color:var(--danger-icon);border-color:transparent;background:transparent}
+button.danger{color:var(--icon);border-color:transparent;background:transparent}
 button.danger:not(:disabled):hover{color:var(--danger-icon-hover);background:var(--danger-bg)}
 .c-use-state{display:inline-flex;align-items:center;min-height:34px;padding:5px 12px;border-radius:9px;
   font-size:12px;color:var(--brass);background:rgba(233,182,84,0.08);white-space:nowrap}
@@ -607,7 +608,7 @@ button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0
 .libitem .ln{font-family:var(--body);font-size:14px;font-weight:520;flex:1;min-width:110px;color:#dbe5f1;cursor:pointer}
 .libitem .lm{font-family:var(--mono);font-size:11px;color:#72869f}
 .libitem .iconbtn{width:34px;height:34px;min-height:34px}
-.libitem .iconbtn.danger{color:var(--danger-icon)}
+.libitem .iconbtn.danger{color:var(--icon)}
 .libitem .iconbtn.danger:hover{color:var(--danger-icon-hover);background:var(--danger-bg)}
 
 /* ---------- 연결 ---------- */
@@ -772,7 +773,7 @@ details.adv>div{padding-top:13px}
 .stitem .rowtools button{min-height:38px;min-width:38px;padding:4px;display:grid;
   place-items:center;border:0;background:transparent;border-radius:9px;color:var(--icon-muted)}
 .stitem .rowtools button:hover{color:#eef4fc;background:rgba(123,164,207,0.12)}
-.stitem .rowtools button.danger{color:var(--danger-icon)}
+.stitem .rowtools button.danger{color:var(--icon-muted)}
 .stitem .rowtools button.danger:hover{color:var(--danger-icon-hover);background:var(--danger-bg)}
 .stitem .rowtools .ic{width:24px;height:24px;margin:0}
 .sw{position:relative;width:34px;height:20px;flex:none;cursor:pointer}
