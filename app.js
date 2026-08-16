@@ -3802,6 +3802,7 @@ function renderLib(){
   if(!list.length){ box.innerHTML = '<div class="empty"><b>맞는 것이 없습니다</b>검색어나 분류를 바꿔보세요.</div>'; return; }
   box.innerHTML = list.map(r=>`
     <div class="libitem" data-id="${r.id}">
+      <input type="checkbox" class="l-sel" title="번역할 카드 선택">
       <button class="mini ghost l-star" style="flex:none;border:none;font-size:15px;padding:2px 6px;color:${r.star?'var(--brass)':'var(--dim2)'}">${r.star?'★':'☆'}</button>
       <span class="ln l-name" title="눌러서 이름 바꾸기">${esc(r.name||'이름 없음')}</span>
       <span class="lm">${esc(GROUP_LABEL[r.group]||'')} · ${esc(r.presetName||'')}${r.world?' · '+esc(r.world):''} · ${new Date(r.updated||r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
@@ -3811,7 +3812,54 @@ function renderLib(){
       <button class="mini ghost l-png">PNG</button>
       <button class="iconbtn danger l-del" title="삭제" aria-label="삭제">${TRASH_SVG}</button>
     </div>`).join('');
+  updateLibSel();
 }
+function updateLibSel(){
+  const boxes = $$('#libList .l-sel'), sel = boxes.filter(c=>c.checked).length;
+  const cnt = $('#libSelCount'); if(cnt) cnt.textContent = sel ? `${sel}개 선택` : '0개 선택';
+  const btn = $('#btnLibTranslate'); if(btn) btn.disabled = !sel;
+  const all = $('#libSelAll'); if(all){ all.checked = boxes.length>0 && sel===boxes.length; all.indeterminate = sel>0 && sel<boxes.length; }
+}
+$('#libList').addEventListener('change', e=>{ if(e.target.classList.contains('l-sel')) updateLibSel(); });
+$('#libSelAll').addEventListener('change', e=>{ $$('#libList .l-sel').forEach(c=>{ c.checked=e.target.checked; }); updateLibSel(); });
+// 선택한 카드를 영어로 번역해 EN 사본을 기록에 추가 (카드마다 개별 요청, 순차)
+async function translateRecordToEN(rec){
+  const conn = S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) throw new Error('먼저 연결을 만들어 주세요.');
+  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
+  const fields = rec.fields || {};
+  const messages = [
+    {role:'system', content:'You translate structured creative-writing card fields into natural, fluent English. Keep the JSON keys exactly as given; translate only the values. Preserve tone, proper nouns, and line breaks. Output exactly one valid JSON object — no code fence, no commentary.'},
+    {role:'user', content:'Translate every value in this JSON to English. Keep the keys unchanged.\n\n'+JSON.stringify(fields, null, 1)}
+  ];
+  const opts = {temperature:0.3, maxTokens:Math.max(2000, (P.stages&&P.stages.expand&&P.stages.expand.maxTokens)||2400)};
+  const raw = await callProvider(conn, messages, opts);
+  const j = extractJson(raw);
+  const out = {};
+  Object.keys(fields).forEach(k=>{ out[k] = (j && typeof j[k]==='string' && j[k].trim()) ? j[k] : String(fields[k]); });
+  return out;
+}
+$('#btnLibTranslate').addEventListener('click', e=> guard(e.currentTarget, '번역 중', async()=>{
+  const ids = $$('#libList .l-sel:checked').map(c=>c.closest('.libitem').dataset.id);
+  if(!ids.length) return toast('번역할 카드를 선택하세요',1);
+  if(!S.connections.find(c=>c.id===S.activeConn)) return toast('먼저 연결을 만들어 주세요',1);
+  let done=0, fail=0;
+  for(const id of ids){
+    const rec = S.library.find(x=>x.id===id); if(!rec) continue;
+    toast(`번역 중… ${done+fail+1}/${ids.length}: ${rec.name||''}`);
+    try{
+      const enFields = await translateRecordToEN(rec);
+      const copy = clone(rec);
+      copy.id = uid(); copy.name = (rec.name||'record')+' (EN)';
+      copy.fields = enFields; copy.star = false; copy.updated = Date.now();
+      S.library.unshift(copy); done++;
+      log(`번역: ${rec.name} → ${copy.name}`,'ok');
+    }catch(err){ fail++; log(`번역 실패: ${rec.name||''} · ${err.message}`,'err'); }
+  }
+  if(typeof pruneLib==='function') pruneLib();
+  save(); renderLib();
+  toast(`영어 번역 ${done}개 추가${fail?` · 실패 ${fail}개(로그 확인)`:''}`);
+}));
 $('#libSearch').addEventListener('input', e=>{ libQuery = e.target.value.toLowerCase().trim(); renderLib(); });
 $('#libFilter').addEventListener('change', e=>{ libFilter = e.target.value; renderLib(); });
 $('#libList').addEventListener('click', async e=>{

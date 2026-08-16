@@ -603,6 +603,10 @@ button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0
 .edge .ten{font-size:12px;color:#788ba4;border-top:1px solid rgba(138,182,225,0.1);margin-top:9px;padding-top:8px}
 
 /* ---------- 보관함 ---------- */
+.libtools{display:flex;align-items:center;gap:10px;margin:2px 0 12px}
+.libtools .libselall{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--dim);cursor:pointer}
+.libtools .libselall input{width:auto;min-height:0;accent-color:var(--brass)}
+.libitem .l-sel{width:auto;flex:none;min-height:0;margin:0;accent-color:var(--brass)}
 .libitem{display:flex;gap:11px;align-items:center;flex-wrap:wrap;border-radius:12px;padding:11px 15px;
   margin-bottom:8px;background:var(--s2);
   backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
