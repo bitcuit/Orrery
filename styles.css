@@ -129,8 +129,8 @@ button.iconbtn{width:40px;height:40px;min-height:40px;padding:0;display:grid;pla
 .iconbtn.danger:hover [fill="#e9b654"],button.danger:hover [fill="#e9b654"]{fill:currentColor}
 .topctl select{
   flex:0 1 auto;min-width:0;max-width:170px;
-  background:transparent;border:none;
-  border-radius:10px;padding:6px 10px;min-height:36px;font-size:12.5px;
+  background-color:transparent;border:none;background-position:right 9px center;
+  border-radius:10px;padding:6px 26px 6px 10px;min-height:36px;font-size:12.5px;
   color:#aeb9ca;cursor:pointer;
   transition:background-color 180ms ease,color 180ms ease;
 }
@@ -308,11 +308,15 @@ input[type=checkbox]{min-height:0}
 input[type=search]{border-radius:9px}
 textarea{resize:vertical;min-height:80px;font-size:var(--fs-base);line-height:1.7;
   border-radius:12px;padding:11px 15px}
-select{cursor:pointer}
+select{cursor:pointer;
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%239eb0c8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;padding-right:36px}
 select option{background:#0a1626;color:#dbe5f1}
 label.fl{display:block;font-size:11px;letter-spacing:.09em;font-weight:500;
   color:#8ea0b8;margin-bottom:7px}
 /* 용어 도움말 ?표 */
+.labelhelp{display:inline-flex;align-items:center;gap:3px}
 button.qhelp{display:inline-flex;align-items:center;justify-content:center;
   width:15px;height:15px;min-height:15px;min-width:15px;box-sizing:border-box;
   margin-left:5px;padding:0;border:1px solid rgba(138,182,225,0.35);border-radius:50%;
@@ -616,9 +620,18 @@ button.asset-tag:not(:disabled):hover{color:#f1c56f;background:rgba(233,182,84,0
   background:var(--s2);
   backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
   box-shadow:inset 0 1px 0 rgba(198,224,248,0.035)}
-.conn.on{box-shadow:0 0 0 1px rgba(233,182,84,0.45), inset 0 1px 0 rgba(198,224,248,0.035)}
-.conn-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:11px}
-.conn-h .cn{font-weight:560;flex:1;min-width:100px;color:#e9f0f9}
+.conn.on{box-shadow:0 0 0 1px rgba(138,182,225,0.28), inset 0 1px 0 rgba(198,224,248,0.035)}
+.conn-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.conn.open .conn-h{margin-bottom:11px}
+.conn-h .cn{font-weight:560;flex:none;min-width:0;color:#e9f0f9}
+.c-chev{flex:none;background:none;border:0;color:var(--icon-muted);cursor:pointer;
+  padding:2px 3px;min-height:0;font-size:10px;line-height:1;transition:transform .18s}
+.c-chev:hover{color:#eef4fc}
+.conn.open .c-chev{transform:rotate(90deg)}
+.c-sum{flex:1;min-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--icon-muted);font-size:12px;font-family:var(--mono)}
+.conn-body{display:none}
+.conn.open .conn-body{display:block}
 .conn-check{display:flex;align-items:center;gap:7px;margin:-2px 0 13px;padding:8px 10px;border-radius:8px;
   background:rgba(121,168,211,0.045);font-family:var(--mono);font-size:11px;color:#8ea0b8}
 .conn-check.ok{color:#a3d9b1;background:rgba(125,212,160,0.06)}
@@ -833,7 +846,7 @@ button.build-mode.on .bn{color:#f1b94f}
   padding-bottom:16px;margin-bottom:18px;border-bottom:1px solid rgba(138,182,225,0.1)}
 .formrow .fl{margin:0;flex:none}
 .formrow select{flex:0 1 280px;min-width:160px;font-family:var(--body);font-size:15px;
-  color:#dfe8f4;min-height:40px;border-radius:9px;padding:6px 14px;
+  color:#dfe8f4;min-height:40px;border-radius:9px;padding:6px 36px 6px 14px;
   transition:color .18s,border-color .18s,background-color .18s}
 .formrow select:hover{color:#f8d187;border-color:rgba(233,182,84,0.45)}
 .formrow select:focus{color:#f1b94f}
