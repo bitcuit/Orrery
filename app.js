@@ -4152,11 +4152,34 @@ const STAGE_LABEL = { digest:'1 · 세계 읽기', seed:'2 · 씨앗 뽑기', cr
   expand:'3 · 카드로 펼치기', patch:'3b · 칸 다시 쓰기', check:'4 · 설정 대조', relate:'캐스트 · 관계 짜기' };
 
 /* --- 공통 지시문 (모든 공정 앞) --- */
+// prompts.js/편집기 반영에서 온 '기본' 공통 지시문을 현재 양식 분류에 맞게 읽기전용으로 보여준다
+function inheritedCommonHtml(){
+  const g = S.opts.group || 'character';
+  let items = [];
+  try{ items = builtinCommonItems().filter(it => it.groups.includes(g)); }catch(_){ items = []; }
+  if(!items.length) return '';
+  const rows = items.map(it=>`
+    <details class="stitem inherited">
+      <summary>
+        <span class="chev">▶</span>
+        <span class="inh-badge" title="prompts.js 또는 편집기 '앱에 반영'에서 온 기본 공통 지시문입니다. 이 분류의 모든 양식에 자동으로 들어갑니다. 여기선 못 고치고 prompts.js/편집기에서 관리합니다.">기본</span>
+        <span class="nm">${esc(it.name||'(이름 없음)')}</span>
+        ${it.role!=='system' ? `<span class="rolechip">${esc(it.role)}</span>` : ''}
+        <span class="meta">${tok(it.content)}tk</span>
+      </summary>
+      <div class="stbody">
+        <div class="field" style="margin:0"><label class="fl">내용 · 읽기 전용 (prompts.js / 편집기에서 관리)</label>
+          <textarea rows="${Math.min(14, Math.max(3, it.content.split('\n').length))}" readonly>${esc(it.content)}</textarea></div>
+      </div>
+    </details>`).join('');
+  return `<p class="note" style="margin:0 0 8px">아래 <b>기본</b> 항목은 prompts.js(또는 편집기 반영)에서 이 양식에 자동으로 들어갑니다. 여기 목록엔 안 보여도 생성에는 늘 반영됩니다.</p>${rows}`;
+}
 function renderCommon(){
   const P = activePreset();
   if(!P.common) P.common = [];
   const openSet = window.__commonOpen || (window.__commonOpen = new Set());
-  $('#commonBox').innerHTML = P.common.map((c,i)=>`
+  const inherited = inheritedCommonHtml();
+  const ownHtml = P.common.map((c,i)=>`
     <details class="stitem ${c.enabled?'':'off'}" data-ci="${i}" ${openSet.has(c.id)?'open':''}>
       <summary>
         <span class="chev">▶</span>
@@ -4189,9 +4212,12 @@ function renderCommon(){
           </div>
         </details>
       </div>
-    </details>`).join('')
-    || '<div class="empty" style="padding:18px"><b>아직 없습니다</b>+ 로 추가하거나, ST 프리셋을 가져오면 여기로 들어옵니다.</div>';
-  $('#commonBox').querySelectorAll('.stitem').forEach(el=>{
+    </details>`).join('');
+  const emptyMsg = (!ownHtml && !inherited)
+    ? '<div class="empty" style="padding:18px"><b>아직 없습니다</b>+ 로 추가하거나, ST 프리셋을 가져오면 여기로 들어옵니다.</div>'
+    : (!ownHtml ? '<p class="note" style="margin:8px 0 0">이 양식만의 공통 지시문은 아직 없습니다. + 로 추가할 수 있어요.</p>' : '');
+  $('#commonBox').innerHTML = inherited + ownHtml + emptyMsg;
+  $('#commonBox').querySelectorAll('.stitem:not(.inherited)').forEach(el=>{
     el.addEventListener('toggle', ()=>{
       const c = activePreset().common[+el.dataset.ci]; if(!c) return;
       if(el.open) openSet.add(c.id); else openSet.delete(c.id);
