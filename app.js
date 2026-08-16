@@ -439,6 +439,11 @@ async function callProvider(conn, messages, opts){
   if(S.logVerbose) log(out);
   if(!out.trim()) throw new Error('모델이 빈 응답을 돌려줬습니다. (필터에 걸렸거나 토큰이 모자랐을 수 있습니다)');
   LAST_RAW = out; LAST_RAW_AT = Date.now();
+  // 실제 생성이 성공하면 그 자체가 연결 확인 — '확인' 안 눌러도 초록불로
+  if(conn._ok!==true){
+    conn._ok = true; conn._lastTest = {at:Date.now(), ok:true, usage:LAST_USAGE, auto:true};
+    try{ renderConnSel(); renderConns(); }catch(_){ }
+  }
   return out;
 }
 async function fetchModels(conn){
@@ -2954,7 +2959,7 @@ function renderSeeds(){
     p.sel.length===1 ? '하나 골랐습니다 — 3단계로 펼치세요' :
     p.sel.length===2 ? '둘 골랐습니다 — 섞을 수 있습니다' : '하나를 고르면 펼치고, 둘을 고르면 섞습니다';
   if(!p.seeds.length){
-    box.innerHTML = '<div class="empty"><b>아직 빈 하늘입니다</b>먼저 읽기를 마치고 씨앗을 뽑으세요.</div>';
+    box.innerHTML = '<div class="empty"><b>아직 별씨앗이 없습니다</b>먼저 읽기를 마치고 씨앗을 뽑으세요.</div>';
     setSpine(); return;
   }
   box.innerHTML = `<div class="seeds">${p.seeds.map((s,i)=>{
@@ -3042,7 +3047,7 @@ function renderCheck(){
     ? `<span class="verdict ${p.verdict}">${{pass:'문제 없음',warn:'확인 필요',fail:'고쳐야 함'}[p.verdict]||p.verdict}</span>` : '';
   if(!p.violations){ box.innerHTML=''; setSpine(); return; }
   if(!p.violations.length){
-    box.innerHTML = '<div class="empty"><b>어긋난 곳이 없습니다</b>세계 설정과 모순되는 부분을 찾지 못했습니다.</div>';
+    box.innerHTML = '<div class="empty"><b>어긋난 곳이 없습니다</b></div>';
     setSpine(); return;
   }
   box.innerHTML = p.violations.map((v,i)=>`
@@ -3904,7 +3909,6 @@ const MODE_UI = {
 function renderModeChooser(){
   const u = MODE_UI[S.opts.group] || MODE_UI.character, cur = activeMode();
   $('#modeTitle').textContent = u.title;
-  $('#modeHint').textContent = u.hint;
   $('#modeBox').innerHTML = u.items.map(([id,name,note])=>`
     <div class="mode ${id===cur?'on':''}" data-mode="${id}"><div class="mn">${esc(name)}</div><div class="md">${esc(note)}</div></div>`).join('');
 }
@@ -4517,6 +4521,7 @@ function connCheckHtml(c){
     : '연결 실패 · 로그에서 원인을 확인하세요';
   return `<div class="conn-check ${last.ok?'ok':'no'}"><span>${last.ok?'확인됨':'확인 실패'}</span><span>·</span><span>${esc(at)}</span><span>·</span><span>${esc(detail)}</span></div>`;
 }
+const CONN_OPEN = new Set();
 function renderConns(){
   const box = $('#connList');
   if(!S.connections.length){
@@ -4527,14 +4532,18 @@ function renderConns(){
     const p = PROV[c.provider] || {};
     const needsKey = !p.noKey;
     const vertex = c.provider==='vertex';
-    return `<div class="conn ${c.id===S.activeConn?'on':''}" data-id="${c.id}">
+    const open = CONN_OPEN.has(c.id);
+    return `<div class="conn ${c.id===S.activeConn?'on':''} ${open?'open':''}" data-id="${c.id}">
       <div class="conn-h">
+        <button class="c-chev" aria-label="펼치기/접기">▶</button>
         <span class="dot ${c._ok===true?'ok':c._ok===false?'no':''}"></span>
         <span class="cn">${esc(c.name)}</span>
+        <span class="c-sum">${esc(p.label||c.provider||'')}${c.model?' · '+esc(c.model):''}</span>
         ${c.id===S.activeConn ? '<span class="c-use-state" title="현재 생성 작업에 사용하는 연결">쓰는 중</span>' : '<button class="mini ghost c-use">이걸로 쓰기</button>'}
         <button class="mini ghost c-test" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시">확인</button>
         <button class="iconbtn danger c-del" title="연결 삭제" aria-label="연결 삭제">${TRASH_SVG}</button>
       </div>
+      <div class="conn-body">
       ${connCheckHtml(c)}
       <div class="row">
         <div class="field"><label class="fl">이름</label><input class="c-name" value="${esc(c.name)}"></div>
@@ -4570,6 +4579,7 @@ function renderConns(){
         <div class="field" style="flex:0 0 150px"><label class="fl">&nbsp;</label>
           <button class="ghost c-models" style="width:100%">모델 목록 받기</button></div>
       </div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -4582,7 +4592,17 @@ function invalidateConnTest(c, wrap){
 $('#btnConnNew').addEventListener('click', ()=>{
   const c = { id:uid(), name:'새 연결', provider:'openai', apiKey:'', baseUrl:'', model:'gpt-4o' };
   S.connections.push(c); if(!S.activeConn) S.activeConn = c.id;
+  CONN_OPEN.add(c.id); // 새로 만든 연결은 바로 펼쳐서 입력하게
   save(); renderConns(); renderConnSel();
+});
+// 연결 카드 접기/펼치기 (헤더의 화살표·이름·요약 클릭)
+$('#connList').addEventListener('click', e=>{
+  if(e.target.closest('button:not(.c-chev)') || e.target.closest('select')) return;
+  if(!e.target.closest('.c-chev') && !e.target.closest('.cn') && !e.target.closest('.c-sum')) return;
+  const w = e.target.closest('.conn'); if(!w) return;
+  const id = w.dataset.id;
+  if(CONN_OPEN.has(id)) CONN_OPEN.delete(id); else CONN_OPEN.add(id);
+  w.classList.toggle('open');
 });
 $('#connList').addEventListener('input', e=>{
   const w = e.target.closest('.conn'); if(!w) return;

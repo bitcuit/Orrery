@@ -156,7 +156,6 @@
   </div>
   <div class="panel" id="modePanel">
     <h2 id="modeTitle">인물을 어떻게 뽑을까요</h2>
-    <p class="hint" id="modeHint">재료를 어떤 방향으로 사용할지 고릅니다.</p>
     <div class="modes" id="modeBox">
       <div class="mode on" data-mode="w2c">
         <div class="mn">세계에서 사람 뽑기</div>
@@ -237,9 +236,7 @@
 
   <!-- 2 -->
   <div class="panel" id="seedPanel">
-    <h2>2 · 별씨앗 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 카드로 펼치기 전의 한 줄짜리 후보 컨셉입니다. 여기서 하나를 고르거나, 두 개를 골라 섞을 수 있습니다.">?</button></h2>
-    <p class="hint">한 줄짜리 후보를 여러 개 뽑습니다. 마음에 드는 걸 고르거나, 둘을 골라 섞습니다.</p>
-    <div class="bar">
+    <h2>2 · 별씨앗 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 카드로 펼치기 전의 한 줄짜리 후보 컨셉입니다. 여기서 하나를 고르거나, 두 개를 골라 섞을 수 있습니다.">?</button></h2>    <div class="bar">
       <button class="primary" id="btnSeeds"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.8c.95 4.7 2.05 5.8 6.75 6.75-4.7.95-5.8 2.05-6.75 6.75-.95-4.7-2.05-5.8-6.75-6.75 4.7-.95 5.8-2.05 6.75-6.75Z" fill="#e9b654" stroke="none"/><circle cx="24.6" cy="22.4" r="1.1" fill="#e9b654" stroke="none" opacity=".7"/></svg>씨앗 뽑기</button>
       <button class="ghost" id="btnCross" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="12.4" cy="16" r="6.8"/><circle cx="19.6" cy="16" r="6.8" stroke="#e9b654"/></svg>고른 둘 섞기</button>
       <span class="sp"></span>
@@ -289,9 +286,7 @@
 
   <!-- 4 -->
   <div class="panel" id="checkPanel">
-    <h2><span class="stepno">4 · </span>검증</h2>
-    <p class="hint">완성된 카드가 세계 설정과 어긋나는 곳을 찾습니다.</p>
-    <div class="bar">
+    <h2><span class="stepno">4 · </span>검증</h2>    <div class="bar">
       <button class="primary" id="btnCheck" disabled>설정 대조</button>
       <span class="sp"></span>
       <span id="verdictBox"></span>
@@ -301,8 +296,11 @@
 
   <!-- 질문 -->
   <div class="panel" id="qaPanel" style="display:none">
-    <h2>물어보기</h2>
-    <p class="hint">만든 것에 대해 묻습니다. 문제를 어떻게 풀지 상의하거나, 당사자에게 직접 물을 수 있습니다.</p>
+    <div class="panel-h">
+      <h2>물어보기</h2>
+      <span class="sp"></span>
+      <button class="ghost mini" id="btnQaClear">기록 비우기</button>
+    </div>
     <div class="row" style="align-items:flex-end">
       <div class="field" style="flex:0 0 150px"><label class="fl">누가 답할까요</label>
         <select id="askMode">
@@ -310,20 +308,16 @@
           <option value="voice">당사자 본인</option>
         </select></div>
       <div class="field"><label class="fl">질문</label>
-        <textarea id="askIn" rows="2" placeholder="예: 이 인물이 배신당하면 어떻게 반응하나요?  /  규칙 두 개가 부딪히는데 어느 쪽을 살릴까요?  ·  Ctrl+Enter"></textarea></div>
+        <textarea id="askIn" rows="1" style="min-height:40px" placeholder="예: 배신당하면 어떻게 반응하나요? · Ctrl+Enter"></textarea></div>
       <div class="field" style="flex:0 0 110px"><label class="fl">&nbsp;</label>
         <button class="primary" id="btnAsk" style="width:100%"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 17.5a8.5 8.5 0 0 1-8.5 8.5h-6.6l-4.9 3.7V25A8.5 8.5 0 0 1 5.5 17.5v-3A8.5 8.5 0 0 1 14 6h4a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M13.4 13a2.9 2.9 0 1 1 4.05 2.68c-.86.37-1.25.98-1.25 1.92"/><circle cx="16.2" cy="21" r="1.1" fill="#e9b654" stroke="none"/></svg>묻기</button></div>
     </div>
-    <div class="bar" style="margin-top:0"><span class="sp"></span>
-      <button class="ghost mini" id="btnQaClear">기록 비우기</button></div>
     <div id="qaOut" style="margin-top:12px"></div>
   </div>
 
   <!-- 캐스트 -->
   <div class="panel" id="castPanel" style="display:none">
-    <h2>캐스트 · 관계망 <button type="button" class="qhelp" aria-label="캐스트란" data-tip="캐스트는 ‘여러 명 + 관계망’ 방식으로 함께 뽑은 인물들의 무리입니다. 서로를 어떻게 보는지 시선을 양방향으로 짭니다.">?</button></h2>
-    <p class="hint">뽑은 인물들이 서로를 어떻게 보는지 짭니다. 시선은 양쪽이 다릅니다.</p>
-    <div class="bar">
+    <h2>캐스트 · 관계망 <button type="button" class="qhelp" aria-label="캐스트란" data-tip="캐스트는 ‘여러 명 + 관계망’ 방식으로 함께 뽑은 인물들의 무리입니다. 서로를 어떻게 보는지 시선을 양방향으로 짭니다.">?</button></h2>    <div class="bar">
       <button class="primary" id="btnCast">인물 뽑기</button>
       <button class="ghost" id="btnRelate" disabled>관계 짜기</button>
       <span class="sp"></span>
@@ -343,9 +337,7 @@
       <button class="iconbtn danger" id="btnTalkClear" title="대화 비우기" aria-label="대화 비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
       <button class="iconbtn" id="btnTalkToAsset" title="이 대화를 재료로" aria-label="이 대화를 재료로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
       <button class="iconbtn" id="btnTalkCopy" title="전부 복사" aria-label="전부 복사"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg></button>
-    </div>
-    <p class="hint">만든 것을 보여주고 평가를 듣거나, 아이디어를 주고받으며 다듬습니다. 공정과 달리 형식이 없습니다.</p>
-    <div class="row">
+    </div>    <div class="row">
       <div class="field" style="flex:0 1 260px"><label class="fl">상대 역할</label>
         <select id="talkRole">
           <option value="world">세계관 상담역</option>
@@ -360,7 +352,7 @@
       <div>
         <div class="field">
           <label class="fl">직접 입력</label>
-          <textarea id="talkCustomPrompt" rows="4" placeholder="이 역할에게 내릴 시스템 프롬프트를 직접 씁니다. 비워두면 위에서 고른 역할의 기본 프롬프트가 사용됩니다."></textarea>
+          <textarea id="talkCustomPrompt" rows="4" placeholder="비워두면 위에서 고른 역할의 기본 프롬프트가 쓰입니다."></textarea>
         </div>
         <div class="field">
           <label class="fl">기본 프롬프트</label>
@@ -380,8 +372,8 @@
       <label><input type="checkbox" id="ctxCard"> 지금 만든 것</label>
       <span class="note" id="ctxTok"></span>
       <span class="sp"></span>
-      <button type="button" class="mini ghost" id="btnTalkToCard" disabled>결론을 카드에 반영</button><button type="button" class="qhelp" aria-label="결론을 카드에 반영이란" data-tip="지금 작업대에 있는 카드를, 이 대화에서 정해진 내용대로 고칩니다. 잠근 칸은 그대로 두고, 대화에서 바뀐 부분만 반영합니다. 작업대에 카드가 있어야 눌립니다.">?</button>
-      <button type="button" class="mini ghost" id="btnTalkWrap">대화 마무리</button><button type="button" class="qhelp" aria-label="대화 마무리란" data-tip="대화가 길어질수록 매번 보내는 입력이 커집니다. 지금까지의 대화를 요약 하나로 압축해 토큰을 줄이고, 그 요약 위에서 대화를 이어갑니다.">?</button>
+      <span class="labelhelp"><button type="button" class="mini ghost" id="btnTalkToCard" disabled>결론을 카드에 반영</button><button type="button" class="qhelp" aria-label="결론을 카드에 반영이란" data-tip="지금 작업대에 있는 카드를, 이 대화에서 정해진 내용대로 고칩니다. 잠근 칸은 그대로 두고, 대화에서 바뀐 부분만 반영합니다. 작업대에 카드가 있어야 눌립니다.">?</button></span>
+      <span class="labelhelp"><button type="button" class="mini ghost" id="btnTalkWrap">대화 마무리</button><button type="button" class="qhelp" aria-label="대화 마무리란" data-tip="대화가 길어질수록 매번 보내는 입력이 커집니다. 지금까지의 대화를 요약 하나로 압축해 토큰을 줄이고, 그 요약 위에서 대화를 이어갑니다.">?</button></span>
     </div>
     <details class="nebula-pick" id="talkPick" style="margin:0 0 12px">
       <summary>보낼 재료 고르기 <span class="note" id="talkPickCount"></span></summary>
@@ -412,7 +404,7 @@
       <button class="iconbtn" id="btnLibExport" title="전체 내보내기" aria-label="전체 내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg></button>
       <button class="iconbtn danger" id="btnLibClear" title="비우기 — 고정 안 한 것만" aria-label="비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
     </div>
-    <p class="hint">만든 것은 자동으로 여기 남습니다. ★ 를 켜두면 오래돼도 지워지지 않습니다.</p>
+    <p class="hint">★ 안 켜둔 것은 오래되면 지워집니다.</p>
     <div class="row" style="align-items:flex-end">
       <div class="field"><label class="fl">검색</label>
         <input type="search" id="libSearch" placeholder="이름·내용으로 찾기"></div>
@@ -435,7 +427,7 @@
 <section class="view" id="v-prompts">
   <div class="panel">
     <h2>양식</h2>
-    <p class="hint">각 공정에 들어가는 지시문과 출력 칸을 직접 고칩니다. <code>{{이름}}</code>은 실행할 때 값으로 바뀝니다.</p>
+    <p class="hint"><code>{{이름}}</code>은 실행할 때 값으로 바뀝니다.</p>
     <div class="row">
       <div class="field"><label class="fl">양식</label><select id="presetSel"></select></div>
       <div class="field"><label class="fl">&nbsp;</label>
@@ -462,7 +454,7 @@
       <button class="ghost mini" id="btnLoadCommon" title="앱 기본 공통 지시문 불러오기">불러오기</button>
       <button class="iconbtn" id="btnAddCommon" title="구획 추가" aria-label="구획 추가"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
     </div>
-    <p class="hint">모든 공정 앞에 순서대로 들어갑니다. 끄면 잠시 빼둘 수 있습니다. ST 프리셋을 가져오면 여기로 들어옵니다. 앱 기본으로 둘 지시문은 파일의 <code>builtinCommon</code>에 넣어두고 '불러오기'로 꺼내 쓸 수 있습니다.</p>
+    <p class="hint">모든 공정 앞에 순서대로 들어갑니다. ST 프리셋을 가져오면 여기로 들어옵니다.</p>
     <div id="commonBox" class="stlist"></div>
   </div>
 
@@ -507,7 +499,7 @@
 <section class="view" id="v-log">
   <div class="panel">
     <h2>로그</h2>
-    <p class="hint">주고받은 요청과 오류가 남습니다. 문제가 생기면 이걸 복사해서 물어보세요.</p>
+    <p class="hint">문제가 생기면 이 기록을 복사해 물어보세요.</p>
     <div class="bar">
       <button class="ghost" id="btnLogCopy">전부 복사</button>
       <button class="ghost mini" id="btnLogClear">비우기</button>
