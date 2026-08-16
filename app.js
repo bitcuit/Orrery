@@ -4819,6 +4819,12 @@ function tab(name){
   $$('.view').forEach(v=>v.classList.toggle('on', v.id==='v-'+name));
   if(name==='log') renderLog();
   if(name==='talk') renderChat();
+  if(name==='library'){ // 기록은 열 때마다 분류 '전부'·검색 초기화
+    libFilter=''; libQuery='';
+    if($('#libFilter')) $('#libFilter').value='';
+    if($('#libSearch')) $('#libSearch').value='';
+    renderLib();
+  }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 $$('.topctl button[data-tab]').forEach(b=> b.addEventListener('click', ()=>tab(b.dataset.tab)));
