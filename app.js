@@ -2462,7 +2462,7 @@ const MAT_HINT = {
 const STAR_SVG = on=>`<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9Z" ${on?'fill="currentColor"':'fill="none"'} stroke="currentColor"/></svg>`;
 const FOLDER_ADD_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 9.5h8l2.2 2.6h10.8v11.4a2.5 2.5 0 0 1-2.5 2.5H8a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M20 15.5v7M16.5 19h7" stroke="#e9b654"/></svg>';
 const PENCIL_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m7.5 24.5 1.2-5.2L20.5 7.5a2.4 2.4 0 0 1 3.4 0l.6.6a2.4 2.4 0 0 1 0 3.4L12.7 23.3Z"/><path d="m18.8 9.2 4 4M8.7 19.3l4 4" stroke="#e9b654"/></svg>';
-const TRASH_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1"/></svg>';
+const TRASH_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg>';
 let ASSET_FOLDER_FILTER='all', ASSET_PURPOSE_FILTER='all', ASSET_FOLDER_SCROLL=0, ASSET_SEARCH='', EDITING_ASSET_FOLDER_ID=null, PENDING_ASSET_FOLDER_DELETE=null;
 
 function folderById(id){ return S.assetFolders.find(f=>f.id===id); }
@@ -3964,6 +3964,9 @@ function applyGroupUi(){
 }
 
 const GROUP_LABEL = { world:'세계', character:'인물', prompt:'프롬프트' };
+// 분류의 항성계 이름 — 뱃지·목록 표시용
+const GROUP_STAR = { world:'항성', character:'행성', prompt:'궤도', all:'공용' };
+function presetGroupKey(p){ const g = (p && p.group) || 'character'; return g==='all' ? 'all' : g; }
 // includeOff=true 면 꺼둔 프리셋까지 포함 (양식 탭 관리용). 기본은 켜진 것만.
 function presetsInGroup(g, includeOff){
   return S.presets.filter(p=>{
@@ -4047,13 +4050,16 @@ $('#groupBox').addEventListener('click', e=>{
 $('#studioPreset').addEventListener('change', e=> switchPreset(e.target.value));
 
 function renderPresetSel(){
-  $('#presetSel').innerHTML = S.presets.map(p=>
-    `<option value="${p.id}" ${p.id===S.activePreset?'selected':''}>${p.off?'🚫 ':''}${esc(p.name)}${p.off?' (숨김)':''}</option>`).join('');
+  $('#presetSel').innerHTML = S.presets.map(p=>{
+    const gk = presetGroupKey(p);
+    return `<option value="${p.id}" ${p.id===S.activePreset?'selected':''}>${p.off?'🚫 ':''}[${GROUP_STAR[gk]}] ${esc(p.name)}${p.off?' (숨김)':''}</option>`;
+  }).join('');
   const n = PRESET_NOTE[S.activePreset];
   $('#stNote').innerHTML = n ? esc(n) : '';
   if($('#studioNote')) $('#studioNote').textContent = n || '';
   $('#stNote').style.color = S.activePreset==='drives-adult' ? 'var(--brass)' : '';
-  const off = !!(activePreset() && activePreset().off), b = $('#btnPresetOff');
+  const P = activePreset();
+  const off = !!(P && P.off), b = $('#btnPresetOff');
   if(b){
     b.classList.toggle('is-off', off);
     b.title = off ? '작업대에 다시 표시' : '작업대에서 숨기기';
