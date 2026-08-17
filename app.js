@@ -16,7 +16,7 @@ let S = {
   connections: [], activeConn: null,
   assets: [], assetFolders: [],
   presets: [], activePreset: null,
-  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'staged', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', group:'world' },
+  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', group:'world' },
   project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null },
   library: [],
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
@@ -3362,6 +3362,7 @@ function renderBuildMode(){
   $('#s3Hint').textContent = mode==='oneshot'
     ? '만들어진 카드입니다. 마음에 드는 칸은 잠그고 나머지만 다시 굴릴 수 있습니다.'
     : '고른 별씨앗을 카드로 펼칩니다. 마음에 드는 칸은 잠그고 나머지만 다시 굴릴 수 있습니다.';
+  setSpine(); // 단계 잠금(점진 공개)을 모드에 맞게 갱신
 }
 $('#buildModeBox').addEventListener('click', e=>{
   const b=e.target.closest('.build-mode'); if(!b) return;
@@ -3384,6 +3385,7 @@ $('#modeBox').addEventListener('click', e=>{
   S.opts.modeBy[S.opts.group] = m.dataset.mode;
   S.opts.mode = m.dataset.mode;
   $$('.mode').forEach(x=>x.classList.toggle('on', x===m));
+  const nm = $('#modeCurName'); if(nm && m.querySelector('.mn')) nm.textContent = m.querySelector('.mn').textContent;
   $('#castPanel').style.display = activeMode()==='cast' ? '' : 'none';
   save(); touchDraft();
 });
@@ -3965,7 +3967,8 @@ const MODE_UI = {
 };
 function renderModeChooser(){
   const u = MODE_UI[S.opts.group] || MODE_UI.character, cur = activeMode();
-  $('#modeTitle').textContent = u.title;
+  const curName = (u.items.find(x=>x[0]===cur) || u.items[0])[1];
+  const nameEl = $('#modeCurName'); if(nameEl) nameEl.textContent = curName;
   $('#modeBox').innerHTML = u.items.map(([id,name,note])=>`
     <div class="mode ${id===cur?'on':''}" data-mode="${id}"><div class="mn">${esc(name)}</div><div class="md">${esc(note)}</div></div>`).join('');
 }
