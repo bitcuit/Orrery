@@ -2915,6 +2915,15 @@ function setSpine(){
     li.classList.toggle('done', done[k]);
     li.classList.toggle('now', k===cur && !done[k]);
   });
+  // 점진 공개: 단계별 모드에서 아직 차례가 안 온 단계는 제목만 남기고 접는다. 지금 할 단계는 강조.
+  const staged = S.opts.buildMode!=='oneshot';
+  const curIdx = order.indexOf(cur);
+  const panelOf = { digest:'digestPanel', seed:'seedPanel', expand:'expandPanel', check:'checkPanel' };
+  order.forEach((k,i)=>{
+    const el = $('#'+panelOf[k]); if(!el) return;
+    el.classList.toggle('locked', staged && i>curIdx && !done[k]);
+    el.classList.toggle('now', staged && k===cur && !done[k]);
+  });
 }
 function renderDigest(){
   const d = S.project.digest, box = $('#digestOut');

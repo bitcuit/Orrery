@@ -256,6 +256,12 @@ main{max-width:1120px;margin:26px auto 0;padding:0 24px 100px}
 .bare .hint{color:#94a5bd;font-size:13px;letter-spacing:-0.01em}
 .bare>.sect-label:first-of-type{margin-top:0}
 .panel>h2,.panel-h h2{font-size:19px;margin-bottom:4px;letter-spacing:-0.04em;font-weight:580;color:#f1f5fb}
+/* 점진 공개: 아직 차례가 안 온 단계는 제목만 남기고 접고, 지금 할 단계는 강조 */
+.panel.locked{opacity:.5;pointer-events:none}
+.panel.locked > :not(h2):not(.panel-h){display:none}
+.panel.locked .panel-h > :not(h2){display:none}
+.panel.locked::after{content:"앞 단계를 끝내면 열립니다";display:block;color:var(--dim2);font-size:12px;margin-top:4px}
+.panel.now>h2::after,.panel.now .panel-h h2::after{content:" · 지금 할 차례";color:var(--brass);font-size:12px;font-weight:500;letter-spacing:0}
 .panel>.hint{color:#94a5bd;font-size:13px;margin:0 0 18px;letter-spacing:-0.01em}
 .sect-label{font-size:12px;letter-spacing:.09em;font-weight:500;
   color:#dda94c;margin:28px 0 12px;
