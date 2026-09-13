@@ -41,7 +41,10 @@ function pruneLib(){
   const drop = S.library.filter(r=>!r.star).sort((a,b)=>(a.updated||a.at)-(b.updated||b.at));
   const n = S.library.length - LIMIT;
   const ids = new Set(drop.slice(0,n).map(r=>r.id));
-  if(ids.size) log(`기록이 ${LIMIT}개를 넘어 고정하지 않은 오래된 항목 ${ids.size}개를 지웠습니다.`);
+  if(ids.size){
+    log(`기록이 ${LIMIT}개를 넘어 고정하지 않은 오래된 항목 ${ids.size}개를 지웠습니다.`);
+    setTimeout(()=>toast(`기록이 ${LIMIT}개를 넘어 오래된 항목 ${ids.size}개를 정리했습니다`),900);
+  }
   S.library = S.library.filter(r=>!ids.has(r.id));
 }
 let libQuery = '', libFilter = '';
@@ -67,7 +70,6 @@ function renderLib(){
     const cardExport=(preset&&preset.kind==='character')||(!preset&&r.group==='character');
     return `
     <div class="libitem" data-id="${r.id}">
-      <input type="checkbox" class="l-sel" title="번역할 결과 선택">
       <button class="mini ghost l-star" style="flex:none;border:none;font-size:15px;padding:2px 6px;color:${r.star?'var(--brass)':'var(--dim2)'}">${r.star?'★':'☆'}</button>
       <span class="ln l-name" title="눌러서 이름 바꾸기">${esc(r.name||'이름 없음')}</span>
       <span class="lm">${esc(GROUP_LABEL[r.group]||'')} · ${esc(r.presetName||'')}${r.world?' · '+esc(r.world):''} · ${new Date(r.updated||r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
@@ -77,54 +79,7 @@ function renderLib(){
       <button class="iconbtn danger l-del" title="삭제" aria-label="삭제">${TRASH_SVG}</button>
     </div>`;
   }).join('');
-  updateLibSel();
 }
-function updateLibSel(){
-  const boxes = $$('#libList .l-sel'), sel = boxes.filter(c=>c.checked).length;
-  const cnt = $('#libSelCount'); if(cnt) cnt.textContent = sel ? `${sel}개 선택` : '0개 선택';
-  const btn = $('#btnLibTranslate'); if(btn) btn.disabled = !sel;
-  const all = $('#libSelAll'); if(all){ all.checked = boxes.length>0 && sel===boxes.length; all.indeterminate = sel>0 && sel<boxes.length; }
-}
-$('#libList').addEventListener('change', e=>{ if(e.target.classList.contains('l-sel')) updateLibSel(); });
-$('#libSelAll').addEventListener('change', e=>{ $$('#libList .l-sel').forEach(c=>{ c.checked=e.target.checked; }); updateLibSel(); });
-// 선택한 결과를 영어로 번역해 EN 사본을 기록에 추가 (항목마다 개별 요청, 순차)
-async function translateRecordToEN(rec){
-  const conn = S.connections.find(c=>c.id===S.activeConn);
-  if(!conn) throw new Error('먼저 연결을 만들어 주세요.');
-  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
-  const fields = rec.fields || {};
-  const messages = [
-    {role:'system', content:'You translate structured creative-writing fields into natural, fluent English. Keep the JSON keys exactly as given; translate only the values. Preserve tone, proper nouns, and line breaks. Output exactly one valid JSON object — no code fence, no commentary.'},
-    {role:'user', content:'Translate every value in this JSON to English. Keep the keys unchanged.\n\n'+JSON.stringify(fields, null, 1)}
-  ];
-  const opts = {temperature:0.3, maxTokens:Math.max(2000, (P.stages&&P.stages.expand&&P.stages.expand.maxTokens)||2400)};
-  const raw = await callProvider(conn, messages, opts);
-  const j = extractJson(raw);
-  const out = {};
-  Object.keys(fields).forEach(k=>{ out[k] = (j && typeof j[k]==='string' && j[k].trim()) ? j[k] : String(fields[k]); });
-  return out;
-}
-$('#btnLibTranslate').addEventListener('click', e=> guard(e.currentTarget, '번역 중', async()=>{
-  const ids = $$('#libList .l-sel:checked').map(c=>c.closest('.libitem').dataset.id);
-  if(!ids.length) return toast('번역할 결과를 선택하세요',1);
-  if(!S.connections.find(c=>c.id===S.activeConn)) return toast('먼저 연결을 만들어 주세요',1);
-  let done=0, fail=0;
-  for(const id of ids){
-    const rec = S.library.find(x=>x.id===id); if(!rec) continue;
-    toast(`번역 중… ${done+fail+1}/${ids.length}: ${rec.name||''}`);
-    try{
-      const enFields = await translateRecordToEN(rec);
-      const copy = clone(rec);
-      copy.id = uid(); copy.name = (rec.name||'record')+' (EN)';
-      copy.fields = enFields; copy.conversion=null; copy.star = false; copy.updated = Date.now();
-      S.library.unshift(copy); done++;
-      log(`번역: ${rec.name} → ${copy.name}`,'ok');
-    }catch(err){ fail++; log(`번역 실패: ${rec.name||''} · ${err.message}`,'err'); }
-  }
-  if(typeof pruneLib==='function') pruneLib();
-  save(); renderLib();
-  toast(`영어 번역 ${done}개 추가${fail?` · 실패 ${fail}개(로그 확인)`:''}`);
-}));
 $('#libSearch').addEventListener('input', e=>{ libQuery = e.target.value.toLowerCase().trim(); renderLib(); });
 $('#libFilter').addEventListener('change', e=>{ libFilter = e.target.value; renderLib(); });
 $('#libList').addEventListener('click', async e=>{
@@ -332,6 +287,7 @@ function renderGroup(){
 }
 function switchPreset(id){
   if(!id) return;
+  OPEN_DONE_STAGE=null;
   const prevGroup = S.opts.group;
   S.activePreset = id;
   const p = activePreset();
@@ -341,6 +297,8 @@ function switchPreset(id){
     stashDigest(prevGroup);
     S.opts.group = pg;
     loadDigest(pg);
+    $('#optBrief').value=curBrief();
+    $('#optExtra').value=curExtra();
     syncLibFilter(); renderLib();
   }
   S.project.card = null; S.project.locked = {}; S.project.qa = [];
@@ -353,9 +311,11 @@ function switchPreset(id){
   renderMat(); applyGroupUi(); renderOneshot();
 }
 function applyGroup(g){
+  OPEN_DONE_STAGE=null;
   stashDigest(S.opts.group);
   S.opts.group = g;
   loadDigest(g);
+  $('#optBrief').value=curBrief();
   const list = presetsInGroup(g);
   if(list.length && !list.find(p=>p.id===S.activePreset)) S.activePreset = list[0].id;
   // 작업 중이던 것은 분류마다 따로 둔다

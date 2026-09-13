@@ -22,6 +22,7 @@ function tab(name){
 $$('.topctl button[data-tab]').forEach(b=> b.addEventListener('click', ()=>tab(b.dataset.tab)));
 
 function bootUI(){
+  convertPrefs();
   $('#optLang').value = S.opts.lang;
   $('#optTone').value = S.opts.tone;
   $('#optSeedN').value = S.opts.seedCount;
@@ -29,11 +30,9 @@ function bootUI(){
   $('#optNsfw').value = S.opts.nsfw ? '1':'0';
   $('#optCheck').value = S.opts.check ? '1':'0';
   $('#logVerbose').checked = !!S.logVerbose;
-  if(!S.opts.extraBy) S.opts.extraBy = {world:'',character:'',prompt:''};
-  if(S.opts.extra && !S.opts.extraBy[S.opts.group]){ S.opts.extraBy[S.opts.group] = S.opts.extra; S.opts.extra=''; }
   $('#optExtra').value = curExtra();
   renderReq();
-  $('#optBrief').value = S.opts.brief || '';
+  $('#optBrief').value = curBrief();
   $('#talkRole').value = S.chat.role;
   $('#ctxAssets').checked = !!S.chat.ctx.assets;
   $('#ctxDigest').checked = !!S.chat.ctx.digest;
@@ -90,18 +89,26 @@ function bootUI(){
   bootUI();
   BOOTING=false;
   if(restoredDraft) setTimeout(()=>toast('이전 작업물을 불러왔습니다'),250);
+  if(LOAD_ERROR){
+    setSaveState('저장 데이터 읽기 실패 · 복구본 보존됨','err',true);
+    setTimeout(()=>toast('저장된 데이터를 읽지 못했습니다. 새 작업 전에 백업 상태를 확인해 주세요.',1),300);
+  }
   setTimeout(()=>document.body.classList.remove('boot'), 900);
 log('Orrery 궤도 진입. ' + (location.protocol==='file:'
     ? '파일에서 직접 열었습니다.'
     : '주소: '+location.origin));
-  if(!had && !S.connections.length){
+  if(!had && !LOAD_ERROR && !S.connections.length){
     setTimeout(()=>{ tab('settings'); toast('먼저 연결을 하나 만들어 주세요'); }, 500);
   }
   window.addEventListener('keydown', e=>{
-    if(e.key==='Escape' && ABORT){ ABORT.abort(); toast('멈췄습니다'); }
+    if(e.key==='Escape' && abortCurrentCall()) toast('요청을 멈추는 중입니다');
   });
   window.addEventListener('beforeunload', ()=>{ if(DRAFT_DIRTY) saveDraftNow(); });
 })();
+
+$('#btnAbortCall').addEventListener('click', ()=>{
+  if(abortCurrentCall()) toast('요청을 멈추는 중입니다');
+});
 
 /* 가로 드래그 스크롤 (탭바) */
 function dragScroll(el){

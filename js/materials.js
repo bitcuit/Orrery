@@ -126,7 +126,7 @@ function cardAsset(data, fallbackName){
   if(Array.isArray(d.alternate_greetings) && d.alternate_greetings.length)
     fields.alternate_greetings = d.alternate_greetings.join('\n\n');
   out.push({ id:uid(), kind:'character', name: d.name || fallbackName || '이름 없는 카드',
-             fields, use:true, raw:d });
+             fields, use:true });
   const book = d.character_book || d.characterBook;
   if(book && (book.entries)){
     const en = normEntries(book.entries);
@@ -185,7 +185,8 @@ async function sniff(file){
 /* --- 재료 → 프롬프트용 텍스트 --- */
 function sourceText(){
   const parts = [];
-  if(S.opts.brief && S.opts.brief.trim()) parts.push('## 구상\n'+S.opts.brief.trim());
+  const brief=curBrief().trim();
+  if(brief) parts.push('## 구상\n'+brief);
   for(const a of S.assets){
     if(!a.use) continue;
     if(a.kind==='character'){
@@ -300,7 +301,7 @@ function openAssetFolderModal(folder){
 }
 function renderMat(){
   const box = $('#matStatus'); if(!box) return;
-  const P = activePreset(), st = assetStats(), brief = (S.opts.brief||'').trim();
+  const P = activePreset(), st = assetStats(), brief = curBrief().trim();
   const selectedAssets=S.assets.filter(a=>a.use).length;
   const req = P.needs === 'required';
   let cls='matrow', html='';
@@ -337,7 +338,6 @@ function renderAssets(keepFolderBar){
   renderMat();
   const shown=S.assets.filter(a=>assetMatchesFolder(a)&&assetMatchesPurpose(a)&&assetMatchesSearch(a)).sort((a,b)=>Number(!!b.favorite)-Number(!!a.favorite));
   box.innerHTML = (shown.length ? shown.map(a=>{
-    ensureAssetOriginal(a);
     const on = a.kind==='lorebook' ? a.entries.filter(e=>e.use).length : 0;
     const meta = a.kind==='lorebook' ? `${on}/${a.entries.length}개 · ${tok(a.entries.filter(e=>e.use).map(e=>e.content).join(''))} 토큰쯤`
       : a.kind==='character' ? `${Object.keys(a.fields).length}개 항목 · ${tok(Object.values(a.fields).join(''))} 토큰쯤`
@@ -425,7 +425,7 @@ function duplicateAsset(a){
   const d=assetCore(a); d.id=uid(); d.name=(a.name||'재료')+' 복사본';
   d.favorite=false; delete d.folderId;
   if(d.kind==='lorebook') d.entries.forEach(en=>{ en.id=uid(); });
-  d.original=assetCore(d); S.assets.push(d); return d;
+  S.assets.push(d); return d;
 }
 function assetReadable(a){
   normalizeAssetMetadata(a);
@@ -541,7 +541,7 @@ $('#assetList').addEventListener('click', e=>{
   if(e.target.closest('.a-star')){ a.favorite=!a.favorite; if(!a.favorite) delete a.folderId; save(); renderAssets(); touchDraft(); toast(a.favorite?'즐겨찾기에 고정했습니다':'즐겨찾기에서 해제했습니다'); return; }
   if(e.target.closest('.a-del')){ if(!confirm(a.favorite?`“${a.name}” 즐겨찾기 재료를 영구 삭제할까요?`:`“${a.name}” 재료를 삭제할까요?`)) return; S.assets = S.assets.filter(x=>x.id!==a.id); EDIT_ASSETS.delete(a.id); EDIT_BASELINE.delete(a.id); EDIT_WAS_DIRTY.delete(a.id); renderAssets(); materialChanged(); return; }
   if(e.target.closest('.a-copy')){ const d=duplicateAsset(a); renderAssets(); materialChanged(); toast(`“${d.name}”을 만들었습니다`); return; }
-  if(e.target.closest('.a-edit')){ if(!EDIT_BASELINE.has(a.id)){ EDIT_BASELINE.set(a.id,assetCore(a)); EDIT_WAS_DIRTY.set(a.id,DRAFT_DIRTY); } EDIT_ASSETS.add(a.id); renderAssets(); $(`.asset[data-id="${a.id}"] .asset-editor`).scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
+  if(e.target.closest('.a-edit')){ if(!EDIT_BASELINE.has(a.id)){ ensureAssetOriginal(a); EDIT_BASELINE.set(a.id,assetCore(a)); EDIT_WAS_DIRTY.set(a.id,DRAFT_DIRTY); } EDIT_ASSETS.add(a.id); renderAssets(); $(`.asset[data-id="${a.id}"] .asset-editor`).scrollIntoView({behavior:'smooth',block:'nearest'}); return; }
   if(e.target.closest('.a-edit-close')){ const base=EDIT_BASELINE.get(a.id), wasDirty=EDIT_WAS_DIRTY.get(a.id); if(base) replaceAssetFrom(a,base); EDIT_BASELINE.delete(a.id); EDIT_WAS_DIRTY.delete(a.id); EDIT_ASSETS.delete(a.id); renderAssets(); renderDigest(); renderMat(); renderNebulaPicker(); if(wasDirty){ DRAFT_DIRTY=true; touchDraft(); }else clearDraft(); return; }
   if(e.target.closest('.a-original')){ if(!confirm('처음 불러온 내용으로 되돌릴까요?')) return; replaceAssetFrom(a,ensureAssetOriginal(a).original); renderAssets(); materialChanged(); toast('처음 불러온 내용으로 되돌렸습니다'); return; }
   if(e.target.closest('.a-compare')){ showAssetCompare(a); return; }
