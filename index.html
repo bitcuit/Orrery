@@ -136,8 +136,10 @@
 
 <!-- ============ 작업대 ============ -->
 <section class="view" id="v-studio">
-  <div class="bare" style="margin-bottom:14px">
+  <div class="bare studio-head" style="margin-bottom:14px">
     <h2 id="studioTitle">작업대</h2>
+    <span class="sp"></span>
+    <button class="mini ghost" id="btnNewWork" title="현재 분류의 작업만 비웁니다. 재료와 기록은 남습니다.">새 작업</button>
   </div>
   <div class="formrow">
     <label class="fl" for="studioPreset">양식</label>
@@ -328,7 +330,7 @@
   <!-- 질문 -->
   <div class="panel" id="qaPanel" style="display:none">
     <div class="panel-h">
-      <h2>물어보기</h2>
+      <h2>결과에 질문하기</h2>
       <span class="sp"></span>
       <button class="ghost mini" id="btnQaClear">기록 비우기</button>
     </div>
@@ -435,7 +437,7 @@
       <button class="iconbtn" id="btnLibExport" title="전체 내보내기" aria-label="전체 내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg></button>
       <button class="iconbtn danger" id="btnLibClear" title="비우기 — 고정 안 한 것만" aria-label="비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
     </div>
-    <p class="hint">★ 안 켜둔 것은 오래되면 지워집니다.</p>
+    <p class="hint">기록은 최대 200개까지 보관합니다. 넘으면 ★ 고정하지 않은 오래된 것부터 정리합니다.</p>
     <div class="row" style="align-items:flex-end">
       <div class="field"><label class="fl">검색</label>
         <input type="search" id="libSearch" placeholder="이름·내용으로 찾기"></div>
@@ -449,12 +451,6 @@
         </select></div>
     </div>
     <p class="note" id="libStat"></p>
-    <div class="libtools">
-      <label class="libselall"><input type="checkbox" id="libSelAll"> 선택</label>
-      <span class="note" id="libSelCount">0개 선택</span>
-      <span class="sp"></span>
-      <button class="mini" id="btnLibTranslate" disabled>영어로 번역</button>
-    </div>
     <span id="bLib" hidden>0</span>
   </div>
   <div id="libList"></div>
@@ -618,12 +614,12 @@
   <div class="modal-in">
     <div class="modal-h"><h2>전체 백업</h2><button class="mini" id="backupClose" aria-label="닫기">닫기</button></div>
     <div class="modal-b">
-      <div class="backup-always"><b>항상 포함</b>연결 주소·모델, 양식, 옵션, 고정한 기록 · 실행 로그는 포함하지 않습니다.</div>
+      <div class="backup-always"><b>항상 포함</b>연결 주소·모델, 양식, 옵션, 성도 기록 전체 · 실행 로그는 포함하지 않습니다.</div>
       <div class="backup-list">
         <label class="backup-opt"><input type="checkbox" id="backupAssets" checked><span><b>불러온 재료</b>성운의 캐릭터·로어북·텍스트, 즐겨찾기와 폴더 구조</span></label>
         <label class="backup-opt"><input type="checkbox" id="backupProject" checked><span><b>현재 작업과 중간 결과</b>읽은 요약, 별씨앗, 만든 결과, 검증·캐스트 결과</span></label>
         <label class="backup-opt"><input type="checkbox" id="backupChat" checked><span><b>대화 기록</b>교신에서 주고받은 내용과 역할 설정</span></label>
-        <label class="backup-opt"><input type="checkbox" id="backupKeys" checked><span><b>API 키·액세스 토큰</b><span class="backup-warn">민감한 정보입니다. 다른 사람에게 보낼 파일이라면 끄세요.</span></span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupKeys"><span><b>API 키·액세스 토큰</b><span class="backup-warn">기본으로 제외합니다. 본인만 보관할 백업에만 켜세요.</span></span></label>
       </div>
       <div class="bar"><span class="sp"></span><button class="primary" id="backupDownload">백업 파일 만들기</button></div>
     </div>
@@ -652,7 +648,9 @@
   </div>
 </div>
 
-<div id="toast"></div>
+<button id="btnAbortCall" class="abort-call" type="button" hidden>요청 중지</button>
+<div id="saveState" class="save-state" hidden></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <!-- 기본 공통 지시문 데이터는 prompts.js (window.BUILTIN_COMMON) 에 있습니다.
      로컬 실험용 반영은 prompt-editor.html + localStorage 를 씁니다. -->

@@ -1895,31 +1895,69 @@ async function makeCardPng(fields){
 /* ==================================================================
    6. 화면 — 작업대
    ================================================================== */
+const STAGE_PANEL = { digest:'digestPanel', seed:'seedPanel', expand:'expandPanel', check:'checkPanel' };
+let OPEN_DONE_STAGE = null, STAGE_SCROLL_TIMER = null;
+function scrollToStage(stage, reopen){
+  if(reopen) OPEN_DONE_STAGE=stage;
+  else OPEN_DONE_STAGE=null;
+  setSpine();
+  const panel=$('#'+STAGE_PANEL[stage]);
+  if(!panel || panel.style.display==='none') return;
+  clearTimeout(STAGE_SCROLL_TIMER);
+  STAGE_SCROLL_TIMER=setTimeout(()=>{
+    panel.classList.add('stage-arrive');
+    panel.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+    setTimeout(()=>panel.classList.remove('stage-arrive'),700);
+  },80);
+}
 function setSpine(){
   const p = S.project;
   const P = activePreset();
-  const done = { digest: !!p.digest, seed: P.skipSeed || p.seeds.length>0, expand: !!p.card, check: P.skipCheck || !!p.verdict };
+  const done = { digest: !!p.digest, seed: P.skipSeed || p.sel.length===1, expand: !!p.card, check: P.skipCheck || !!p.verdict };
   const order = ['digest','seed','expand','check'];
+  const visible=order.filter(k=>!((k==='seed'&&P.skipSeed)||(k==='check'&&P.skipCheck)));
   $$('#spine li').forEach(li=>{
     const k=li.dataset.st;
     li.style.display = ((k==='seed'&&P.skipSeed)||(k==='check'&&P.skipCheck)) ? 'none' : '';
   });
-  let cur = order.find(k=>!done[k]) || 'check';
+  let cur = visible.find(k=>!done[k]) || visible[visible.length-1];
   $$('#spine li').forEach(li=>{
     const k = li.dataset.st;
     li.classList.toggle('done', done[k]);
-    li.classList.toggle('now', k===cur && !done[k]);
+    li.classList.toggle('now', k===cur);
+    const available=visible.includes(k)&&(done[k]||k===cur);
+    li.setAttribute('role','button');
+    li.classList.toggle('available',available);
+    li.tabIndex=available?0:-1;
+    li.setAttribute('aria-disabled',String(!available));
+    if(k===cur) li.setAttribute('aria-current','step'); else li.removeAttribute('aria-current');
   });
   // 점진 공개: 단계별 모드에서 아직 차례가 안 온 단계는 제목만 남기고 접는다. 지금 할 단계는 강조.
   const staged = S.opts.buildMode!=='oneshot';
   const curIdx = order.indexOf(cur);
-  const panelOf = { digest:'digestPanel', seed:'seedPanel', expand:'expandPanel', check:'checkPanel' };
   order.forEach((k,i)=>{
-    const el = $('#'+panelOf[k]); if(!el) return;
+    const el = $('#'+STAGE_PANEL[k]); if(!el) return;
     el.classList.toggle('locked', staged && i>curIdx && !done[k]);
     el.classList.toggle('now', staged && k===cur && !done[k]);
+    el.classList.toggle('stage-collapsed', staged && done[k] && k!==cur && OPEN_DONE_STAGE!==k);
   });
 }
+function openSpineStage(target){
+  const item=target.closest('#spine li.available'); if(!item) return;
+  scrollToStage(item.dataset.st,true);
+}
+$('#spine').addEventListener('click',e=>openSpineStage(e.target));
+$('#spine').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ') return;
+  const item=e.target.closest('li.available'); if(!item) return;
+  e.preventDefault(); scrollToStage(item.dataset.st,true);
+});
+$('#v-studio').addEventListener('click',e=>{
+  if(e.target.closest('.qhelp')) return;
+  const panel=e.target.closest('.panel.stage-collapsed'); if(!panel) return;
+  const stage=Object.keys(STAGE_PANEL).find(k=>STAGE_PANEL[k]===panel.id);
+  if(stage) scrollToStage(stage,true);
+});
 function renderDigest(){
   const d = S.project.digest, box = $('#digestOut');
   const stale = digestStale();
@@ -1985,6 +2023,7 @@ $('#seedOut').addEventListener('click', e=>{
   const i = sel.indexOf(id);
   if(i>=0) sel.splice(i,1);
   else { if(sel.length>=2) sel.shift(); sel.push(id); }
+  OPEN_DONE_STAGE = sel.length===1 ? 'seed' : null;
   renderSeeds(); touchDraft();
 });
 
@@ -2318,16 +2357,19 @@ async function guard(btn, label, fn){
 $('#btnDigest').addEventListener('click', e=> guard(e.target,'읽는 중', async()=>{
   await doDigest(); renderDigest(); touchDraft();
   const u=GROUP_UI[S.opts.group]||GROUP_UI.world; toast(u.readDone||'재료를 읽었습니다');
+  scrollToStage(activePreset().skipSeed?'expand':'seed');
 }));
 $('#btnDigestClear').addEventListener('click', ()=>{
   S.project.digest=null; S.project.digestMeta=null; stashDigest(S.opts.group); renderDigest(); touchDraft(); toast('요약을 지웠습니다');
 });
 $('#btnSeeds').addEventListener('click', e=> guard(e.target,'뽑는 중', async()=>{
   await doSeeds(); renderDigest(); renderSeeds(); touchDraft(); toast(S.project.seeds.length+'개 뽑았습니다');
+  scrollToStage('seed');
 }));
 $('#btnCross').addEventListener('click', e=> guard(e.target,'섞는 중', async()=>{
   const [a,b] = S.project.sel.map(id=>S.project.seeds.find(s=>s.id===id));
   await doCross(a,b); renderSeeds(); touchDraft(); toast('섞은 씨앗을 만들었습니다');
+  scrollToStage('expand');
 }));
 $('#btnExpand').addEventListener('click', e=> guard(e.target,'만드는 중', async()=>{
   const P = activePreset();
@@ -2337,9 +2379,11 @@ $('#btnExpand').addEventListener('click', e=> guard(e.target,'만드는 중', as
   S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
   S.project.libId = null;
   syncConvertSourceToOutput();
+  OPEN_DONE_STAGE='expand';
   renderCard(); renderCheck(); saveRecord();
   if(S.opts.check && !activePreset().skipCheck && !S.project.card.truncated){ try{ await doCheck(); renderCheck(); }catch(err){ log('검증 건너뜀: '+err.message,'err'); } }
   toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'결과를 만들었습니다');
+  scrollToStage('expand',true);
 }));
 $('#btnReroll').addEventListener('click', e=> guard(e.target,'다시 쓰는 중', async()=>{
   await doPatch(); renderCard(); saveRecord(); toast('안 잠근 칸을 다시 썼습니다');
@@ -2356,7 +2400,7 @@ $('#continueNote').addEventListener('keydown', e=>{
 $('#btnLockAll').addEventListener('click', ()=>{ activePreset().schema.forEach(f=>S.project.locked[f.key]=true); renderCard(); touchDraft(); });
 $('#btnUnlockAll').addEventListener('click', ()=>{ S.project.locked={}; renderCard(); touchDraft(); });
 $('#btnCheck').addEventListener('click', e=> guard(e.target,'대조 중', async()=>{
-  await doCheck(); renderCheck(); touchDraft();
+  await doCheck(); renderCheck(); touchDraft(); scrollToStage('check');
 }));
 $('#btnCast').addEventListener('click', e=> guard(e.target,'뽑는 중', async()=>{
   const n = S.opts.castCount;
@@ -2476,8 +2520,27 @@ $('#btnOneShot').addEventListener('click', e=> guard(e.target,'만드는 중', a
   syncConvertSourceToOutput();
   renderCard(); renderCheck(); saveRecord();
   toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'한 번에 만들었습니다 — 마음에 안 드는 칸만 다시 쓰세요');
-  $('#cardOut').scrollIntoView({behavior:'smooth', block:'start'});
+  scrollToStage('expand',true);
 }));
+
+$('#btnNewWork').addEventListener('click', ()=>{
+  const g=S.opts.group, label=GROUP_LABEL[g]||'현재';
+  if(!confirm(`${label} 작업대의 구상·추가 요청·읽은 요약·씨앗·결과를 비울까요?\n불러온 재료와 성도 기록은 남습니다.`)) return;
+  OPEN_DONE_STAGE=null;
+  if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
+  if(!S.opts.extraBy) S.opts.extraBy={world:'',character:'',prompt:''};
+  S.opts.briefBy[g]=''; S.opts.extraBy[g]='';
+  if(!S.project.digestBy) S.project.digestBy={};
+  S.project.digestBy[g]=null;
+  Object.assign(S.project,{
+    digest:null,digestSrc:'',digestMeta:null,seeds:[],sel:[],card:null,locked:{},
+    violations:null,verdict:null,cast:[],relations:null,qa:[],libId:null
+  });
+  $('#optBrief').value=''; $('#optExtra').value=''; $('#continueNote').value='';
+  save(); touchDraft(); renderReq(); renderDigest(); renderSeeds(); renderCard();
+  renderCheck(); renderCast(); renderQA(); renderMat(); renderOneshot();
+  toast(`${label} 작업대를 비웠습니다`);
+});
 
 /* 모드 · 옵션 */
 $('#modeBox').addEventListener('click', e=>{
@@ -2506,9 +2569,12 @@ function renderReq(){
     ? `${g} 작업의 모든 단계에 전달됩니다 · ${n}자`
     : `${g} 작업의 모든 단계에 전달됩니다 · 분류마다 따로 기억합니다`;
 }
-$('#optBrief').addEventListener('input', e=>{ S.opts.brief=e.target.value; renderMat(); save(); touchDraft(); });
-bindOpt('#optBrief','brief');
-bindOpt('#optLang','lang'); bindOpt('#optTone','tone'); bindOpt('#optExtra','extra');
+$('#optBrief').addEventListener('input', e=>{
+  if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
+  S.opts.briefBy[S.opts.group]=e.target.value;
+  renderMat(); save(); touchDraft();
+});
+bindOpt('#optLang','lang'); bindOpt('#optTone','tone');
 $('#optLang').addEventListener('change',()=>{ syncConvertSourceToOutput(); save(); renderConvert(); });
 bindOpt('#optSeedN','seedCount',Number); bindOpt('#optCastN','castCount',Number);
 bindOpt('#optNsfw','nsfw',v=>v==='1'); bindOpt('#optCheck','check',v=>v==='1');

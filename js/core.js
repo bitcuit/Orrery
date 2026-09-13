@@ -12,12 +12,13 @@ const clone = o => JSON.parse(JSON.stringify(o));
 
 const KEY = 'orrery.v1';
 const DRAFT_KEY = 'orrery.draft.v1';
+const RECOVERY_KEY = 'orrery.recovery.v1';
 const OLDKEYS = ['vivarium.v1','terrarium.v1','casting.v1'];
 let S = {
   connections: [], activeConn: null,
   assets: [], assetFolders: [],
   presets: [], activePreset: null,
-  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', group:'world', convert:{translate:true,optimize:true,yaml:false,meaning:true,sourceLang:'한국어',targetLang:'English'} },
+  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,meaning:true,sourceLang:'한국어',targetLang:'English'} },
   project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null },
   library: [],
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
@@ -29,11 +30,22 @@ let ABORT = null;
 let LAST_USAGE = null;
 let LAST_RAW = '', LAST_RAW_AT = 0;
 let DRAFT_DIRTY = false, DRAFT_TIMER = null, BOOTING = true;
+let SAVE_FAILED = false, SAVE_STATE_TIMER = null, LOAD_ERROR = null;
 
 const CONVERT_DEFAULTS = {translate:true,optimize:true,yaml:false,meaning:true,sourceLang:'한국어',targetLang:'English'};
 function convertPrefs(){
   S.opts.convert=Object.assign({},CONVERT_DEFAULTS,S.opts.convert||{});
+  if(!S.opts.extraBy) S.opts.extraBy={world:'',character:'',prompt:''};
+  if(S.opts.extra && !S.opts.extraBy[S.opts.group]) S.opts.extraBy[S.opts.group]=S.opts.extra;
+  S.opts.extra='';
+  if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
+  if(S.opts.brief && !S.opts.briefBy[S.opts.group]) S.opts.briefBy[S.opts.group]=S.opts.brief;
+  S.opts.brief='';
   return S.opts.convert;
+}
+function curBrief(){
+  const by=S.opts.briefBy||(S.opts.briefBy={world:'',character:'',prompt:''});
+  return by[S.opts.group]||'';
 }
 
 const ASSET_PURPOSE_LABEL = {world:'세계', character:'인물', prompt:'프롬프트'};
@@ -58,6 +70,8 @@ function cleanAssetTags(value){
 }
 function normalizeAssetMetadata(a){
   if(!a || typeof a!=='object') return a;
+  // 카드 원문은 정규화 뒤 쓰이지 않으며 큰 재료를 중복 저장하므로 버린다.
+  delete a.raw;
   a.purposes=cleanAssetPurposes(a.purposes,a.kind);
   a.tags=cleanAssetTags(a.tags);
   return a;
@@ -94,10 +108,10 @@ function normalizeAssetFolders(){
   });
 }
 function mergeAssetsWithFavorites(workAssets, favoriteAssets){
-  const out=(Array.isArray(workAssets)?workAssets:[]).map(a=>ensureAssetOriginal(clone(a)));
+  const out=(Array.isArray(workAssets)?workAssets:[]).map(a=>normalizeAssetMetadata(clone(a)));
   const byId=new Map(out.map((a,i)=>[a.id,i]));
   (Array.isArray(favoriteAssets)?favoriteAssets:[]).forEach(saved=>{
-    const fav=ensureAssetOriginal(clone(saved)); fav.favorite=true;
+    const fav=normalizeAssetMetadata(clone(saved)); fav.favorite=true;
     if(byId.has(fav.id)){
       const current=out[byId.get(fav.id)]; current.favorite=true;
       if(!current.folderId && fav.folderId) current.folderId=fav.folderId;
@@ -106,10 +120,10 @@ function mergeAssetsWithFavorites(workAssets, favoriteAssets){
   return out;
 }
 function mergeAssetsById(primaryAssets, fallbackAssets){
-  const out=(Array.isArray(primaryAssets)?primaryAssets:[]).map(a=>ensureAssetOriginal(clone(a)));
+  const out=(Array.isArray(primaryAssets)?primaryAssets:[]).map(a=>normalizeAssetMetadata(clone(a)));
   const byId=new Map(out.map((a,i)=>[a.id,i]));
   (Array.isArray(fallbackAssets)?fallbackAssets:[]).forEach(saved=>{
-    const item=ensureAssetOriginal(clone(saved));
+    const item=normalizeAssetMetadata(clone(saved));
     if(byId.has(item.id)){
       const current=out[byId.get(item.id)];
       if(item.favorite){ current.favorite=true; if(!current.folderId&&item.folderId) current.folderId=item.folderId; }
@@ -119,8 +133,10 @@ function mergeAssetsById(primaryAssets, fallbackAssets){
 }
 function hasDraftWork(){
   const p=S.project||{};
-  const extra=(S.opts.extraBy&&S.opts.extraBy[S.opts.group])||'';
-  return !!((S.opts.brief||'').trim() || extra.trim() || p.digest || (p.seeds&&p.seeds.length) || p.card || (p.cast&&p.cast.length));
+  const extras=Object.values(S.opts.extraBy||{}).some(v=>String(v||'').trim());
+  const briefs=Object.values(S.opts.briefBy||{}).some(v=>String(v||'').trim());
+  const digests=Object.values(p.digestBy||{}).some(Boolean);
+  return !!(briefs || extras || digests || p.digest || (p.seeds&&p.seeds.length) || p.card || (p.cast&&p.cast.length));
 }
 function saveDraftNow(){
   clearTimeout(DRAFT_TIMER); DRAFT_TIMER=null;
@@ -128,7 +144,12 @@ function saveDraftNow(){
   if(!hasDraftWork()){ clearDraft(); return; }
   const base = {version:1, at:Date.now(), activePreset:S.activePreset, opts:clone(S.opts), project:clone(S.project)};
   try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(base)); }
-  catch(e){ log('마지막 작업 임시 저장에 실패했습니다.','err'); }
+  catch(e){
+    log('마지막 작업 임시 저장에 실패했습니다.','err');
+    setSaveState('저장 실패 · 백업 필요','err',true);
+    if(!SAVE_FAILED) toast('마지막 작업을 저장하지 못했습니다. 전체 백업을 만들어 주세요.',1);
+    SAVE_FAILED=true;
+  }
 }
 function touchDraft(){
   if(BOOTING) return;
@@ -156,6 +177,12 @@ function offerDraftRestore(){
   return true;
 }
 
+function setSaveState(msg, kind, persist){
+  const el=$('#saveState'); if(!el) return;
+  clearTimeout(SAVE_STATE_TIMER);
+  el.textContent=msg||''; el.className='save-state '+(kind||''); el.hidden=!msg;
+  if(msg&&!persist) SAVE_STATE_TIMER=setTimeout(()=>{ el.hidden=true; },1400);
+}
 function save(){
   normalizeAssetFolders();
   try{ localStorage.setItem(KEY, JSON.stringify({
@@ -163,12 +190,20 @@ function save(){
     presets:S.presets, activePreset:S.activePreset,
     opts:S.opts, library:S.library, chat:S.chat, customTalkPrompts:S.customTalkPrompts, logVerbose:S.logVerbose,
     assetFolders:S.assetFolders,
-    assets:S.assets.map(a=>clone(ensureAssetOriginal(a)))
-  })); }catch(e){ log('저장 실패 — 이 브라우저는 로컬 저장을 막고 있습니다. 설정을 파일로 내보내 두세요.','err'); }
+    assets:S.assets.map(a=>clone(normalizeAssetMetadata(a)))
+  }));
+    SAVE_FAILED=false; setSaveState('자동 저장됨','ok'); return true;
+  }catch(e){
+    log('저장 실패 — 브라우저 저장 공간이 부족하거나 로컬 저장이 막혔습니다. 전체 백업을 만들어 두세요.','err');
+    setSaveState('저장 실패 · 백업 필요','err',true);
+    if(!SAVE_FAILED) toast('저장하지 못했습니다. 전체 백업을 만들어 주세요.',1);
+    SAVE_FAILED=true; return false;
+  }
 }
 function load(){
+  let raw='';
   try{
-    let raw = localStorage.getItem(KEY);
+    raw = localStorage.getItem(KEY);
     if(!raw) for(const k of OLDKEYS){ raw = localStorage.getItem(k); if(raw) break; }
     if(!raw) return false;
     const d = JSON.parse(raw);
@@ -186,11 +221,16 @@ function load(){
     if(d.customTalkPrompts) S.customTalkPrompts = d.customTalkPrompts;
     if(d.logVerbose) S.logVerbose = d.logVerbose;
     if(Array.isArray(d.assetFolders)) S.assetFolders=clone(d.assetFolders);
-    if(Array.isArray(d.assets)) S.assets=d.assets.map(a=>ensureAssetOriginal(clone(a)));
+    if(Array.isArray(d.assets)) S.assets=d.assets.map(a=>normalizeAssetMetadata(clone(a)));
     else if(Array.isArray(d.favoriteAssets)) S.assets=mergeAssetsWithFavorites(S.assets,d.favoriteAssets);
     normalizeAssetFolders();
     return true;
-  }catch(e){ return false; }
+  }catch(e){
+    LOAD_ERROR=e;
+    if(raw) try{ localStorage.setItem(RECOVERY_KEY,raw); }catch(_){}
+    log('저장된 데이터를 읽지 못했습니다. 원문은 복구용 저장소에 보존했습니다.','err');
+    return false;
+  }
 }
 
 function toast(msg, bad){
@@ -258,6 +298,10 @@ function busy(btn, on, label){
   if(!btn) return;
   if(on){ btn._t = btn.innerHTML; btn.innerHTML = '<span class="busy"></span>'+(label||'하는 중'); btn.disabled = true; }
   else  { if(btn._t) btn.innerHTML = btn._t; btn.disabled = false; }
+}
+function abortCurrentCall(){
+  if(!ABORT) return false;
+  ABORT.abort(); return true;
 }
 
 /* ==================================================================
@@ -421,18 +465,22 @@ async function callProvider(conn, messages, opts){
   }
   const req = p.chat(conn, messages, o);
   LAST_USAGE = null;
-  ABORT = new AbortController();
+  const controller = new AbortController();
+  ABORT = controller;
+  const stop=$('#btnAbortCall'); if(stop) stop.hidden=false;
   const t0 = Date.now();
   log(`→ ${p.label} / ${conn.model} · 보낼 것 ${est} 토큰쯤 · 응답 상한 ${o.maxTokens||2000}`);
   if(S.logVerbose) log(messages.map(m=>`[${m.role}]\n${m.content}`).join('\n---\n'));
   let res;
   try{
     res = await fetch(req.url, { method:'POST', headers:req.headers,
-      body: JSON.stringify(req.body), signal: ABORT.signal });
+      body: JSON.stringify(req.body), signal: controller.signal });
   }catch(e){
     if(e.name==='AbortError') throw new Error('__ABORT__');
     log('연결 실패: '+e.message,'err');
     throw new Error('서버에 닿지 못했습니다. 브라우저가 요청을 막았거나(CORS) 주소가 틀렸을 수 있습니다. 상단 ? 단추의 안내를 보세요.');
+  }finally{
+    if(ABORT===controller){ ABORT=null; if(stop) stop.hidden=true; }
   }
   const txt = await res.text();
   if(!res.ok){

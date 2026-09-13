@@ -60,7 +60,7 @@ function renderWrapNudge(convoTok){
 }
 $('#btnTalkToCard').addEventListener('click', e=> guard(e.currentTarget,'반영 중', async()=>{
   const P=activePreset();
-  if(!confirm(`이 대화의 결론을 “${P.name}” 카드에 반영합니다. 잠근 칸은 그대로 두고 바뀐 칸만 덮어씁니다. 계속할까요?`)) return;
+  if(!confirm(`이 대화의 결론을 “${P.name}” 결과에 반영합니다. 잠근 칸은 그대로 두고 바뀐 칸만 덮어씁니다. 계속할까요?`)) return;
   const r=await doChatToCard();
   S.project.violations=null; S.project.verdict=null; S.project.qa=[];
   renderCard(); renderCheck(); saveRecord(); touchDraft();

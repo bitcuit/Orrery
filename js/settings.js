@@ -179,7 +179,7 @@ function backupConnections(includeKeys){
   });
 }
 function makeBackup(options){
-  const o=Object.assign({assets:true,project:true,chat:true,apiKeys:true},options||{});
+  const o=Object.assign({assets:true,project:true,chat:true,apiKeys:false},options||{});
   const out={
     app:'Orrery', backupVersion:2, exportedAt:new Date().toISOString(),
     includes:{assets:!!o.assets,project:!!o.project,chat:!!o.chat,apiKeys:!!o.apiKeys,logs:false},
@@ -187,7 +187,7 @@ function makeBackup(options){
     presets:clone(S.presets), activePreset:S.activePreset, opts:clone(S.opts), library:clone(S.library)
   };
   if(o.assets){
-    out.assets=S.assets.map(a=>clone(ensureAssetOriginal(a)));
+    out.assets=S.assets.map(a=>clone(normalizeAssetMetadata(a)));
     out.assetFolders=clone(S.assetFolders||[]);
   }
   if(o.project) out.project=clone(S.project);
@@ -215,9 +215,14 @@ $('#dataFile').addEventListener('change', async e=>{
     if(!d || typeof d!=='object' || !(d.connections || d.presets || d.library || d.assets || d.favoriteAssets || d.project || d.chat))
       throw new Error('Orrery 백업 파일이 아닙니다.');
     if(!confirm('백업에 포함된 항목을 현재 데이터에 덮어쓸까요?\n백업에서 제외된 항목은 현재 상태를 유지합니다.')) return;
+    const currentKeys=new Map(S.connections.map(c=>[c.id,c.apiKey||'']));
+    const backupHasKeys=d.includes
+      ? !!d.includes.apiKeys
+      : !!(d.connections&&d.connections.some(c=>Object.prototype.hasOwnProperty.call(c,'apiKey')));
     if(d.connections) S.connections = d.connections.map(c=>{
       const out=clone(c); delete out._ok; delete out._lastTest; delete out._models;
-      if(out.apiKey==null) out.apiKey=''; return out;
+      if(!backupHasKeys || out.apiKey==null) out.apiKey=currentKeys.get(out.id)||'';
+      return out;
     });
     if(d.presets && d.presets.length) S.presets = d.presets;
     if(d.opts) Object.assign(S.opts, d.opts);
@@ -227,7 +232,7 @@ $('#dataFile').addEventListener('change', async e=>{
     if(d.library) S.library = d.library.map(r=>Object.assign({
       star:false, group:'character', presetName:'', updated:r.at||Date.now() }, r));
     if(Array.isArray(d.assets)){
-      S.assets=d.assets.map(a=>ensureAssetOriginal(clone(a)));
+      S.assets=d.assets.map(a=>normalizeAssetMetadata(clone(a)));
       S.assetFolders=Array.isArray(d.assetFolders)?clone(d.assetFolders):[];
       EDIT_ASSETS.clear(); EDIT_BASELINE.clear(); EDIT_WAS_DIRTY.clear();
     }else if(Array.isArray(d.favoriteAssets)){
