@@ -16,7 +16,7 @@ let S = {
   connections: [], activeConn: null,
   assets: [], assetFolders: [],
   presets: [], activePreset: null,
-  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', group:'world' },
+  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', group:'world', convert:{translate:true,optimize:true,yaml:false,meaning:true,sourceLang:'한국어',targetLang:'English'} },
   project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null },
   library: [],
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
@@ -28,6 +28,12 @@ let ABORT = null;
 let LAST_USAGE = null;
 let LAST_RAW = '', LAST_RAW_AT = 0;
 let DRAFT_DIRTY = false, DRAFT_TIMER = null, BOOTING = true;
+
+const CONVERT_DEFAULTS = {translate:true,optimize:true,yaml:false,meaning:true,sourceLang:'한국어',targetLang:'English'};
+function convertPrefs(){
+  S.opts.convert=Object.assign({},CONVERT_DEFAULTS,S.opts.convert||{});
+  return S.opts.convert;
+}
 
 const ASSET_PURPOSE_LABEL = {world:'세계', character:'인물', prompt:'프롬프트'};
 const ASSET_PURPOSE_KEYS = Object.keys(ASSET_PURPOSE_LABEL);
@@ -140,6 +146,7 @@ function offerDraftRestore(){
   const when = d.at ? new Date(d.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '이전 방문';
   if(!confirm(`${when}에 저장하지 않고 끝낸 작업이 있습니다.\n이전 작업물을 불러올까요?`)){ clearDraft(); return false; }
   if(d.opts) Object.assign(S.opts,d.opts);
+  convertPrefs();
   if(d.activePreset) S.activePreset=d.activePreset;
   S.project=Object.assign(S.project,d.project||{});
   if(Array.isArray(d.assets)) S.assets=mergeAssetsById(d.assets,S.assets);
@@ -169,6 +176,7 @@ function load(){
     if(d.presets && d.presets.length) S.presets = d.presets;
     if(d.activePreset) S.activePreset = d.activePreset;
     if(d.opts) Object.assign(S.opts, d.opts);
+    convertPrefs();
     if(S.opts.mode==='c2p') S.opts.mode='foil';
     if(!S.opts.modeBy) S.opts.modeBy = {world:'new',character:S.opts.mode||'w2c',prompt:'new'};
     if(d.library) S.library = d.library.map(r=>Object.assign({
@@ -2160,6 +2168,16 @@ function recoverPartialCard(raw, schema){
   });
   return Object.keys(fields).length ? {fields,incompleteKey} : null;
 }
+function recoverPartialConversion(raw, keys){
+  const text=stripJsonFence(raw), fields={}; let incompleteKey='';
+  (keys||['result','meaning']).forEach(key=>{
+    const safe=String(key).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const m=new RegExp('"'+safe+'"\\s*:\\s*"','g').exec(text); if(!m) return;
+    const part=readJsonStringFragment(text,m.index+m[0].length);
+    fields[key]=part.value; if(!part.closed) incompleteKey=key;
+  });
+  return Object.keys(fields).length ? {fields,incompleteKey} : null;
+}
 
 async function runStage(stageName, vars, retryOnce){
   const conn = S.connections.find(c=>c.id===S.activeConn);
@@ -2304,6 +2322,103 @@ async function doContinueCard(instruction){
   if(card.continuations.length>20) card.continuations=card.continuations.slice(-20);
   card.truncated=!!recovered; card.truncatedField=recovered&&recovered.incompleteKey||'';
   return {keys,recovered:!!recovered};
+}
+function textSignature(text){
+  const s=String(text||''); let h=2166136261;
+  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return `${s.length}-${(h>>>0).toString(36)}`;
+}
+function currentCardSource(){
+  return S.project.card ? fieldsToText(S.project.card.fields,activePreset()) : '';
+}
+async function doConvertCard(settings){
+  const card=S.project.card; if(!card) throw new Error('먼저 결과를 만들어 주세요.');
+  const conn=S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
+  const o=Object.assign({},settings||{});
+  if(!o.translate&&!o.optimize&&!o.yaml) throw new Error('번역·토큰 최적화·YAML 중 하나 이상을 골라 주세요.');
+  const sourceLang=String(o.sourceLang||S.opts.lang||'자동 감지').trim()||'자동 감지';
+  const targetLang=String(o.targetLang||'English').trim()||'English';
+  if(o.translate&&sourceLang.toLocaleLowerCase()===targetLang.toLocaleLowerCase()&&!o.optimize&&!o.yaml){
+    throw new Error('원본 언어와 번역 언어가 같습니다. 다른 언어를 고르거나 다른 변환 옵션을 켜 주세요.');
+  }
+  const P=activePreset(), source=currentCardSource();
+  const fieldLabels={}; P.schema.forEach(f=>{ fieldLabels[f.key]=f.label; });
+  const format=o.yaml
+    ? 'Return the transformed card as valid YAML. Keep the original field keys, use block scalars where useful, and do not wrap it in a code fence.'
+    : 'Return the transformed card as concise plain text with a short label for each non-empty field. Do not use a code fence.';
+  const translate=o.translate
+    ? `Translate the final transformed card from ${sourceLang} into ${targetLang}. Preserve proper nouns consistently.`
+    : `Keep the final transformed card in ${sourceLang}; do not translate it.`;
+  const optimize=o.optimize
+    ? 'Optimize for fewer model-input tokens: remove filler, repeated facts, decorative redundancy, and verbose transitions. Preserve every plot-relevant fact, relationship, rule, constraint, negation, safety boundary, placeholder, and behavioral instruction. Prefer compact lists and direct wording, but never rename field keys. Never invent or weaken information.'
+    : 'Do not intentionally shorten or summarize the content. Preserve its detail and nuance.';
+  const meaning=o.translate&&o.meaning
+    ? `Also produce "meaning": a faithful rendering of the FINAL transformed result back into ${sourceLang}, so the user can verify what the translated/optimized text means. It must reflect the transformed result, not restore details removed by optimization. ${o.yaml?'Use valid YAML with the same keys for meaning too.':'Use the same labeled plain-text structure.'}`
+    : 'Set "meaning" to an empty string.';
+  const messages=[
+    {role:'system',content:'You are a precise multilingual editor for structured creative-writing and roleplay prompts. Return exactly one valid JSON object with two string values: {"result":"...","meaning":"..."}. JSON-escape all line breaks. No code fence and no commentary.'},
+    {role:'user',content:`Transform this ${GROUP_LABEL[S.opts.group]||'creative'} card.\n\nSource language: ${sourceLang}\nTarget language: ${targetLang}\nField labels: ${JSON.stringify(fieldLabels)}\n\nRules:\n1. ${translate}\n2. ${optimize}\n3. ${format}\n4. ${meaning}\n5. Keep field order and omit only fields that were already empty.\n\nSource card:\n${JSON.stringify(card.fields,null,1)}`}
+  ];
+  const sourceTokens=tok(source);
+  const multiplier=o.translate&&o.meaning?2.25:1.25;
+  const opts={temperature:0.25,maxTokens:Math.min(12000,Math.max(1800,Math.ceil(sourceTokens*multiplier+600)))};
+  const raw=await callProvider(conn,messages,opts);
+  let j, recovered=null;
+  try{ j=(await parseJsonReply(conn,messages,opts,raw,true)).json; }
+  catch(err){
+    recovered=err.raw&&recoverPartialConversion(err.raw);
+    if(!recovered||!recovered.fields.result) throw err;
+    j=recovered.fields;
+    log('끊긴 변환본에서 읽을 수 있는 부분을 먼저 복구했습니다.','err');
+  }
+  const result=j&&typeof j.result==='string'?j.result.trim():'';
+  const back=j&&typeof j.meaning==='string'?j.meaning.trim():'';
+  if(!result) throw new Error('변환 결과가 비었습니다. 다시 시도해 주세요.');
+  if(o.translate&&o.meaning&&!back&&!recovered) throw new Error('원본 언어 뜻풀이가 빠졌습니다. 다시 시도해 주세요.');
+  const missingMeaning=!!(o.translate&&o.meaning&&!back);
+  card.conversion={
+    result, meaning:back, sourceLang, targetLang,
+    options:{translate:!!o.translate,optimize:!!o.optimize,yaml:!!o.yaml,meaning:!!(o.translate&&o.meaning)},
+    sourceSignature:textSignature(source), sourceTokens, resultTokens:tok(result), at:Date.now(), meaningCollapsed:false,
+    truncated:!!recovered, truncatedPart:recovered&&recovered.incompleteKey||missingMeaning&&'meaning'||'', continuations:[]
+  };
+  return card.conversion;
+}
+async function doContinueConversion(){
+  const card=S.project.card, c=card&&card.conversion;
+  if(!c) throw new Error('먼저 변환본을 만들어 주세요.');
+  const conn=S.connections.find(x=>x.id===S.activeConn);
+  if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
+  const o=c.options||{}, needMeaning=!!o.meaning;
+  const messages=[
+    {role:'system',content:'You continue a previously transformed creative-writing card without rewriting or repeating it. Return exactly one valid JSON object with string values: {"resultAppend":"...","meaningAppend":"..."}. Output only new text to append. JSON-escape line breaks. No code fence or commentary.'},
+    {role:'user',content:`Continue the transformed card from exactly where it ended.\n\nFormat: ${o.yaml?'YAML':'labeled plain text'}\nResult language: ${o.translate?c.targetLang:c.sourceLang}\nMeaning language: ${c.sourceLang}\nPrevious truncation: ${c.truncatedPart||'(not detected; continue the final non-empty section naturally)'}\n\nCurrent transformed result:\n${c.result}\n\nCurrent source-language meaning:\n${c.meaning||'(missing)'}\n\nRules:\n- resultAppend must contain only the new continuation of the transformed result.\n- ${needMeaning?'meaningAppend must continue or supply the matching source-language meaning of the FINAL transformed text.':'Set meaningAppend to an empty string.'}\n- Never repeat existing text or restart the document.\n- If YAML, continue valid YAML syntax and do not repeat existing keys.\n- If a word or scalar was cut, begin with its very next character; otherwise begin with any needed newline.\n- Preserve the existing optimization level and all constraints.`}
+  ];
+  const opts={temperature:0.2,maxTokens:Math.min(12000,Math.max(1800,Math.ceil((c.resultTokens||tok(c.result))*(needMeaning?1.5:.9)+600)))};
+  const raw=await callProvider(conn,messages,opts);
+  let j, recovered=null;
+  try{ j=(await parseJsonReply(conn,messages,opts,raw,true)).json; }
+  catch(err){
+    recovered=err.raw&&recoverPartialConversion(err.raw,['resultAppend','meaningAppend']);
+    if(!recovered) throw err;
+    j=recovered.fields;
+    log('이어받은 변환 응답도 잘려 읽을 수 있는 부분까지만 붙였습니다.','err');
+  }
+  const resultAppend=j&&typeof j.resultAppend==='string'?j.resultAppend:'';
+  const meaningAppend=j&&typeof j.meaningAppend==='string'?j.meaningAppend:'';
+  if(!resultAppend&&!meaningAppend) throw new Error('이어 붙일 내용을 받지 못했습니다. 다시 시도해 주세요.');
+  if(resultAppend) c.result=mergeContinuationText(c.result,resultAppend);
+  if(meaningAppend) c.meaning=mergeContinuationText(c.meaning,meaningAppend);
+  const priorPart=c.truncatedPart||'';
+  const unresolved=!!recovered||(priorPart==='result'&&!resultAppend)||(priorPart==='meaning'&&!meaningAppend)||(needMeaning&&!c.meaning);
+  c.truncated=unresolved;
+  c.truncatedPart=recovered&&recovered.incompleteKey||unresolved&&priorPart||'';
+  c.resultTokens=tok(c.result);
+  c.continuations=Array.isArray(c.continuations)?c.continuations:[];
+  c.continuations.push({at:Date.now(),resultAppend,meaningAppend});
+  if(c.continuations.length>20) c.continuations=c.continuations.slice(-20);
+  return {recovered:!!recovered,truncated:c.truncated};
 }
 // 대화에서 정해진 내용을 지금 카드에 반영 (잠근 칸은 건드리지 않음)
 async function doChatToCard(){
@@ -3002,6 +3117,62 @@ function renderContinue(){
   $('#continueMeta').textContent=count?`이어 쓴 기록 ${count}회 · 결과와 함께 임시 저장·백업됩니다`:'빈 지시로 눌러도 됩니다';
   $('#btnContinue').disabled=false;
 }
+function readConvertSettings(){
+  return {
+    sourceLang:$('#convertSourceLang').value.trim()||S.opts.lang||'자동 감지',
+    targetLang:$('#convertTargetLang').value.trim()||'English',
+    translate:$('#convertTranslate').checked,
+    optimize:$('#convertOptimize').checked,
+    yaml:$('#convertYaml').checked,
+    meaning:$('#convertMeaning').checked
+  };
+}
+function syncConvertSourceToOutput(){
+  const p=convertPrefs(); p.sourceLang=S.opts.lang||p.sourceLang||'한국어';
+}
+function renderConvert(){
+  const card=S.project.card, box=$('#convertBox'); if(!box) return;
+  box.hidden=!card; if(!card){ $('#convertOut').hidden=true; return; }
+  const p=convertPrefs();
+  if(document.activeElement!==$('#convertSourceLang')) $('#convertSourceLang').value=p.sourceLang||S.opts.lang||'한국어';
+  if(document.activeElement!==$('#convertTargetLang')) $('#convertTargetLang').value=p.targetLang||'English';
+  $('#convertTranslate').checked=!!p.translate;
+  $('#convertOptimize').checked=!!p.optimize;
+  $('#convertYaml').checked=!!p.yaml;
+  $('#convertMeaning').checked=!!p.meaning;
+  $('#convertTargetLang').disabled=!p.translate;
+  $('#convertMeaning').disabled=!p.translate;
+  $('#convertMeaning').closest('.convert-opt').classList.toggle('muted',!p.translate);
+  $('#convertCallNote').textContent=p.translate&&p.meaning
+    ? 'API 호출 1회가 기본입니다 · 변환본과 뜻풀이를 함께 만들고, 잘리면 자동 이어받기'
+    : 'API 호출 1회가 기본입니다 · 응답이 잘리면 자동 이어받기';
+  const c=card.conversion, out=$('#convertOut'); out.hidden=!c;
+  if(!c) return;
+  const continuationCount=Array.isArray(c.continuations)?c.continuations.length:0;
+  out.classList.toggle('cut',!!c.truncated);
+  const continueBtn=$('#btnConvertContinue');
+  continueBtn.className=c.truncated?'mini primary':'mini ghost';
+  continueBtn.textContent=c.truncated?'잘린 부분 이어서':'이어서';
+  const stale=c.sourceSignature!==textSignature(currentCardSource());
+  const o=c.options||{};
+  $('#convertResultTitle').textContent=o.translate?`${c.targetLang||'번역 언어'} 변환본`:'변환본';
+  $('#convertResult').textContent=c.result||'';
+  const delta=(c.sourceTokens||0)-(c.resultTokens||0);
+  const pct=c.sourceTokens?Math.round(delta/c.sourceTokens*100):0;
+  const parts=[`${o.yaml?'YAML':'일반 텍스트'}`,`대략 ${c.sourceTokens||0} → ${c.resultTokens||0} 토큰`];
+  if(o.optimize&&delta!==0) parts.push(delta>0?`${pct}% 감소`:`${Math.abs(pct)}% 증가`);
+  if(c.truncated) parts.push(`${c.truncatedPart==='meaning'?'뜻풀이':'변환본'}이 중간에 끊김`);
+  if(continuationCount) parts.push(`이어 쓴 기록 ${continuationCount}회`);
+  if(stale) parts.push('원본이 수정됨 · 다시 변환 필요');
+  $('#convertMeta').textContent=parts.join(' · ');
+  const meaningBox=$('#convertMeaningBox'); meaningBox.hidden=!c.meaning;
+  if(c.meaning){
+    $('#convertMeaningTitle').textContent=`${c.sourceLang||'원본 언어'} 뜻풀이`;
+    $('#convertMeaningText').textContent=c.meaning;
+    meaningBox.classList.toggle('collapsed',!!c.meaningCollapsed);
+    $('#btnConvertMeaningToggle').textContent=c.meaningCollapsed?'보기':'숨기기';
+  }
+}
 function renderCard(){
   const p = S.project, box = $('#cardOut'), P = activePreset();
   $('#btnReroll').disabled = !p.card;
@@ -3009,7 +3180,7 @@ function renderCard(){
   $('#cardBar').style.display = p.card ? 'flex' : 'none';
   if(!p.card){
     box.innerHTML = '<div class="empty"><b>아직 카드가 없습니다</b>씨앗을 하나 고르고 펼치세요.</div>';
-    renderContinue(); setSpine(); return;
+    renderContinue(); renderConvert(); setSpine(); return;
   }
   box.innerHTML = P.schema.map(f=>{
     const v = p.card.fields[f.key]||'';
@@ -3025,7 +3196,7 @@ function renderCard(){
       <textarea rows="${Math.min(10, Math.max(2, Math.ceil(v.length/62)))}">${esc(v)}</textarea>
     </div>`;
   }).join('');
-  renderContinue(); setSpine(); renderQA();
+  renderContinue(); renderConvert(); setSpine(); renderQA();
 }
 $('#cardOut').addEventListener('click', async e=>{
   const fld = e.target.closest('.fld'); if(!fld) return;
@@ -3045,9 +3216,53 @@ $('#cardOut').addEventListener('input', e=>{
   if(e.target.tagName!=='TEXTAREA') return;
   const k = e.target.closest('.fld').dataset.k;
   S.project.card.fields[k] = e.target.value;
+  renderConvert();
   touchDraft();
   clearTimeout(window.__saveT);
   window.__saveT = setTimeout(()=>{ saveRecord(); }, 1200);
+});
+
+['convertSourceLang','convertTargetLang'].forEach(id=>$('#'+id).addEventListener('input',()=>{
+  const p=convertPrefs(); p[id==='convertSourceLang'?'sourceLang':'targetLang']=$('#'+id).value.trim(); save();
+}));
+['convertTranslate','convertOptimize','convertYaml','convertMeaning'].forEach(id=>$('#'+id).addEventListener('change',()=>{
+  const p=convertPrefs();
+  p[{convertTranslate:'translate',convertOptimize:'optimize',convertYaml:'yaml',convertMeaning:'meaning'}[id]]=$('#'+id).checked;
+  save(); renderConvert();
+}));
+$('#btnConvert').addEventListener('click',e=>guard(e.currentTarget,'변환 중',async()=>{
+  const c=await doConvertCard(readConvertSettings());
+  $('#convertBox').open=true; renderConvert(); saveRecord(); touchDraft();
+  toast(c.truncated?'변환본이 잘린 곳까지 복구됐습니다 · 잘린 부분 이어서를 눌러주세요':c.meaning?'변환본과 원본 언어 뜻풀이를 만들었습니다':'변환본을 만들었습니다');
+}));
+$('#btnConvertContinue').addEventListener('click',async e=>{
+  await guard(e.currentTarget,'잇는 중',async()=>{
+    const result=await doContinueConversion();
+    saveRecord(); touchDraft();
+    toast(result.truncated?'읽힌 부분까지 이어 붙였습니다 · 한 번 더 이어주세요':'변환본을 이어 붙였습니다');
+  });
+  renderConvert();
+});
+$('#btnConvertCopy').addEventListener('click',()=>{
+  const c=S.project.card&&S.project.card.conversion; if(c) copy(c.result||'');
+});
+$('#btnConvertMeaningCopy').addEventListener('click',()=>{
+  const c=S.project.card&&S.project.card.conversion; if(c) copy(c.meaning||'');
+});
+$('#btnConvertDownload').addEventListener('click',()=>{
+  const c=S.project.card&&S.project.card.conversion; if(!c) return;
+  const ext=c.options&&c.options.yaml?'yaml':'md';
+  const lang=(c.options&&c.options.translate?c.targetLang:c.sourceLang||'converted').replace(/[^\p{L}\p{N}_-]+/gu,'_');
+  const name=(guessName(S.project.card.fields)||'result').replace(/[\\/:*?"<>|]/g,'_');
+  dl(`${name}-${lang}.${ext}`,c.result,ext==='yaml'?'application/yaml;charset=utf-8':'text/markdown;charset=utf-8');
+});
+$('#btnConvertClear').addEventListener('click',()=>{
+  if(!S.project.card||!S.project.card.conversion) return;
+  delete S.project.card.conversion; renderConvert(); saveRecord(); touchDraft(); toast('변환본을 지웠습니다');
+});
+$('#btnConvertMeaningToggle').addEventListener('click',()=>{
+  const c=S.project.card&&S.project.card.conversion; if(!c||!c.meaning) return;
+  c.meaningCollapsed=!c.meaningCollapsed; renderConvert(); touchDraft();
 });
 
 function renderCheck(){
@@ -3237,6 +3452,7 @@ $('#btnExpand').addEventListener('click', e=> guard(e.target,'펼치는 중', as
   $('#continueNote').value='';
   S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
   S.project.libId = null;
+  syncConvertSourceToOutput();
   renderCard(); renderCheck(); saveRecord();
   if(S.opts.check && !activePreset().skipCheck && !S.project.card.truncated){ try{ await doCheck(); renderCheck(); }catch(err){ log('검증 건너뜀: '+err.message,'err'); } }
   toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'카드를 펼쳤습니다');
@@ -3373,6 +3589,7 @@ $('#btnOneShot').addEventListener('click', e=> guard(e.target,'만드는 중', a
   $('#continueNote').value='';
   S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
   S.project.libId = null;
+  syncConvertSourceToOutput();
   renderCard(); renderCheck(); saveRecord();
   toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'한 번에 만들었습니다 — 마음에 안 드는 칸만 다시 굴리세요');
   $('#cardOut').scrollIntoView({behavior:'smooth', block:'start'});
@@ -3408,6 +3625,7 @@ function renderReq(){
 $('#optBrief').addEventListener('input', e=>{ S.opts.brief=e.target.value; renderMat(); save(); touchDraft(); });
 bindOpt('#optBrief','brief');
 bindOpt('#optLang','lang'); bindOpt('#optTone','tone'); bindOpt('#optExtra','extra');
+$('#optLang').addEventListener('change',()=>{ syncConvertSourceToOutput(); save(); renderConvert(); });
 bindOpt('#optSeedN','seedCount',Number); bindOpt('#optCastN','castCount',Number);
 bindOpt('#optNsfw','nsfw',v=>v==='1'); bindOpt('#optCheck','check',v=>v==='1');
 $('#optCheck').addEventListener('change', ()=> renderOneshot());
@@ -3779,7 +3997,8 @@ function saveRecord(){
     world: (S.project.digest && (S.project.digest.title || S.project.digest.subject)) || '',
     seedLine, truncated:!!S.project.card.truncated,
     truncatedField:S.project.card.truncatedField||'',
-    continuations:clone(S.project.card.continuations||[]), updated: Date.now()
+    continuations:clone(S.project.card.continuations||[]),
+    conversion:S.project.card.conversion?clone(S.project.card.conversion):null, updated: Date.now()
   });
   pruneLib(); save(); renderLib(); touchDraft();
   return rec;
@@ -3862,7 +4081,7 @@ $('#btnLibTranslate').addEventListener('click', e=> guard(e.currentTarget, '번�
       const enFields = await translateRecordToEN(rec);
       const copy = clone(rec);
       copy.id = uid(); copy.name = (rec.name||'record')+' (EN)';
-      copy.fields = enFields; copy.star = false; copy.updated = Date.now();
+      copy.fields = enFields; copy.conversion=null; copy.star = false; copy.updated = Date.now();
       S.library.unshift(copy); done++;
       log(`번역: ${rec.name} → ${copy.name}`,'ok');
     }catch(err){ fail++; log(`번역 실패: ${rec.name||''} · ${err.message}`,'err'); }
@@ -3897,7 +4116,8 @@ $('#libList').addEventListener('click', async e=>{
   if(e.target.closest('.l-open')){
     if(rec.presetId && S.presets.find(x=>x.id===rec.presetId)) switchPreset(rec.presetId);
     S.project.card = {fields:clone(rec.fields), seed:null, truncated:!!rec.truncated,
-      truncatedField:rec.truncatedField||'', continuations:clone(rec.continuations||[])};
+      truncatedField:rec.truncatedField||'', continuations:clone(rec.continuations||[]),
+      conversion:rec.conversion?clone(rec.conversion):null};
     $('#continueNote').value='';
     S.project.libId = rec.id; S.project.locked={};
     S.project.violations=null; S.project.verdict=null; S.project.qa=[];
@@ -4785,6 +5005,7 @@ $('#dataFile').addEventListener('change', async e=>{
     });
     if(d.presets && d.presets.length) S.presets = d.presets;
     if(d.opts) Object.assign(S.opts, d.opts);
+    convertPrefs();
     if(S.opts.mode==='c2p') S.opts.mode='foil';
     if(!S.opts.modeBy) S.opts.modeBy = {world:'new',character:S.opts.mode||'w2c',prompt:'new'};
     if(d.library) S.library = d.library.map(r=>Object.assign({
