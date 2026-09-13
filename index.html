@@ -146,8 +146,8 @@
   </div>
   <div class="matrow" id="matStatus"></div>
   <div class="reqrow">
-    <label class="fl" for="optExtra">요청</label>
-    <textarea id="optExtra" rows="2" placeholder="여기 적은 내용이 모든 단계에 함께 전달됩니다.  예: 전투보다 생활감 위주로 / 30대 이상 / 고유명사는 짧게 / 존댓말로"></textarea>
+    <label class="fl" for="optExtra">추가 요청</label>
+    <textarea id="optExtra" rows="2" placeholder="추가로 지켜야 할 조건을 적으세요."></textarea>
     <p class="note" id="reqNote"></p>
     <details class="nebula-pick" id="nebulaPick">
       <summary>성운에서 재료 가져오기 · <span id="nebulaCount">선택 0개</span></summary>
@@ -184,13 +184,13 @@
           <div class="field"><label class="fl">전체 톤 <button type="button" class="qhelp" aria-label="전체 톤이란" data-tip="결과물 전체의 문체와 분위기입니다. 비워 두면 따로 지정하지 않고 재료의 분위기를 따라갑니다.">?</button></label><input id="optTone" placeholder="예: 냉소적, 축축한, 담백한"></div>
         </div>
         <div class="row">
-          <div class="field"><label class="fl">별씨앗 개수 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 카드로 펼치기 전의 한 줄짜리 후보 컨셉입니다. 재료를 읽고 이 개수만큼 뽑은 뒤, 마음에 드는 것 하나를 골라 카드로 펼칩니다.">?</button></label><input id="optSeedN" type="number" min="2" max="10" value="5"></div>
-          <div class="field"><label class="fl">캐스트 인원 <button type="button" class="qhelp" aria-label="캐스트 인원이란" data-tip="‘여러 명 + 관계망’ 방식에서 한 번에 뽑을 인물 수입니다. 같은 세계에서 이 인원을 만들고 서로를 어떻게 보는지 관계까지 짭니다.">?</button></label><input id="optCastN" type="number" min="2" max="8" value="3"></div>
+          <div class="field"><label class="fl">별씨앗 개수 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 완성하기 전의 한 줄짜리 후보입니다. 이 개수만큼 뽑은 뒤, 마음에 드는 것 하나를 골라 결과로 만듭니다.">?</button></label><input id="optSeedN" type="number" min="2" max="10" value="5"></div>
+          <div class="field" id="castCountField"><label class="fl">캐스트 인원 <button type="button" class="qhelp" aria-label="캐스트 인원이란" data-tip="‘여러 명 + 관계망’ 방식에서 한 번에 뽑을 인물 수입니다. 같은 세계에서 이 인원을 만들고 서로를 어떻게 보는지 관계까지 짭니다.">?</button></label><input id="optCastN" type="number" min="2" max="8" value="3"></div>
           <div class="field"><label class="fl">성인 요소</label>
             <select id="optNsfw"><option value="0">제외</option><option value="1">허용</option></select></div>
         </div>
-        <div class="field"><label class="fl">검증 단계 <button type="button" class="qhelp" aria-label="검증 단계란" data-tip="카드를 만든 뒤 API를 한 번 더 호출해, 읽은 세계 설정과 모순되는 부분이 없는지 대조하는 단계입니다. 끄면 호출 횟수가 줄어듭니다.">?</button></label>
-          <select id="optCheck"><option value="1">켬 — 세계 설정과 모순되는지 확인</option><option value="0">끔</option></select></div>
+        <div class="field"><label class="fl">검증 단계 <button type="button" class="qhelp" aria-label="검증 단계란" data-tip="결과를 만든 뒤 API를 한 번 더 호출해, 재료와 어긋나거나 내부에서 모순되는 부분이 없는지 확인합니다. 끄면 호출 횟수가 줄어듭니다.">?</button></label>
+          <select id="optCheck"><option value="1">켬 — 재료와의 어긋남·내부 모순 확인</option><option value="0">끔</option></select></div>
       </div>
     </details>
   </div>
@@ -238,7 +238,7 @@
 
   <!-- 2 -->
   <div class="panel" id="seedPanel">
-    <h2>2 · 별씨앗 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 카드로 펼치기 전의 한 줄짜리 후보 컨셉입니다. 여기서 하나를 고르거나, 두 개를 골라 섞을 수 있습니다.">?</button></h2>    <div class="bar">
+    <h2>2 · 별씨앗 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 완성하기 전의 한 줄짜리 후보입니다. 여기서 하나를 고르거나, 두 개를 골라 섞을 수 있습니다.">?</button></h2>    <div class="bar">
       <button class="primary" id="btnSeeds"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.8c.95 4.7 2.05 5.8 6.75 6.75-4.7.95-5.8 2.05-6.75 6.75-.95-4.7-2.05-5.8-6.75-6.75 4.7-.95 5.8-2.05 6.75-6.75Z" fill="#e9b654" stroke="none"/><circle cx="24.6" cy="22.4" r="1.1" fill="#e9b654" stroke="none" opacity=".7"/></svg>씨앗 뽑기</button>
       <button class="ghost" id="btnCross" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="12.4" cy="16" r="6.8"/><circle cx="19.6" cy="16" r="6.8" stroke="#e9b654"/></svg>고른 둘 섞기</button>
       <span class="sp"></span>
@@ -255,22 +255,22 @@
       <button class="iconbtn" id="btnLockAll" title="전부 잠금" aria-label="전부 잠금"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 10 0V14" stroke="#e9b654"/></svg></button>
       <button class="iconbtn" id="btnUnlockAll" title="전부 해제" aria-label="전부 해제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 9.6-1.9" stroke="#e9b654"/></svg></button>
     </div>
-    <p class="hint" id="s3Hint">고른 별씨앗을 카드로 펼칩니다. 마음에 드는 칸은 잠그고 나머지만 다시 굴릴 수 있습니다.</p>
+    <p class="hint" id="s3Hint">고른 별씨앗으로 결과를 만듭니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.</p>
     <div class="bar">
-      <button class="primary" id="btnExpand" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 12V8a2.5 2.5 0 0 1 2.5-2.5h4M20 5.5h4A2.5 2.5 0 0 1 26.5 8v4M26.5 20v4a2.5 2.5 0 0 1-2.5 2.5h-4M12 26.5H8A2.5 2.5 0 0 1 5.5 24v-4"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/></svg>카드로 펼치기</button>
+      <button class="primary" id="btnExpand" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 12V8a2.5 2.5 0 0 1 2.5-2.5h4M20 5.5h4A2.5 2.5 0 0 1 26.5 8v4M26.5 20v4a2.5 2.5 0 0 1-2.5 2.5h-4M12 26.5H8A2.5 2.5 0 0 1 5.5 24v-4"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/></svg>결과 만들기</button>
       <button class="ghost" id="btnReroll" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 7.5v6.4h-6.4"/><path d="M25.6 13.9A10 10 0 1 0 26 18.6"/></svg>안 잠근 칸만 다시</button>
       <span class="sp"></span>
       <button class="ghost mini" id="btnRawView" title="모델이 마지막으로 보낸 응답을 그대로 봅니다">출력 원문</button>
     </div>
     <div class="field" style="margin-top:12px">
       <label class="fl" for="rerollNote">다시 쓰기 지시</label>
-      <input id="rerollNote" placeholder="안 잠근 칸을 다시 쓸 때만 사용 — 예: 더 조용한 사람으로">
+      <input id="rerollNote" placeholder="안 잠근 칸을 다시 쓸 때만 사용합니다.">
     </div>
     <div id="cardOut" style="margin-top:6px"></div>
     <div class="continuebox" id="continueBox" hidden>
       <div class="continue-title"><b id="continueTitle">이어서 만들기</b><span class="note" id="continueHint"></span></div>
       <label class="fl" for="continueNote">이어쓰기 지시 <span class="note">· 선택</span></label>
-      <textarea id="continueNote" rows="2" placeholder="비우면 잘린 곳이나 마지막 칸부터 자연스럽게 잇습니다 · 예: 배경 칸을 더 이어서 관계 변화까지 써줘"></textarea>
+      <textarea id="continueNote" rows="2" placeholder="비우면 잘린 곳이나 마지막 칸부터 자연스럽게 잇습니다."></textarea>
       <div class="bar"><span class="note" id="continueMeta"></span><span class="sp"></span><button class="primary" id="btnContinue">이어서 만들기</button></div>
     </div>
     <details class="convertbox" id="convertBox" hidden>
@@ -318,7 +318,7 @@
   <!-- 4 -->
   <div class="panel" id="checkPanel">
     <h2><span class="stepno">4 · </span>검증</h2>    <div class="bar">
-      <button class="primary" id="btnCheck" disabled>설정 대조</button>
+      <button class="primary" id="btnCheck" disabled>결과 검증</button>
       <span class="sp"></span>
       <span id="verdictBox"></span>
     </div>
@@ -339,7 +339,7 @@
           <option value="voice">당사자 본인</option>
         </select></div>
       <div class="field"><label class="fl">질문</label>
-        <textarea id="askIn" rows="1" style="min-height:40px" placeholder="예: 배신당하면 어떻게 반응하나요? · Ctrl+Enter"></textarea></div>
+        <textarea id="askIn" rows="1" style="min-height:40px" placeholder="결과에서 더 확인하고 싶은 점을 물어보세요. · Ctrl+Enter"></textarea></div>
       <div class="field" style="flex:0 0 110px"><label class="fl">&nbsp;</label>
         <button class="primary" id="btnAsk" style="width:100%"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 17.5a8.5 8.5 0 0 1-8.5 8.5h-6.6l-4.9 3.7V25A8.5 8.5 0 0 1 5.5 17.5v-3A8.5 8.5 0 0 1 14 6h4a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M13.4 13a2.9 2.9 0 1 1 4.05 2.68c-.86.37-1.25.98-1.25 1.92"/><circle cx="16.2" cy="21" r="1.1" fill="#e9b654" stroke="none"/></svg>묻기</button></div>
     </div>
@@ -399,11 +399,11 @@
     <div class="ctxbar">
       <span class="note">같이 보낼 것:</span>
       <label><input type="checkbox" id="ctxAssets" checked> 재료</label>
-      <label><input type="checkbox" id="ctxDigest" checked> 세계 요약</label>
+      <label><input type="checkbox" id="ctxDigest" checked> 읽은 요약</label>
       <label><input type="checkbox" id="ctxCard"> 지금 만든 것</label>
       <span class="note" id="ctxTok"></span>
       <span class="sp"></span>
-      <button type="button" class="mini ghost" id="btnTalkToCard" title="지금 작업대에 있는 카드를, 이 대화에서 정해진 내용대로 고칩니다. 잠근 칸은 그대로 두고 바뀐 부분만 반영합니다. 작업대에 카드가 있어야 눌립니다." disabled>결론을 카드에 반영</button>
+      <button type="button" class="mini ghost" id="btnTalkToCard" title="지금 작업대의 결과를 이 대화에서 정해진 내용대로 고칩니다. 잠근 칸은 그대로 두고 바뀐 부분만 반영합니다. 작업대에 결과가 있어야 눌립니다." disabled>결론을 작업대에 반영</button>
       <button type="button" class="mini ghost" id="btnTalkWrap" title="대화가 길어질수록 매번 보내는 입력이 커집니다. 지금까지의 대화를 요약 하나로 압축해 토큰을 줄이고, 그 요약 위에서 이어갑니다.">대화 마무리</button>
     </div>
     <details class="nebula-pick" id="talkPick" style="margin:0 0 12px">
@@ -621,7 +621,7 @@
       <div class="backup-always"><b>항상 포함</b>연결 주소·모델, 양식, 옵션, 고정한 기록 · 실행 로그는 포함하지 않습니다.</div>
       <div class="backup-list">
         <label class="backup-opt"><input type="checkbox" id="backupAssets" checked><span><b>불러온 재료</b>성운의 캐릭터·로어북·텍스트, 즐겨찾기와 폴더 구조</span></label>
-        <label class="backup-opt"><input type="checkbox" id="backupProject" checked><span><b>현재 작업과 중간 결과</b>읽은 요약, 별씨앗, 만든 카드, 검증·캐스트 결과</span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupProject" checked><span><b>현재 작업과 중간 결과</b>읽은 요약, 별씨앗, 만든 결과, 검증·캐스트 결과</span></label>
         <label class="backup-opt"><input type="checkbox" id="backupChat" checked><span><b>대화 기록</b>교신에서 주고받은 내용과 역할 설정</span></label>
         <label class="backup-opt"><input type="checkbox" id="backupKeys" checked><span><b>API 키·액세스 토큰</b><span class="backup-warn">민감한 정보입니다. 다른 사람에게 보낼 파일이라면 끄세요.</span></span></label>
       </div>
@@ -657,6 +657,13 @@
 <!-- 기본 공통 지시문 데이터는 prompts.js (window.BUILTIN_COMMON) 에 있습니다.
      로컬 실험용 반영은 prompt-editor.html + localStorage 를 씁니다. -->
 <script src="prompts.js"></script>
-<script src="app.js"></script>
+<!-- 일반 스크립트를 아래 순서대로 읽어 파일을 직접 열어도 작동합니다. -->
+<script src="js/core.js"></script>
+<script src="js/materials.js"></script>
+<script src="js/studio.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/library.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
