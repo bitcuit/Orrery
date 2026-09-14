@@ -18,7 +18,7 @@ let S = {
   connections: [], activeConn: null,
   assets: [], assetFolders: [],
   presets: [], activePreset: null,
-  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,summarize:false,maxChars:1200,meaning:true,sourceLang:'한국어',targetLang:'English',extraBy:{world:'',character:'',prompt:''}} },
+  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, refineBy:{world:'balanced',character:'balanced',prompt:'balanced'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,summarize:false,maxChars:1200,meaning:true,sourceLang:'한국어',targetLang:'English',extraBy:{world:'',character:'',prompt:''}} },
   project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null },
   library: [],
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
@@ -469,7 +469,7 @@ async function callProvider(conn, messages, opts){
     const room = conn.contextLimit - (o.maxTokens||2000);
     if(est > room){
       throw new Error(`보낼 분량이 컨텍스트 상한을 넘습니다 (보낼 것 ${est} + 응답 ${o.maxTokens||2000} > ${conn.contextLimit}). ` +
-        '재료 탭에서 항목을 줄이거나, 세계 읽기를 먼저 해서 요약본으로 돌리세요.');
+        '재료 탭에서 항목을 줄이거나, 단계별 만들기의 재료 정리를 먼저 거쳐 요약본으로 돌리세요.');
     }
     if(est > room*0.85) log(`컨텍스트 여유가 적습니다 — 보낼 것 ${est} / 상한 ${conn.contextLimit}`,'err');
   }
@@ -477,22 +477,31 @@ async function callProvider(conn, messages, opts){
   LAST_USAGE = null;
   const controller = new AbortController();
   ABORT = controller;
-  const stop=$('#btnAbortCall'); if(stop) stop.hidden=false;
+  const stop=$('#btnAbortCall');
+  if(stop){
+    const activeBtn=document.querySelector('button .busy')?.closest('button');
+    if(activeBtn && activeBtn.isConnected){ activeBtn.insertAdjacentElement('afterend',stop); stop.classList.add('inline'); }
+    else { document.body.append(stop); stop.classList.remove('inline'); }
+    stop.hidden=false;
+  }
   const t0 = Date.now();
   log(`→ ${p.label} / ${conn.model} · 보낼 것 ${est} 토큰쯤 · 응답 상한 ${o.maxTokens||2000}`);
   if(S.logVerbose) log(messages.map(m=>`[${m.role}]\n${m.content}`).join('\n---\n'));
-  let res;
+  let res, txt;
   try{
     res = await fetch(req.url, { method:'POST', headers:req.headers,
       body: JSON.stringify(req.body), signal: controller.signal });
+    txt = await res.text();
   }catch(e){
     if(e.name==='AbortError') throw new Error('__ABORT__');
     log('연결 실패: '+e.message,'err');
     throw new Error('서버에 닿지 못했습니다. 브라우저가 요청을 막았거나(CORS) 주소가 틀렸을 수 있습니다. 상단 ? 단추의 안내를 보세요.');
   }finally{
-    if(ABORT===controller){ ABORT=null; if(stop) stop.hidden=true; }
+    if(ABORT===controller){
+      ABORT=null;
+      if(stop){ stop.hidden=true; document.body.append(stop); stop.classList.remove('inline'); }
+    }
   }
-  const txt = await res.text();
   if(!res.ok){
     log(`← ${res.status} ${txt.slice(0,600)}`,'err');
     let detail = txt.slice(0,300);

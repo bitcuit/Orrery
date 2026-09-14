@@ -149,28 +149,28 @@ const PRESET_NOTE = {
 const MODE_UI = {
   world: {
     title:'세계를 어떻게 만들까요',
-    hint:'성운의 재료를 새 세계의 씨앗으로 쓸지, 기존 세계의 빈틈을 보충할지 고릅니다.',
+    hint:'성운의 재료로 새 세계를 만들지, 기존 세계를 덜고 보완해 다시 다듬을지 고릅니다.',
     items:[
       ['new','새 세계 만들기','키워드와 설정 조각을 바탕으로 새로운 세계를 설계합니다.'],
-      ['supplement','기존 세계 보충하기','확정된 규칙과 고유명사는 지키고 생활·제도·갈등의 빈 곳을 채웁니다.']
+      ['supplement','기존 세계 다듬기','핵심 설정은 지키면서 불필요한 것은 덜고, 필요한 것은 보완하거나 다시 설계합니다.']
     ]
   },
   character: {
     title:'인물을 어떻게 뽑을까요',
-    hint:'세계에서 새로 뽑거나, 기존 인물을 보충하거나, 함께 얽힐 상대와 관계망을 만듭니다.',
+    hint:'세계에서 새로 뽑거나, 기존 인물을 다듬거나, 함께 얽힐 상대와 관계망을 만듭니다.',
     items:[
       ['w2c','세계에서 사람 뽑기','로어북·설정을 읽고 그 세계에 실제로 살고 있을 법한 인물을 만듭니다.'],
-      ['supplement','기존 인물 보충하기','기존 인물의 정체성과 확정 설정은 지키고, 비어 있거나 얇은 부분을 보강합니다.'],
+      ['supplement','기존 인물 다듬기','인물의 정체성은 지키면서 중복은 덜고, 필요한 부분은 보완하거나 다시 설계합니다.'],
       ['foil','맞부딪힐 상대','기존 인물을 읽고 그와 어긋나고 얽힐 다른 인물을 만듭니다.'],
       ['cast','여러 명 + 관계망','같은 세계에서 여러 명을 뽑고 서로를 어떻게 보는지까지 짭니다.']
     ]
   },
   prompt: {
     title:'프롬프트를 어떻게 만들까요',
-    hint:'새로 설계하거나, 이미 쓰는 프롬프트의 빠진 부분을 채우거나, 다른 용도로 변형합니다.',
+    hint:'새로 설계하거나, 이미 쓰는 프롬프트를 덜고 보완해 다듬거나, 다른 용도로 변형합니다.',
     items:[
       ['new','새 프롬프트 만들기','목적과 재료에서 역할·작동 원칙·출력 형식을 새로 설계합니다.'],
-      ['supplement','기존 프롬프트 보충하기','잘 작동하는 부분은 두고 빠진 통제·경계조건·출력 규칙을 채웁니다.'],
+      ['supplement','기존 프롬프트 다듬기','잘 작동하는 부분은 두고 중복을 덜거나 빠진 통제·출력 규칙을 보완합니다.'],
       ['adapt','기존 프롬프트 변형하기','핵심 작동 원리는 살리면서 구상 칸에 적은 새 용도에 맞춥니다.']
     ]
   }
@@ -181,34 +181,52 @@ function renderModeChooser(){
   const nameEl = $('#modeCurName'); if(nameEl) nameEl.textContent = curName;
   $('#modeBox').innerHTML = u.items.map(([id,name,note])=>`
     <div class="mode ${id===cur?'on':''}" data-mode="${id}"><div class="mn">${esc(name)}</div><div class="md">${esc(note)}</div></div>`).join('');
+  renderRefineChooser();
+}
+
+const REFINE_UI=[
+  ['balanced','균형 있게','중복과 장식은 덜고, 실제로 필요한 빈틈만 보완합니다.'],
+  ['simplify','단순하게','핵심 규칙과 정체성은 남기고 반복·미사용 요소·과한 설명을 줄입니다.'],
+  ['detail','자세하게','기존 내용을 유지하며 작동 조건·인과·대가·사례를 필요한 만큼 구체화합니다.'],
+  ['redesign','다시 설계','핵심 의도는 지키되 약한 요소를 빼고 묶음과 순서를 새로 짭니다.']
+];
+function renderRefineChooser(){
+  const panel=$('#refinePanel'), box=$('#refineBox'); if(!panel||!box) return;
+  const show=modeUsesRefine(); panel.hidden=!show;
+  if(!show){ box.innerHTML=''; return; }
+  const cur=activeRefine();
+  box.innerHTML=REFINE_UI.map(([id,name,note])=>`
+    <button type="button" class="refine-mode ${id===cur?'on':''}" data-refine="${id}" aria-pressed="${id===cur}">
+      <span class="rn">${esc(name)}</span><span class="rd">${esc(note)}</span>
+    </button>`).join('');
 }
 
 
 const GROUP_UI = {
   world: {
-    s1:'세계 읽기', spine1:'세계 읽기', btn:'세계 읽기',
-    hint:'재료를 한 번 압축해 규칙·세력·용어·빈틈을 뽑습니다. 한 번 만들면 계속 재사용합니다.',
+    s1:'설계 준비', spine1:'설계 준비', btn:'재료 정리하기', combinedBtn:'정리하고 결과 만들기',
+    hint:'구상과 선택한 재료에서 이미 정해진 것·자연히 따라오는 것·빈틈·먼저 정할 질문을 보여줍니다.',
     brief:'구상', briefNote:'재료가 없어도 이것만으로 시작할 수 있습니다',
     ph:'예: 바다가 말라붙은 뒤의 항구도시, 소금 채굴, 물을 파는 길드',
     extraPh:'예: 생활과 제도를 중심으로 · 고유명사는 짧게 · 마법의 대가는 분명하게',
     rerollPh:'예: 생활 칸에 물가와 이동 수단을 더 구체적으로',
     continuePh:'비우면 잘린 곳이나 마지막 칸부터 잇습니다 · 예: 세력 칸에 이해관계 변화를 더 써줘',
     askPh:'예: 이 규칙 때문에 가장 손해 보는 사람은 누구인가요? · Ctrl+Enter',
-    readDone:'세계 재료를 읽었습니다'
+    readDone:'설계 재료를 정리했습니다'
   },
   character: {
-    s1:'재료 읽기', spine1:'재료 읽기', btn:'재료 읽기',
-    hint:'재료 탭에 넣은 세계와 인물을 압축해 읽습니다. 인물을 놓을 자리와 빈틈을 뽑아 다음 단계로 넘깁니다.',
+    s1:'재료 정리', spine1:'재료 정리', btn:'재료 정리하기', combinedBtn:'정리하고 결과 만들기',
+    hint:'구상과 선택한 세계·인물을 정리해 인물을 놓을 자리와 빈틈을 보여줍니다.',
     brief:'구상', briefNote:'원하는 방향이 있으면 적으세요',
     ph:'예: 항해길드에서 쫓겨난 사람. 30대. 말수가 적고 빚이 있음',
     extraPh:'예: 30대 이상 · 말수가 적게 · 기존 인물과 역할이 겹치지 않게',
     rerollPh:'예: 말투를 더 절제하고 행동으로 드러나게',
     continuePh:'비우면 잘린 곳이나 마지막 칸부터 잇습니다 · 예: 배경 칸에 관계가 틀어진 계기까지 써줘',
     askPh:'예: 배신당하면 어떻게 반응하나요? · Ctrl+Enter',
-    readDone:'인물 재료를 읽었습니다'
+    readDone:'인물 재료를 정리했습니다'
   },
   prompt: {
-    s1:'요구 정리', spine1:'요구 정리', btn:'요구 정리',
+    s1:'요구 정리', spine1:'요구 정리', btn:'요구 정리하기', combinedBtn:'정리하고 결과 만들기',
     hint:'무엇을 만들어야 하는지, 무엇이 정해졌고 무엇이 비었는지 먼저 정리합니다.',
     brief:'구상', briefNote:'여기가 주 입력입니다 — 무엇을 만들 프롬프트인지 적으세요',
     ph:'예: 설정집을 읽고 그 세계의 사건 사고를 뉴스 형식으로 뽑는 프롬프트',
@@ -234,7 +252,9 @@ function digestStale(){
   const m = S.project.digestMeta;
   if(!S.project.digest || !m) return null;
   if(m.source != null && m.source !== sourceText()) return '재료가 바뀌었습니다';
-  return m.tpl === digestTpl(activePreset()) ? null : `읽기 양식이 “${m.presetName}”에서 바뀌었습니다`;
+  if(m.mode && m.mode!==activeMode()) return '만드는 방식이 바뀌었습니다';
+  if(modeUsesRefine() && m.refine!==activeRefine()) return '다듬는 방향이 바뀌었습니다';
+  return m.tpl === digestTpl(activePreset()) ? null : `정리 양식이 “${m.presetName}”에서 바뀌었습니다`;
 }
 function applyGroupUi(){
   const u = GROUP_UI[S.opts.group] || GROUP_UI.world;
@@ -243,10 +263,11 @@ function applyGroupUi(){
   set('#s1Title', u.s1); set('#spine1', u.spine1); set('#s1Hint', u.hint);
   set('#briefLabel', u.brief); set('#briefNote', u.briefNote || '');
   const bd = $('#btnDigest');
-  if(bd && !bd._t){
+  if(bd && !bd.querySelector('.busy')){
     // 아이콘(svg)은 남기고 텍스트 노드만 바꾼다
     const txt = Array.from(bd.childNodes).find(n=>n.nodeType===3 && n.textContent.trim());
-    if(txt) txt.textContent = u.btn; else bd.append(u.btn);
+    const label=activePreset().skipSeed?(u.combinedBtn||'정리하고 결과 만들기'):u.btn;
+    if(txt) txt.textContent = label; else bd.append(label);
   }
   const setPh=(sel,v)=>{ const el=$(sel); if(el) el.placeholder=v||''; };
   setPh('#optBrief',u.ph); setPh('#optExtra',u.extraPh); setPh('#rerollNote',u.rerollPh);
@@ -287,7 +308,7 @@ function renderGroup(){
 }
 function switchPreset(id){
   if(!id) return;
-  OPEN_DONE_STAGE=null;
+  OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
   const prevGroup = S.opts.group;
   S.activePreset = id;
   const p = activePreset();
@@ -311,7 +332,7 @@ function switchPreset(id){
   renderMat(); applyGroupUi(); renderOneshot();
 }
 function applyGroup(g){
-  OPEN_DONE_STAGE=null;
+  OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
   stashDigest(S.opts.group);
   S.opts.group = g;
   loadDigest(g);
