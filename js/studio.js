@@ -1658,10 +1658,12 @@ async function doConvertCard(settings){
   const conn=S.connections.find(c=>c.id===S.activeConn);
   if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
   const o=Object.assign({},settings||{});
-  if(!o.translate&&!o.optimize&&!o.yaml) throw new Error('번역·토큰 최적화·YAML 중 하나 이상을 골라 주세요.');
+  o.maxChars=Math.min(20000,Math.max(100,Math.round(Number(o.maxChars)||1200)));
+  o.extra=String(o.extra||'').trim();
+  if(!o.translate&&!o.optimize&&!o.yaml&&!o.summarize&&!o.extra) throw new Error('최종본에 적용할 항목을 하나 이상 고르거나 추가 요청을 적어 주세요.');
   const sourceLang=String(o.sourceLang||S.opts.lang||'자동 감지').trim()||'자동 감지';
   const targetLang=String(o.targetLang||'English').trim()||'English';
-  if(o.translate&&sourceLang.toLocaleLowerCase()===targetLang.toLocaleLowerCase()&&!o.optimize&&!o.yaml){
+  if(o.translate&&sourceLang.toLocaleLowerCase()===targetLang.toLocaleLowerCase()&&!o.optimize&&!o.yaml&&!o.summarize&&!o.extra){
     throw new Error('원본 언어와 번역 언어가 같습니다. 다른 언어를 고르거나 다른 변환 옵션을 켜 주세요.');
   }
   const P=activePreset(), source=currentCardSource();
@@ -1674,17 +1676,26 @@ async function doConvertCard(settings){
     : `Keep the final transformed result in ${sourceLang}; do not translate it.`;
   const optimize=o.optimize
     ? 'Optimize for fewer model-input tokens: remove filler, repeated facts, decorative redundancy, and verbose transitions. Preserve every plot-relevant fact, relationship, rule, constraint, negation, safety boundary, placeholder, and behavioral instruction. Prefer compact lists and direct wording, but never rename field keys. Never invent or weaken information.'
-    : 'Do not intentionally shorten or summarize the content. Preserve its detail and nuance.';
+    : o.summarize
+      ? 'Do not apply separate token optimization. Shorten only as needed for the requested summary length and preserve as much detail and nuance as that limit allows.'
+      : 'Do not intentionally shorten or summarize the content. Preserve its detail and nuance.';
+  const summarize=o.summarize
+    ? `Summarize the entire result to approximately ${o.maxChars} Unicode characters, including labels or YAML syntax but excluding the separate meaning value. Aim close to the target rather than cutting a sentence or YAML value abruptly. Keep the most important identities, relationships, rules, constraints, negations, placeholders, and behavioral instructions.`
+    : 'Do not impose a target character count.';
   const meaning=o.translate&&o.meaning
     ? `Also produce "meaning": a faithful rendering of the FINAL transformed result back into ${sourceLang}, so the user can verify what the translated/optimized text means. It must reflect the transformed result, not restore details removed by optimization. ${o.yaml?'Use valid YAML with the same keys for meaning too.':'Use the same labeled plain-text structure.'}`
     : 'Set "meaning" to an empty string.';
+  const extra=o.extra
+    ? `Apply this final user request after the other transformations: ${JSON.stringify(o.extra)}. Follow it unless it conflicts with the required JSON wrapper or valid YAML syntax.`
+    : 'There is no additional final request.';
   const messages=[
     {role:'system',content:'You are a precise multilingual editor for structured creative-writing and roleplay prompts. Return exactly one valid JSON object with two string values: {"result":"...","meaning":"..."}. JSON-escape all line breaks. No code fence and no commentary.'},
-    {role:'user',content:`Transform this ${GROUP_LABEL[S.opts.group]||'creative'} result.\n\nSource language: ${sourceLang}\nTarget language: ${targetLang}\nField labels: ${JSON.stringify(fieldLabels)}\n\nRules:\n1. ${translate}\n2. ${optimize}\n3. ${format}\n4. ${meaning}\n5. Keep field order and omit only fields that were already empty.\n\nSource result:\n${JSON.stringify(card.fields,null,1)}`}
+    {role:'user',content:`Create a final output from this ${GROUP_LABEL[S.opts.group]||'creative'} result.\n\nSource language: ${sourceLang}\nTarget language: ${targetLang}\nField labels: ${JSON.stringify(fieldLabels)}\n\nRules:\n1. ${translate}\n2. ${optimize}\n3. ${summarize}\n4. ${format}\n5. ${meaning}\n6. ${extra}\n7. Keep field order and omit only fields that were already empty.\n\nSource result:\n${JSON.stringify(card.fields,null,1)}`}
   ];
   const sourceTokens=tok(source);
+  const expectedResultTokens=o.summarize?Math.ceil(o.maxChars/3):sourceTokens;
   const multiplier=o.translate&&o.meaning?2.25:1.25;
-  const opts={temperature:0.25,maxTokens:Math.min(12000,Math.max(1800,Math.ceil(sourceTokens*multiplier+600)))};
+  const opts={temperature:0.25,maxTokens:Math.min(12000,Math.max(1800,Math.ceil(expectedResultTokens*multiplier+600)))};
   const raw=await callProvider(conn,messages,opts);
   let j, recovered=null;
   try{ j=(await parseJsonReply(conn,messages,opts,raw,true)).json; }
@@ -1692,7 +1703,7 @@ async function doConvertCard(settings){
     recovered=err.raw&&recoverPartialConversion(err.raw);
     if(!recovered||!recovered.fields.result) throw err;
     j=recovered.fields;
-    log('끊긴 변환본에서 읽을 수 있는 부분을 먼저 복구했습니다.','err');
+    log('끊긴 최종본에서 읽을 수 있는 부분을 먼저 복구했습니다.','err');
   }
   const result=j&&typeof j.result==='string'?j.result.trim():'';
   const back=j&&typeof j.meaning==='string'?j.meaning.trim():'';
@@ -1701,7 +1712,7 @@ async function doConvertCard(settings){
   const missingMeaning=!!(o.translate&&o.meaning&&!back);
   card.conversion={
     result, meaning:back, sourceLang, targetLang,
-    options:{translate:!!o.translate,optimize:!!o.optimize,yaml:!!o.yaml,meaning:!!(o.translate&&o.meaning)},
+    options:{translate:!!o.translate,optimize:!!o.optimize,yaml:!!o.yaml,summarize:!!o.summarize,maxChars:o.maxChars,meaning:!!(o.translate&&o.meaning),extra:o.extra},
     sourceSignature:textSignature(source), sourceTokens, resultTokens:tok(result), at:Date.now(), meaningCollapsed:false,
     truncated:!!recovered, truncatedPart:recovered&&recovered.incompleteKey||missingMeaning&&'meaning'||'', continuations:[]
   };
@@ -1709,13 +1720,13 @@ async function doConvertCard(settings){
 }
 async function doContinueConversion(){
   const card=S.project.card, c=card&&card.conversion;
-  if(!c) throw new Error('먼저 변환본을 만들어 주세요.');
+  if(!c) throw new Error('먼저 최종본을 만들어 주세요.');
   const conn=S.connections.find(x=>x.id===S.activeConn);
   if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
   const o=c.options||{}, needMeaning=!!o.meaning;
   const messages=[
     {role:'system',content:'You continue a previously transformed creative-writing result without rewriting or repeating it. Return exactly one valid JSON object with string values: {"resultAppend":"...","meaningAppend":"..."}. Output only new text to append. JSON-escape line breaks. No code fence or commentary.'},
-    {role:'user',content:`Continue the transformed result from exactly where it ended.\n\nFormat: ${o.yaml?'YAML':'labeled plain text'}\nResult language: ${o.translate?c.targetLang:c.sourceLang}\nMeaning language: ${c.sourceLang}\nPrevious truncation: ${c.truncatedPart||'(not detected; continue the final non-empty section naturally)'}\n\nCurrent transformed result:\n${c.result}\n\nCurrent source-language meaning:\n${c.meaning||'(missing)'}\n\nRules:\n- resultAppend must contain only the new continuation of the transformed result.\n- ${needMeaning?'meaningAppend must continue or supply the matching source-language meaning of the FINAL transformed text.':'Set meaningAppend to an empty string.'}\n- Never repeat existing text or restart the document.\n- If YAML, continue valid YAML syntax and do not repeat existing keys.\n- If a word or scalar was cut, begin with its very next character; otherwise begin with any needed newline.\n- Preserve the existing optimization level and all constraints.`}
+    {role:'user',content:`Continue the final output from exactly where it ended.\n\nFormat: ${o.yaml?'YAML':'labeled plain text'}\nResult language: ${o.translate?c.targetLang:c.sourceLang}\nMeaning language: ${c.sourceLang}\nTarget length: ${o.summarize?`approximately ${o.maxChars||1200} characters for the completed result`:'no fixed character target'}\nFinal user request: ${o.extra||'(none)'}\nPrevious truncation: ${c.truncatedPart||'(not detected; continue the final non-empty section naturally)'}\n\nCurrent final output:\n${c.result}\n\nCurrent source-language meaning:\n${c.meaning||'(missing)'}\n\nRules:\n- resultAppend must contain only the new continuation of the final output.\n- ${needMeaning?'meaningAppend must continue or supply the matching source-language meaning of the FINAL transformed text.':'Set meaningAppend to an empty string.'}\n- Never repeat existing text or restart the document.\n- If YAML, continue valid YAML syntax and do not repeat existing keys.\n- If a word or scalar was cut, begin with its very next character; otherwise begin with any needed newline.\n- Preserve the existing optimization, summary, and final-request constraints.`}
   ];
   const opts={temperature:0.2,maxTokens:Math.min(12000,Math.max(1800,Math.ceil((c.resultTokens||tok(c.result))*(needMeaning?1.5:.9)+600)))};
   const raw=await callProvider(conn,messages,opts);
@@ -2046,7 +2057,10 @@ function readConvertSettings(){
     translate:$('#convertTranslate').checked,
     optimize:$('#convertOptimize').checked,
     yaml:$('#convertYaml').checked,
-    meaning:$('#convertMeaning').checked
+    summarize:$('#convertSummarize').checked,
+    maxChars:Math.min(20000,Math.max(100,Math.round(Number($('#convertMaxChars').value)||1200))),
+    meaning:$('#convertMeaning').checked,
+    extra:$('#convertExtra').value.trim()
   };
 }
 function syncConvertSourceToOutput(){
@@ -2061,12 +2075,17 @@ function renderConvert(){
   $('#convertTranslate').checked=!!p.translate;
   $('#convertOptimize').checked=!!p.optimize;
   $('#convertYaml').checked=!!p.yaml;
+  $('#convertSummarize').checked=!!p.summarize;
+  if(document.activeElement!==$('#convertMaxChars')) $('#convertMaxChars').value=Math.min(20000,Math.max(100,Math.round(Number(p.maxChars)||1200)));
   $('#convertMeaning').checked=!!p.meaning;
+  if(document.activeElement!==$('#convertExtra')) $('#convertExtra').value=curConvertExtra();
   $('#convertTargetLang').disabled=!p.translate;
   $('#convertMeaning').disabled=!p.translate;
+  $('#convertMaxChars').disabled=!p.summarize;
   $('#convertMeaning').closest('.convert-opt').classList.toggle('muted',!p.translate);
+  $('#convertSummaryOption').classList.toggle('muted',!p.summarize);
   $('#convertCallNote').textContent=p.translate&&p.meaning
-    ? 'API 호출 1회가 기본입니다 · 변환본과 뜻풀이를 함께 만들고, 잘리면 자동 이어받기'
+    ? 'API 호출 1회가 기본입니다 · 최종본과 뜻풀이를 함께 만들고, 잘리면 자동 이어받기'
     : 'API 호출 1회가 기본입니다 · 응답이 잘리면 자동 이어받기';
   const c=card.conversion, out=$('#convertOut'); out.hidden=!c;
   if(!c) return;
@@ -2077,15 +2096,16 @@ function renderConvert(){
   continueBtn.textContent=c.truncated?'잘린 부분 이어서':'이어서';
   const stale=c.sourceSignature!==textSignature(currentCardSource());
   const o=c.options||{};
-  $('#convertResultTitle').textContent=o.translate?`${c.targetLang||'번역 언어'} 변환본`:'변환본';
+  $('#convertResultTitle').textContent=o.translate?`${c.targetLang||'번역 언어'} 최종본`:'최종본';
   $('#convertResult').textContent=c.result||'';
   const delta=(c.sourceTokens||0)-(c.resultTokens||0);
   const pct=c.sourceTokens?Math.round(delta/c.sourceTokens*100):0;
   const parts=[`${o.yaml?'YAML':'일반 텍스트'}`,`대략 ${c.sourceTokens||0} → ${c.resultTokens||0} 토큰`];
   if(o.optimize&&delta!==0) parts.push(delta>0?`${pct}% 감소`:`${Math.abs(pct)}% 증가`);
-  if(c.truncated) parts.push(`${c.truncatedPart==='meaning'?'뜻풀이':'변환본'}이 중간에 끊김`);
+  if(o.summarize) parts.push(`목표 약 ${o.maxChars||1200}자 · 실제 ${Array.from(c.result||'').length}자`);
+  if(c.truncated) parts.push(`${c.truncatedPart==='meaning'?'뜻풀이':'최종본'}이 중간에 끊김`);
   if(continuationCount) parts.push(`이어 쓴 기록 ${continuationCount}회`);
-  if(stale) parts.push('원본이 수정됨 · 다시 변환 필요');
+  if(stale) parts.push('원본이 수정됨 · 다시 만들기 필요');
   $('#convertMeta').textContent=parts.join(' · ');
   const meaningBox=$('#convertMeaningBox'); meaningBox.hidden=!c.meaning;
   if(c.meaning){
@@ -2147,21 +2167,28 @@ $('#cardOut').addEventListener('input', e=>{
 ['convertSourceLang','convertTargetLang'].forEach(id=>$('#'+id).addEventListener('input',()=>{
   const p=convertPrefs(); p[id==='convertSourceLang'?'sourceLang':'targetLang']=$('#'+id).value.trim(); save();
 }));
-['convertTranslate','convertOptimize','convertYaml','convertMeaning'].forEach(id=>$('#'+id).addEventListener('change',()=>{
+['convertTranslate','convertOptimize','convertYaml','convertSummarize','convertMeaning'].forEach(id=>$('#'+id).addEventListener('change',()=>{
   const p=convertPrefs();
-  p[{convertTranslate:'translate',convertOptimize:'optimize',convertYaml:'yaml',convertMeaning:'meaning'}[id]]=$('#'+id).checked;
+  p[{convertTranslate:'translate',convertOptimize:'optimize',convertYaml:'yaml',convertSummarize:'summarize',convertMeaning:'meaning'}[id]]=$('#'+id).checked;
   save(); renderConvert();
 }));
-$('#btnConvert').addEventListener('click',e=>guard(e.currentTarget,'변환 중',async()=>{
+$('#convertMaxChars').addEventListener('change',()=>{
+  const p=convertPrefs(); p.maxChars=Math.min(20000,Math.max(100,Math.round(Number($('#convertMaxChars').value)||1200)));
+  $('#convertMaxChars').value=p.maxChars; save();
+});
+$('#convertExtra').addEventListener('input',()=>{
+  const p=convertPrefs(); p.extraBy[S.opts.group]=$('#convertExtra').value; save(); touchDraft();
+});
+$('#btnConvert').addEventListener('click',e=>guard(e.currentTarget,'만드는 중',async()=>{
   const c=await doConvertCard(readConvertSettings());
   $('#convertBox').open=true; renderConvert(); saveRecord(); touchDraft();
-  toast(c.truncated?'변환본이 잘린 곳까지 복구됐습니다 · 잘린 부분 이어서를 눌러주세요':c.meaning?'변환본과 원본 언어 뜻풀이를 만들었습니다':'변환본을 만들었습니다');
+  toast(c.truncated?'최종본이 잘린 곳까지 복구됐습니다 · 잘린 부분 이어서를 눌러주세요':c.meaning?'최종본과 원본 언어 뜻풀이를 만들었습니다':'최종본을 만들었습니다');
 }));
 $('#btnConvertContinue').addEventListener('click',async e=>{
   await guard(e.currentTarget,'잇는 중',async()=>{
     const result=await doContinueConversion();
     saveRecord(); touchDraft();
-    toast(result.truncated?'읽힌 부분까지 이어 붙였습니다 · 한 번 더 이어주세요':'변환본을 이어 붙였습니다');
+    toast(result.truncated?'읽힌 부분까지 이어 붙였습니다 · 한 번 더 이어주세요':'최종본을 이어 붙였습니다');
   });
   renderConvert();
 });
@@ -2180,7 +2207,7 @@ $('#btnConvertDownload').addEventListener('click',()=>{
 });
 $('#btnConvertClear').addEventListener('click',()=>{
   if(!S.project.card||!S.project.card.conversion) return;
-  delete S.project.card.conversion; renderConvert(); saveRecord(); touchDraft(); toast('변환본을 지웠습니다');
+  delete S.project.card.conversion; renderConvert(); saveRecord(); touchDraft(); toast('최종본을 지웠습니다');
 });
 $('#btnConvertMeaningToggle').addEventListener('click',()=>{
   const c=S.project.card&&S.project.card.conversion; if(!c||!c.meaning) return;
@@ -2530,6 +2557,7 @@ $('#btnNewWork').addEventListener('click', ()=>{
   if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
   if(!S.opts.extraBy) S.opts.extraBy={world:'',character:'',prompt:''};
   S.opts.briefBy[g]=''; S.opts.extraBy[g]='';
+  convertPrefs().extraBy[g]='';
   if(!S.project.digestBy) S.project.digestBy={};
   S.project.digestBy[g]=null;
   Object.assign(S.project,{
