@@ -1345,28 +1345,60 @@ const MODE_NOTE = {
     'character:foil':`이 자료는 한 인물의 캐릭터 카드다. 위 형식에 더해 다음 두 키를 반드시 포함하라.
   "counterpartNeeds": ["이 인물이 상대에게 필요로 하는 것"],
   "frictionPoints": ["이 인물과 충돌하거나 긴장이 생길 지점"]`,
-    'character:supplement':`자료 속 기존 인물을 새 인물의 참고 자료로 취급하지 말고, 보충할 원본으로 읽어라. 확정된 정체성·관계·사건·말투를 분리하고, 비어 있거나 얇거나 서로 연결되지 않은 부분을 찾아라.`,
-    'world:supplement':`자료 속 기존 세계를 보충할 원본으로 읽어라. 확정 사실과 미정 영역을 구분하고, 기존 규칙을 바꾸지 않고도 채울 수 있는 빈틈을 찾아라.`,
-    'prompt:supplement':`자료 속 기존 프롬프트를 보충할 원본으로 읽어라. 이미 작동하는 지시, 빠진 통제, 모호하거나 충돌하는 규칙을 구분하라.`,
+    'character:supplement':`자료 속 기존 인물을 새 인물의 참고 자료가 아니라 다듬을 원본으로 읽어라. 확정된 정체성·관계·사건·말투와, 중복되거나 약하거나 서로 연결되지 않은 부분을 구분하라.`,
+    'world:supplement':`자료 속 기존 세계를 다듬을 원본으로 읽어라. 확정 사실과 미정 영역, 중복되거나 쓰이지 않는 요소, 인과가 끊긴 부분을 구분하라.`,
+    'prompt:supplement':`자료 속 기존 프롬프트를 다듬을 원본으로 읽어라. 이미 작동하는 지시, 중복·과잉 설명, 빠진 통제, 모호하거나 충돌하는 규칙을 구분하라.`,
     'prompt:adapt':`자료 속 기존 프롬프트의 핵심 목적과 작동 원리를 먼저 추출하고, 다른 용도에 옮길 때 유지할 것과 바꿀 것을 구분하라.`
   },
   seed:{
     'character:foil':`\n만들 대상은 위 인물의 상대역이다. counterpartNeeds와 frictionPoints를 출발점으로 삼되, 순순히 맞춰주는 인물은 만들지 마라.\n`,
-    'character:supplement':`\n새 인물을 만들지 말고 기존 인물을 보충할 서로 다른 방향을 제안하라. 원본과 충돌하지 않으며, 단순 수식어 추가가 아니라 행동·관계·선택에 영향을 주는 보강이어야 한다.\n`,
-    'world:supplement':`\n새 세계로 갈아엎지 말고 기존 세계의 빈틈을 보충할 서로 다른 방향을 제안하라. 생활, 제도, 자원, 갈등의 인과 중 실제 사용 가치가 큰 쪽을 우선하라.\n`,
-    'prompt:supplement':`\n새 프롬프트를 처음부터 만들지 말고 기존 프롬프트의 빠진 통제나 모호한 작동 규칙을 보충할 방향을 제안하라.\n`,
+    'character:supplement':`\n새 인물을 만들지 말고 기존 인물을 더 잘 작동하게 다듬을 서로 다른 방향을 제안하라. 무엇을 유지하고 덜고 합치고 보완할지가 분명해야 한다.\n`,
+    'world:supplement':`\n다른 세계로 바꾸지 말고 기존 세계를 더 잘 작동하게 다듬을 서로 다른 방향을 제안하라. 무엇을 유지하고 덜고 합치고 보완할지가 분명해야 한다.\n`,
+    'prompt:supplement':`\n새 프롬프트를 처음부터 만들지 말고 기존 프롬프트를 더 잘 작동하게 다듬을 방향을 제안하라. 무엇을 유지하고 덜고 합치고 보완할지가 분명해야 한다.\n`,
     'prompt:adapt':`\n기존 프롬프트의 장점은 유지하면서 사용자가 적은 새 용도에 맞추는 변형 방향을 제안하라.\n`
   },
   expand:{
     'character:foil':`\n이 인물은 자료 속 캐릭터의 상대역이다. 두 사람이 마주쳤을 때 무엇이 어긋나는지가 드러나야 한다.\n`,
-    'character:supplement':`\n자료 속 기존 인물의 완성본을 출력하라. 확정된 내용은 보존하고, 고른 보강 방향을 자연스럽게 통합하라. 새로 쓴 부분이 원본 설정인 것처럼 기존 사실을 몰래 바꾸지 마라.\n`,
-    'world:supplement':`\n자료 속 기존 세계의 보충된 완성본을 출력하라. 기존 규칙과 고유명사는 보존하고, 고른 보강이 원인과 결과로 연결되게 하라.\n`,
-    'prompt:supplement':`\n자료 속 기존 프롬프트의 보충된 완성본을 출력하라. 이미 작동하는 부분은 보존하고 빠진 통제·경계조건·출력 규칙만 명확히 통합하라.\n`,
+    'character:supplement':`\n자료 속 기존 인물을 다듬은 완성본을 출력하라. 확정된 정체성은 보존하되 선택한 방향에 따라 불필요한 내용은 덜고 필요한 내용만 통합하라.\n`,
+    'world:supplement':`\n자료 속 기존 세계를 다듬은 완성본을 출력하라. 핵심 규칙과 고유명사는 보존하되 선택한 방향에 따라 불필요한 내용은 덜고 필요한 내용만 통합하라.\n`,
+    'prompt:supplement':`\n자료 속 기존 프롬프트를 다듬은 완성본을 출력하라. 이미 작동하는 부분은 보존하되 선택한 방향에 따라 중복은 덜고 필요한 통제만 통합하라.\n`,
     'prompt:adapt':`\n기존 프롬프트의 장점을 보존한 채 사용자가 적은 새 용도에 맞는 완성본을 출력하라. 원래 용도에만 해당하는 규칙은 무작정 남기지 마라.\n`
   }
 };
+const REFINE_VALUES=new Set(['balanced','simplify','detail','redesign']);
+function activeRefine(){
+  const by=S.opts.refineBy||(S.opts.refineBy={world:'balanced',character:'balanced',prompt:'balanced'});
+  const value=by[S.opts.group];
+  if(!REFINE_VALUES.has(value)) by[S.opts.group]='balanced';
+  return by[S.opts.group];
+}
+function modeUsesRefine(){ return ['supplement','adapt'].includes(activeMode()); }
+const REFINE_NOTE={
+  balanced:{
+    digest:'추가를 기본값으로 삼지 마라. 유지할 핵심, 덜어낼 중복·장식, 합칠 항목, 실제로 채워야 할 빈틈을 함께 판단하라.',
+    seed:'각 방향에서 무엇을 유지·삭제·통합·보완할지 함께 제시하라. 결과 분량을 무조건 늘리지 마라.',
+    expand:'불필요한 부분은 빼고 필요한 부분만 보완하라. 원문보다 길어지는 것 자체를 개선으로 취급하지 마라.'
+  },
+  simplify:{
+    digest:'핵심 기능과 인과를 보존하면서 반복, 쓰이지 않는 이름표, 결과에 영향이 없는 세부, 과한 설명을 찾아라.',
+    seed:'새 내용을 더하는 방향보다 삭제·통합·순서 정리로 더 짧고 분명하게 만드는 방향을 우선하라.',
+    expand:'핵심 규칙·정체성·작동 조건은 보존하되 반복과 장식을 덜어 더 짧고 선명한 완성본을 출력하라. 연결에 꼭 필요한 경우가 아니면 새 설정을 추가하지 마라.'
+  },
+  detail:{
+    digest:'이미 있는 내용에서 설명이 부족해 실제 작동을 판단할 수 없는 조건·인과·대가·한계·사례를 찾아라.',
+    seed:'빈칸을 장식적인 세부로 채우지 말고 행동과 결과를 바꾸는 구체화 방향을 제시하라.',
+    expand:'기존 내용을 보존하면서 조건·인과·대가·한계·사례를 필요한 만큼 구체화하라. 같은 뜻을 반복해 분량만 늘리지 마라.'
+  },
+  redesign:{
+    digest:'핵심 의도와 반드시 지킬 사실을 먼저 분리하고, 약한 요소·중복·충돌·잘못된 묶음과 순서를 찾아라.',
+    seed:'핵심 의도와 확정 사실은 지키되 약한 요소를 삭제·통합하고 구조와 순서를 다시 짜는 서로 다른 방향을 제안하라.',
+    expand:'핵심 의도와 확정 사실은 보존하되 항목의 묶음·순서·표현 구조를 다시 설계하라. 약한 요소는 빼거나 합치고 충돌은 숨기지 말고 해소하라.'
+  }
+};
 function modeNote(stage){
-  return (MODE_NOTE[stage] && MODE_NOTE[stage][S.opts.group+':'+activeMode()]) || '';
+  const base=(MODE_NOTE[stage] && MODE_NOTE[stage][S.opts.group+':'+activeMode()]) || '';
+  const refine=modeUsesRefine()&&REFINE_NOTE[activeRefine()] ? REFINE_NOTE[activeRefine()][stage]||'' : '';
+  return [base,refine].filter(Boolean).join('\n');
 }
 
 function curExtra(){
@@ -1501,6 +1533,11 @@ function recoverPartialConversion(raw, keys){
   return Object.keys(fields).length ? {fields,incompleteKey} : null;
 }
 
+const STAGE_RAW={};
+function rememberStageRaw(stageName,text,label){
+  if(!String(text||'').trim()) return null;
+  return STAGE_RAW[stageName]={text:String(text),at:Date.now(),label:label||'모델 응답 원문'};
+}
 async function runStage(stageName, vars, retryOnce){
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
@@ -1513,13 +1550,24 @@ async function runStage(stageName, vars, retryOnce){
   const msgs = commons.concat(
     st.blocks.map(b=>({role:b.role, content: render(b.content, v)}))
              .filter(m=>m.content.trim()));
+  const modeInstruction=String(v.modeNote||'').trim();
+  if(modeInstruction && !st.blocks.some(b=>String(b.content||'').includes('{{modeNote}}'))){
+    msgs.push({role:'user',content:'작업 방식 — 아래 방향을 반드시 적용할 것.\n'+modeInstruction});
+  }
   const req = curExtra();
   if(req && !st.blocks.some(b=>/\{\{extra(Rule)?\}\}/.test(b.content))){
     msgs.push({role:'user', content:'추가 요청 — 아래를 반드시 지킬 것.\n'+req});
   }
   const opts = {temperature:st.temperature, maxTokens:st.maxTokens};
   const raw = await callProvider(conn, msgs, opts);
-  return (await parseJsonReply(conn,msgs,opts,raw,retryOnce)).json;
+  try{
+    const parsed=await parseJsonReply(conn,msgs,opts,raw,retryOnce);
+    rememberStageRaw(stageName,parsed.raw||raw);
+    return parsed.json;
+  }catch(err){
+    rememberStageRaw(stageName,err.raw||raw);
+    throw err;
+  }
 }
 
 /* --- 공정 실행 --- */
@@ -1534,7 +1582,8 @@ async function doDigest(){
   S.project.digest = d;
   S.project.digestSrc = src.slice(0,200);
   const P = activePreset();
-  S.project.digestMeta = { presetId:P.id, presetName:P.name, tpl:digestTpl(P), source:src, at:Date.now() };
+  S.project.digestMeta = { presetId:P.id, presetName:P.name, tpl:digestTpl(P), source:src,
+    mode:activeMode(), refine:modeUsesRefine()?activeRefine():'', at:Date.now() };
   stashDigest(S.opts.group);
   return d;
 }
@@ -1579,7 +1628,7 @@ async function doExpand(seed){
   const fields = {};
   P.schema.forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
   Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string') fields[k]=j[k]; });
-  return { fields, seed, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[] };
+  return { fields, seed, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:STAGE_RAW.expand?clone(Object.assign({},STAGE_RAW.expand,{label:'결과 만들기 원문'})):null };
 }
 async function doPatch(){
   const P = activePreset();
@@ -1594,6 +1643,7 @@ async function doPatch(){
     instruction: ($('#rerollNote').value || '(없음)')
   });
   unlocked.forEach(k=>{ if(j[k]!=null) S.project.card.fields[k] = String(j[k]); });
+  if(STAGE_RAW.patch) S.project.card.raw=clone(Object.assign({},STAGE_RAW.patch,{label:'다시 쓰기 원문'}));
   return j;
 }
 function mergeContinuationText(current, addition){
@@ -1621,9 +1671,10 @@ async function doContinueCard(instruction){
   ];
   const opts={temperature:st.temperature??0.75,maxTokens:Math.max(1200,st.maxTokens||2400)};
   const raw=await callProvider(conn,messages,opts);
-  let j, recovered=null;
-  try{ j=(await parseJsonReply(conn,messages,opts,raw,true)).json; }
+  let j, recovered=null, parsedRaw=raw;
+  try{ const parsed=await parseJsonReply(conn,messages,opts,raw,true); j=parsed.json; parsedRaw=parsed.raw||raw; }
   catch(err){
+    parsedRaw=err.raw||raw;
     recovered=err.raw&&recoverPartialCard(err.raw,P.schema);
     if(!recovered) throw err;
     j={append:recovered.fields};
@@ -1643,6 +1694,7 @@ async function doContinueCard(instruction){
   card.continuations.push({at:Date.now(),instruction:note,added});
   if(card.continuations.length>20) card.continuations=card.continuations.slice(-20);
   card.truncated=!!recovered; card.truncatedField=recovered&&recovered.incompleteKey||'';
+  card.raw={text:parsedRaw,at:Date.now(),label:'이어서 만들기 원문'};
   return {keys,recovered:!!recovered};
 }
 function textSignature(text){
@@ -1907,9 +1959,9 @@ async function makeCardPng(fields){
    6. 화면 — 작업대
    ================================================================== */
 const STAGE_PANEL = { digest:'digestPanel', seed:'seedPanel', expand:'expandPanel', check:'checkPanel' };
-let OPEN_DONE_STAGE = null, STAGE_SCROLL_TIMER = null;
+let OPEN_DONE_STAGE = null, CLOSED_DONE_STAGE = null, STAGE_SCROLL_TIMER = null;
 function scrollToStage(stage, reopen){
-  if(reopen) OPEN_DONE_STAGE=stage;
+  if(reopen){ OPEN_DONE_STAGE=stage; if(CLOSED_DONE_STAGE===stage) CLOSED_DONE_STAGE=null; }
   else OPEN_DONE_STAGE=null;
   setSpine();
   const panel=$('#'+STAGE_PANEL[stage]);
@@ -1927,9 +1979,15 @@ function setSpine(){
   const done = { digest: !!p.digest, seed: P.skipSeed || p.sel.length===1, expand: !!p.card, check: P.skipCheck || !!p.verdict };
   const order = ['digest','seed','expand','check'];
   const visible=order.filter(k=>!((k==='seed'&&P.skipSeed)||(k==='check'&&P.skipCheck)));
+  if(CLOSED_DONE_STAGE && !done[CLOSED_DONE_STAGE]) CLOSED_DONE_STAGE=null;
   $$('#spine li').forEach(li=>{
     const k=li.dataset.st;
     li.style.display = ((k==='seed'&&P.skipSeed)||(k==='check'&&P.skipCheck)) ? 'none' : '';
+  });
+  visible.forEach((k,i)=>{
+    const number=String(i+1), li=$(`#spine li[data-st="${k}"]`), panel=$('#'+STAGE_PANEL[k]);
+    if(li && li.querySelector('.n')) li.querySelector('.n').textContent=number;
+    if(panel && panel.querySelector('.stepno')) panel.querySelector('.stepno').textContent=number+' · ';
   });
   let cur = visible.find(k=>!done[k]) || visible[visible.length-1];
   $$('#spine li').forEach(li=>{
@@ -1948,9 +2006,17 @@ function setSpine(){
   const curIdx = order.indexOf(cur);
   order.forEach((k,i)=>{
     const el = $('#'+STAGE_PANEL[k]); if(!el) return;
+    const collapsed=staged && done[k] && (CLOSED_DONE_STAGE===k || (k!==cur && OPEN_DONE_STAGE!==k));
     el.classList.toggle('locked', staged && i>curIdx && !done[k]);
     el.classList.toggle('now', staged && k===cur && !done[k]);
-    el.classList.toggle('stage-collapsed', staged && done[k] && k!==cur && OPEN_DONE_STAGE!==k);
+    el.classList.toggle('stage-collapsed',collapsed);
+    const title=el.querySelector('h2');
+    if(title){
+      const toggle=staged && done[k];
+      title.classList.toggle('stage-toggle',toggle);
+      if(toggle){ title.setAttribute('role','button'); title.tabIndex=0; title.setAttribute('aria-expanded',String(!collapsed)); }
+      else { title.removeAttribute('role'); title.removeAttribute('tabindex'); title.removeAttribute('aria-expanded'); }
+    }
   });
 }
 function openSpineStage(target){
@@ -1965,34 +2031,77 @@ $('#spine').addEventListener('keydown',e=>{
 });
 $('#v-studio').addEventListener('click',e=>{
   if(e.target.closest('.qhelp')) return;
-  const panel=e.target.closest('.panel.stage-collapsed'); if(!panel) return;
+  const panel=e.target.closest('.panel'); if(!panel) return;
   const stage=Object.keys(STAGE_PANEL).find(k=>STAGE_PANEL[k]===panel.id);
-  if(stage) scrollToStage(stage,true);
+  if(!stage) return;
+  if(panel.classList.contains('stage-collapsed')){ scrollToStage(stage,true); return; }
+  if(e.target.closest('h2.stage-toggle')){
+    OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=stage; setSpine();
+  }
 });
+$('#v-studio').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ') return;
+  const title=e.target.closest('h2.stage-toggle'); if(!title) return;
+  e.preventDefault(); title.click();
+});
+const DIGEST_LABELS={
+  subject:'대상',kind:'자료 종류',title:'이름',tone:'분위기',era:'시대·기술',
+  given:'이미 정해진 것',implied:'자연히 따라오는 것',open:'아직 비어 있는 것',questions:'먼저 정할 질문',
+  goal:'목표',output_shape:'출력 형태',reader:'사용자',failure_modes:'예상 실패',
+  rules:'규칙·금기',factions:'세력',places:'장소',lexicon:'고유명사',hooks:'빈틈·긴장',
+  counterpartNeeds:'상대에게 필요한 것',frictionPoints:'부딪힐 지점',
+  covered:'다룬 항목',absent:'빠진 항목',volume:'분량·밀도',repeats:'반복되는 곳',
+  roles:'인물의 자리',identifiers:'식별자',mechanics:'작동 원리',states:'지속 상태',
+  dependencies:'의존 관계',daily:'생활',confusables:'헷갈리기 쉬운 용어',
+  control:'통제 축',vulnerability:'취약성 축',verbal:'언어 축',aggression:'공격성 축',
+  attachment:'애착 축',body:'신체 축',labels:'근거가 있는 이름표',items:'정리된 내용'
+};
+const DIGEST_SUB_LABELS={
+  name:'이름',role:'역할',stance:'관계',note:'설명',term:'용어',meaning:'뜻',
+  axis:'방향',evidence:'근거',conditions:'조건',baseline:'평소',aroused:'각성 시',register:'말의 결',
+  location:'위치',expression:'표현',wound:'상처',unspoken_need:'말하지 않는 필요',logic:'근거',spatial:'공간 사용'
+};
+function digestHasValue(v){
+  if(v==null || v==='') return false;
+  if(Array.isArray(v)) return v.length>0;
+  if(typeof v==='object') return Object.values(v).some(digestHasValue);
+  return true;
+}
+function digestItemText(v){
+  if(v==null) return '';
+  if(typeof v!=='object') return String(v);
+  if(Array.isArray(v)) return v.map(digestItemText).filter(Boolean).join(' · ');
+  const lead=v.name||v.term||v.title||'';
+  const rest=Object.entries(v).filter(([k,x])=>!['name','term','title'].includes(k)&&digestHasValue(x)).map(([k,x])=>{
+    const value=typeof x==='object'?digestItemText(x):String(x);
+    return `${DIGEST_SUB_LABELS[k]||k}: ${value}`;
+  });
+  return [lead,rest.join(' · ')].filter(Boolean).join(lead&&rest.length?' — ':'');
+}
+function digestValueHtml(v){
+  if(Array.isArray(v)) return v.length?'<ul>'+v.map(x=>`<li>${esc(digestItemText(x))}</li>`).join('')+'</ul>':'<div class="note">—</div>';
+  if(v && typeof v==='object'){
+    const rows=Object.entries(v).filter(([,x])=>digestHasValue(x));
+    return rows.length?'<ul>'+rows.map(([k,x])=>`<li><b>${esc(DIGEST_SUB_LABELS[k]||k)}</b> · ${esc(digestItemText(x))}</li>`).join('')+'</ul>':'<div class="note">—</div>';
+  }
+  return `<div class="digest-text">${esc(v)}</div>`;
+}
 function renderDigest(){
   const d = S.project.digest, box = $('#digestOut');
   const stale = digestStale();
   $('#digestTok').innerHTML = d
-    ? `요약 ${tok(digestStr())} 토큰쯤 (재료 원본 ${assetStats().tokens})`
-      + (stale ? ` · <span style="color:var(--brass)">${esc(stale)} — 다시 읽는 것을 권합니다</span>` : '')
+    ? `정리본 ${tok(digestStr())} 토큰쯤 (재료 원본 ${assetStats().tokens})`
+      + (stale ? ` · <span style="color:var(--brass)">${esc(stale)} — 다시 정리하는 것을 권합니다</span>` : '')
     : '';
-  if(!d){ box.innerHTML = '<div class="empty"><b>아직 읽지 않았습니다</b>재료를 넣거나 구상만 적고 위 단추를 누르세요.</div>'; setSpine(); return; }
-  const list = (arr, f) => (arr||[]).length ? '<ul>'+arr.map(x=>`<li>${esc(f?f(x):x)}</li>`).join('')+'</ul>' : '<div class="note">—</div>';
-  box.innerHTML = `
-    <div style="margin-bottom:13px">
-      <div style="font-family:var(--body);font-size:19px">${esc(d.title||'제목 없음')}</div>
-      <div class="note">${esc(d.era||'')}</div>
-      <div class="chips" style="margin-top:8px">${(d.tone||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join('')}</div>
-    </div>
-    <div class="digest-grid">
-      <div class="dcard"><h4>규칙 · 금기</h4>${list(d.rules)}</div>
-      <div class="dcard"><h4>세력</h4>${list(d.factions, f=>`${f.name} — ${f.role||''}`)}</div>
-      <div class="dcard"><h4>장소</h4>${list(d.places, p=>`${p.name}${p.note?' — '+p.note:''}`)}</div>
-      <div class="dcard"><h4>고유명사</h4>${list(d.lexicon, l=>`${l.term}${l.meaning?': '+l.meaning:''}`)}</div>
-      <div class="dcard" style="grid-column:1/-1"><h4>빈틈 · 긴장 (씨앗의 출발점)</h4>${list(d.hooks)}</div>
-      ${d.counterpartNeeds?`<div class="dcard"><h4>상대에게 필요한 것</h4>${list(d.counterpartNeeds)}</div>`:''}
-      ${d.frictionPoints?`<div class="dcard"><h4>부딪힐 지점</h4>${list(d.frictionPoints)}</div>`:''}
-    </div>`;
+  if(!d){ box.innerHTML = '<div class="empty"><b>아직 정리하지 않았습니다</b>재료를 넣거나 구상만 적고 위 단추를 누르세요.</div>'; setSpine(); return; }
+  const data=d&&typeof d==='object'&&!Array.isArray(d)?d:{items:Array.isArray(d)?d:[d]};
+  const title=data.title||data.subject||'';
+  const tones=Array.isArray(data.tone)?data.tone:(data.tone?[data.tone]:[]);
+  const skip=new Set(['title','subject','tone','era']);
+  const entries=Object.entries(data).filter(([k,v])=>!skip.has(k)&&digestHasValue(v));
+  const header=(title||data.era||tones.length)?`<div class="digest-head">${title?`<div class="digest-title">${esc(title)}</div>`:''}${data.era?`<div class="note">${esc(data.era)}</div>`:''}${tones.length?`<div class="chips">${tones.map(t=>`<span class="chip">${esc(t)}</span>`).join('')}</div>`:''}</div>`:'';
+  const cards=entries.map(([k,v])=>`<div class="dcard"><h4>${esc(DIGEST_LABELS[k]||k.replaceAll('_',' '))}</h4>${digestValueHtml(v)}</div>`).join('');
+  box.innerHTML=header+(cards?`<div class="digest-grid">${cards}</div>`:'<div class="empty"><b>정리된 항목이 없습니다</b>응답 형식을 확인한 뒤 다시 정리해 주세요.</div>');
   setSpine();
 }
 function renderSeeds(){
@@ -2012,10 +2121,10 @@ function renderSeeds(){
   $('#btnCross').disabled = p.sel.length!==2;
   $('#btnExpand').disabled = p.sel.length!==1;
   $('#seedHint').textContent = !p.seeds.length ? '' :
-    p.sel.length===1 ? '하나 골랐습니다 — 3단계에서 결과를 만드세요' :
+    p.sel.length===1 ? '하나 골랐습니다 — 다음 단계에서 결과를 만드세요' :
     p.sel.length===2 ? '둘 골랐습니다 — 섞을 수 있습니다' : '하나를 고르면 결과를 만들고, 둘을 고르면 섞습니다';
   if(!p.seeds.length){
-    box.innerHTML = '<div class="empty"><b>아직 별씨앗이 없습니다</b>먼저 읽기를 마치고 씨앗을 뽑으세요.</div>';
+    box.innerHTML = '<div class="empty"><b>아직 별씨앗이 없습니다</b>먼저 재료 정리를 마치고 씨앗을 뽑으세요.</div>';
     setSpine(); return;
   }
   box.innerHTML = `<div class="seeds">${p.seeds.map((s,i)=>{
@@ -2119,23 +2228,34 @@ function renderCard(){
   const p = S.project, box = $('#cardOut'), P = activePreset();
   $('#btnReroll').disabled = !p.card;
   $('#btnCheck').disabled = !p.card || !!p.card.truncated;
+  $('#btnToggleFields').disabled = !p.card;
   $('#cardBar').style.display = p.card ? 'flex' : 'none';
   if(!p.card){
-    box.innerHTML = `<div class="empty"><b>아직 결과가 없습니다</b>${P.skipSeed?'먼저 읽기를 마치고 결과를 만드세요.':'씨앗을 하나 고르고 결과를 만드세요.'}</div>`;
+    $('#btnToggleFields').textContent='모두 펼치기';
+    box.innerHTML = `<div class="empty"><b>아직 결과가 없습니다</b>${P.skipSeed?'첫 단계에서 정리하고 결과 만들기를 누르세요.':'씨앗을 하나 고르고 결과를 만드세요.'}</div>`;
     renderContinue(); renderConvert(); setSpine(); return;
   }
+  if(!Array.isArray(p.card.openFields)) p.card.openFields=P.schema[0]?[P.schema[0].key]:[];
+  const openFields=new Set(p.card.openFields);
+  const allOpen=P.schema.length>0&&P.schema.every(f=>openFields.has(f.key));
+  $('#btnToggleFields').textContent=allOpen?'모두 접기':'모두 펼치기';
   box.innerHTML = P.schema.map(f=>{
     const v = p.card.fields[f.key]||'';
     const lk = !!p.locked[f.key];
+    const open=openFields.has(f.key), preview=String(v).replace(/\s+/g,' ').trim();
     return `<div class="fld ${lk?'locked':''}" data-k="${f.key}">
       <div class="fld-h">
-        <span class="fn">${esc(f.label)} · ${esc(f.key)}</span>
+        <button type="button" class="fld-toggle" aria-expanded="${open}">
+          <span class="fn">${esc(f.label)} · ${esc(f.key)}</span>
+          <span class="fld-preview">${esc(preview?preview.slice(0,110):'내용 없음')}${preview.length>110?'…':''}</span>
+          <span class="fld-toggle-label">${open?'접기':'펼치기'}</span>
+        </button>
         <button class="lockbtn f-lock">${lk
           ?'<svg class="lic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 10 0V14"/></svg>잠김'
           :'<svg class="lic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 9.6-1.9"/></svg>열림'}</button>
         <button class="lockbtn f-one">이 칸만 다시</button>
       </div>
-      <textarea rows="${Math.min(10, Math.max(2, Math.ceil(v.length/62)))}">${esc(v)}</textarea>
+      <div class="fld-body" ${open?'':'hidden'}><textarea rows="${Math.min(14, Math.max(3, Math.ceil(v.length/62)))}">${esc(v)}</textarea></div>
     </div>`;
   }).join('');
   renderContinue(); renderConvert(); setSpine(); renderQA();
@@ -2143,6 +2263,11 @@ function renderCard(){
 $('#cardOut').addEventListener('click', async e=>{
   const fld = e.target.closest('.fld'); if(!fld) return;
   const k = fld.dataset.k;
+  if(e.target.closest('.fld-toggle')){
+    const open=new Set(S.project.card.openFields||[]);
+    if(open.has(k)) open.delete(k); else open.add(k);
+    S.project.card.openFields=[...open]; renderCard(); touchDraft(); return;
+  }
   if(e.target.closest('.f-lock')){ S.project.locked[k] = !S.project.locked[k]; renderCard(); touchDraft(); return; }
   if(e.target.closest('.f-one')){
     const keep = clone(S.project.locked);
@@ -2153,6 +2278,12 @@ $('#cardOut').addEventListener('click', async e=>{
     catch(err){ showErr(err); }
     finally{ S.project.locked = keep; busy(btn,false); renderCard(); saveRecord(); }
   }
+});
+$('#btnToggleFields').addEventListener('click',()=>{
+  const card=S.project.card, P=activePreset(); if(!card) return;
+  const open=new Set(card.openFields||[]), allOpen=P.schema.length>0&&P.schema.every(f=>open.has(f.key));
+  card.openFields=allOpen?[]:P.schema.map(f=>f.key);
+  renderCard(); touchDraft();
 });
 $('#cardOut').addEventListener('input', e=>{
   if(e.target.tagName!=='TEXTAREA') return;
@@ -2371,23 +2502,53 @@ $('#rawClose').addEventListener('click', ()=>{ $('#rawModal').hidden = true; });
 $('#rawModal').addEventListener('click', e=>{ if(e.target.id==='rawModal') $('#rawModal').hidden = true; });
 $('#rawCopy').addEventListener('click', ()=> copy($('#rawText').value));
 $('#btnRawView').addEventListener('click', ()=>{
-  if(!LAST_RAW) return toast('아직 받은 응답이 없습니다',1);
-  showRaw(LAST_RAW);
+  const raw=S.project.card&&S.project.card.raw;
+  if(raw&&raw.text){
+    LAST_RAW_AT=raw.at||0;
+    showRaw(raw.text,raw.label||'결과 생성 원문');
+    return;
+  }
+  if(!LAST_RAW) return toast('현재 결과에 남아 있는 생성 원문이 없습니다',1);
+  showRaw(LAST_RAW,'마지막 API 응답');
 });
 async function guard(btn, label, fn){
+  if(btn && btn.closest) btn=btn.closest('button')||btn;
   busy(btn, true, label);
   try{ await fn(); }
   catch(e){ showErr(e); }
   finally{ busy(btn, false); }
 }
 
-$('#btnDigest').addEventListener('click', e=> guard(e.target,'읽는 중', async()=>{
+async function makeExpandedResult(seed){
+  S.project.card = await doExpand(seed);
+  $('#continueNote').value='';
+  S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
+  S.project.libId = null;
+  syncConvertSourceToOutput();
+  OPEN_DONE_STAGE='expand';
+  renderCard(); renderCheck(); saveRecord();
+  if(S.opts.check && !activePreset().skipCheck && !S.project.card.truncated){
+    try{ await doCheck(); renderCheck(); }
+    catch(err){ log('검증 건너뜀: '+err.message,'err'); }
+  }
+  return S.project.card;
+}
+
+$('#btnDigest').addEventListener('click', e=> guard(e.target,activePreset().skipSeed?'정리하고 만드는 중':'정리 중', async()=>{
+  const P=activePreset();
   await doDigest(); renderDigest(); touchDraft();
-  const u=GROUP_UI[S.opts.group]||GROUP_UI.world; toast(u.readDone||'재료를 읽었습니다');
-  scrollToStage(activePreset().skipSeed?'expand':'seed');
+  const u=GROUP_UI[S.opts.group]||GROUP_UI.world;
+  if(P.skipSeed){
+    const card=await makeExpandedResult(null);
+    toast(card.truncated?'정리와 결과 생성을 마쳤고, 출력은 잘린 곳까지 복구했습니다':'재료를 정리하고 결과까지 만들었습니다');
+    scrollToStage('expand',true);
+  }else{
+    toast(u.readDone||'재료를 정리했습니다');
+    scrollToStage('digest',true);
+  }
 }));
 $('#btnDigestClear').addEventListener('click', ()=>{
-  S.project.digest=null; S.project.digestMeta=null; stashDigest(S.opts.group); renderDigest(); touchDraft(); toast('요약을 지웠습니다');
+  S.project.digest=null; S.project.digestMeta=null; stashDigest(S.opts.group); renderDigest(); touchDraft(); toast('정리한 내용을 지웠습니다');
 });
 $('#btnSeeds').addEventListener('click', e=> guard(e.target,'뽑는 중', async()=>{
   await doSeeds(); renderDigest(); renderSeeds(); touchDraft(); toast(S.project.seeds.length+'개 뽑았습니다');
@@ -2401,14 +2562,7 @@ $('#btnCross').addEventListener('click', e=> guard(e.target,'섞는 중', async(
 $('#btnExpand').addEventListener('click', e=> guard(e.target,'만드는 중', async()=>{
   const P = activePreset();
   const seed = P.skipSeed ? null : S.project.seeds.find(s=>s.id===S.project.sel[0]);
-  S.project.card = await doExpand(seed);
-  $('#continueNote').value='';
-  S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
-  S.project.libId = null;
-  syncConvertSourceToOutput();
-  OPEN_DONE_STAGE='expand';
-  renderCard(); renderCheck(); saveRecord();
-  if(S.opts.check && !activePreset().skipCheck && !S.project.card.truncated){ try{ await doCheck(); renderCheck(); }catch(err){ log('검증 건너뜀: '+err.message,'err'); } }
+  await makeExpandedResult(seed);
   toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'결과를 만들었습니다');
   scrollToStage('expand',true);
 }));
@@ -2485,15 +2639,20 @@ async function doOneShot(){
   if(!msgs.some(m=>m.content.includes(src.slice(0, Math.min(60, src.length))))){
     msgs.push({role:'user', content:'자료 원문:\n'+src});
   }
+  const modeInstruction=String(v.modeNote||'').trim();
+  if(modeInstruction && !st.blocks.some(b=>String(b.content||'').includes('{{modeNote}}'))){
+    msgs.push({role:'user',content:'작업 방식 — 아래 방향을 반드시 적용할 것.\n'+modeInstruction});
+  }
   const req = curExtra();
   if(req && !st.blocks.some(b=>/\{\{extra(Rule)?\}\}/.test(b.content))){
     msgs.push({role:'user', content:'추가 요청 — 아래를 반드시 지킬 것.\n'+req});
   }
   const opts = { temperature: st.temperature, maxTokens: Math.max(st.maxTokens||2400, 2400) };
   const raw = await callProvider(conn, msgs, opts);
-  let j, recovered=null;
-  try{ j=(await parseJsonReply(conn,msgs,opts,raw,true)).json; }
+  let j, recovered=null, parsedRaw=raw;
+  try{ const parsed=await parseJsonReply(conn,msgs,opts,raw,true); j=parsed.json; parsedRaw=parsed.raw||raw; }
   catch(err){
+    parsedRaw=err.raw||raw;
     recovered=err.raw && recoverPartialCard(err.raw,P.schema);
     if(!recovered) throw err;
     j=recovered.fields;
@@ -2503,41 +2662,53 @@ async function doOneShot(){
   P.schema.forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
   Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string') fields[k]=j[k]; });
   if(!Object.keys(fields).length) throw new Error('결과에서 칸을 찾지 못했습니다. 단계별로 해보세요.');
-  return { fields, seed:null, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[] };
+  return { fields, seed:null, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:{text:parsedRaw,at:Date.now(),label:'한 번에 만들기 원문'} };
 }
 function renderOneshot(){
   const P = activePreset(), el = $('#oneshotNote'); if(!el) return;
   const stages = 1 + (P.skipSeed?0:1) + 1 + ((S.opts.check && !P.skipCheck)?1:0);
   const selected = S.assets.filter(a=>a.use).length;
-  el.innerHTML = `${selected?`성운에서 고른 재료 ${selected}개와 구상`:'구상'}을 사용해 API 호출 <b>1회</b>로 끝냅니다. 단계별로 하면 ${stages}회.`
-    + ` 씨앗 고르기와 자동 검증은 건너뛰고${selected?', 재료를 요약 없이 통째로 보냅니다.':'.'}`;
+  const brief=!!curBrief().trim();
+  const input=selected?(brief?`성운에서 고른 재료 ${selected}개와 구상`:`성운에서 고른 재료 ${selected}개`):'구상';
+  el.innerHTML = `${input}을 사용해 API 호출 <b>1회</b>로 끝냅니다. 단계별로 하면 ${stages}회.`
+    + ` 씨앗 고르기와 자동 검증은 건너뛰고${selected?', 재료를 정리 없이 통째로 보냅니다.':'.'}`;
   renderBuildMode();
 }
 function renderBuildMode(){
   const mode = S.opts.buildMode==='oneshot' ? 'oneshot' : 'staged';
+  const P=activePreset();
   $$('#buildModeBox .build-mode').forEach(b=>{
     const on=b.dataset.build===mode;
     b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on));
   });
+  const stagedDesc=$('#buildModeBox [data-build="staged"] .bd');
+  if(stagedDesc) stagedDesc.textContent=P.skipSeed
+    ? '재료를 먼저 정리한 뒤 결과까지 이어서 만듭니다.'
+    : '재료를 정리하고 후보를 고른 뒤 확장·검증합니다.';
   $('#oneshotBox').hidden = mode!=='oneshot';
+  const selected=S.assets.some(a=>a.use);
   $('#buildGuide').textContent = mode==='oneshot'
-    ? '한 번에 만들기 — 구상을 적고 단추 하나로 끝냅니다'
-    : '단계별 만들기 — 아래 1단계부터 하나씩';
+    ? selected?'한 번에 만들기 — 고른 재료로 단추 하나면 됩니다':'한 번에 만들기 — 구상을 적고 단추 하나로 끝냅니다'
+    : P.skipSeed?'단계별 만들기 — 재료 정리부터 결과까지 이어서':'단계별 만들기 — 아래 1단계부터 하나씩';
   // 한 번에 모드에서는 단계별 전용 요소(스파인·읽기·별씨앗·결과 만들기)를 숨긴다
   $('#v-studio').classList.toggle('os-mode', mode==='oneshot');
   const u = GROUP_UI[S.opts.group] || GROUP_UI.world;
-  $('#s1Title').textContent = mode==='oneshot' ? '구상' : u.s1;
+  $('#briefLabel').textContent = mode==='oneshot'&&selected?'구상 · 선택':u.brief;
+  $('#s1Title').textContent = mode==='oneshot' ? '입력' : u.s1;
   $('#s1Hint').textContent = mode==='oneshot'
-    ? '구상을 적고 아래 단추 하나로 끝냅니다. 성운에서 고른 재료는 요약 없이 통째로 함께 보냅니다.'
+    ? selected?'고른 재료만으로 바로 만들 수 있습니다. 구상은 방향을 더 정하고 싶을 때만 적으세요.':'구상을 적고 아래 단추 하나로 끝냅니다.'
     : u.hint;
+  $('#briefNote').textContent = mode==='oneshot'&&selected?'선택 · 비워두면 고른 재료만 사용합니다':(u.briefNote||'');
   $('#s3Hint').textContent = mode==='oneshot'
     ? '만들어진 결과입니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.'
-    : '고른 별씨앗으로 결과를 만듭니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.';
+    : P.skipSeed
+      ? '재료 정리를 마치면 결과까지 자동으로 만듭니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.'
+      : '고른 별씨앗으로 결과를 만듭니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.';
   setSpine(); // 단계 잠금(점진 공개)을 모드에 맞게 갱신
 }
 $('#buildModeBox').addEventListener('click', e=>{
   const b=e.target.closest('.build-mode'); if(!b) return;
-  S.opts.buildMode=b.dataset.build; save(); renderBuildMode();
+  S.opts.buildMode=b.dataset.build; OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null; save(); renderBuildMode();
 });
 $('#btnOneShot').addEventListener('click', e=> guard(e.target,'만드는 중', async()=>{
   S.project.card = await doOneShot();
@@ -2552,8 +2723,8 @@ $('#btnOneShot').addEventListener('click', e=> guard(e.target,'만드는 중', a
 
 $('#btnNewWork').addEventListener('click', ()=>{
   const g=S.opts.group, label=GROUP_LABEL[g]||'현재';
-  if(!confirm(`${label} 작업대의 구상·추가 요청·읽은 요약·씨앗·결과를 비울까요?\n불러온 재료와 성도 기록은 남습니다.`)) return;
-  OPEN_DONE_STAGE=null;
+  if(!confirm(`${label} 작업대의 구상·추가 요청·정리한 내용·씨앗·결과를 비울까요?\n불러온 재료와 성도 기록은 남습니다.`)) return;
+  OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
   if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
   if(!S.opts.extraBy) S.opts.extraBy={world:'',character:'',prompt:''};
   S.opts.briefBy[g]=''; S.opts.extraBy[g]='';
@@ -2579,7 +2750,15 @@ $('#modeBox').addEventListener('click', e=>{
   $$('.mode').forEach(x=>x.classList.toggle('on', x===m));
   const nm = $('#modeCurName'); if(nm && m.querySelector('.mn')) nm.textContent = m.querySelector('.mn').textContent;
   $('#castPanel').style.display = activeMode()==='cast' ? '' : 'none';
-  save(); touchDraft();
+  renderRefineChooser(); renderDigest(); renderOneshot(); save(); touchDraft();
+});
+$('#refineBox').addEventListener('click',e=>{
+  const choice=e.target.closest('.refine-mode'); if(!choice) return;
+  const value=choice.dataset.refine; if(!REFINE_VALUES.has(value)) return;
+  const by=S.opts.refineBy||(S.opts.refineBy={world:'balanced',character:'balanced',prompt:'balanced'});
+  if(by[S.opts.group]===value) return;
+  by[S.opts.group]=value;
+  renderRefineChooser(); renderDigest(); save(); touchDraft();
 });
 function bindOpt(sel, key, cast){
   const el = $(sel);
@@ -2600,7 +2779,7 @@ function renderReq(){
 $('#optBrief').addEventListener('input', e=>{
   if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
   S.opts.briefBy[S.opts.group]=e.target.value;
-  renderMat(); save(); touchDraft();
+  renderMat(); renderOneshot(); save(); touchDraft();
 });
 bindOpt('#optLang','lang'); bindOpt('#optTone','tone');
 $('#optLang').addEventListener('change',()=>{ syncConvertSourceToOutput(); save(); renderConvert(); });

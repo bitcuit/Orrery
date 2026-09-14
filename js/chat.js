@@ -25,7 +25,7 @@ const TALK_ROLE = {
 function talkContext(){
   const c = S.chat.ctx, parts = [];
   if(c.assets){ const t = sourceText(); if(t.trim()) parts.push('[재료]\n'+t); }
-  if(c.digest && S.project.digest) parts.push('[읽은 요약]\n'+JSON.stringify(S.project.digest,null,1));
+  if(c.digest && S.project.digest) parts.push('[정리한 내용]\n'+JSON.stringify(S.project.digest,null,1));
   if(c.card && S.project.card) parts.push('[지금 만든 것]\n'+JSON.stringify(S.project.card.fields,null,1));
   return parts.join('\n\n');
 }
@@ -93,11 +93,23 @@ function talkAssetRow(a){
       <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${kindLabel} · ${assetTok(a)} 토큰쯤</span></label>`;
 }
 function renderTalkAssets(){
-  const box = $('#talkAssetList'), count = $('#talkPickCount'); if(!box) return;
+  const box = $('#talkAssetList'), assetCount = $('#talkAssetCount'); if(!box) return;
+  const c=S.chat.ctx||{}, materialText=sourceText(), digestText=S.project.digest?JSON.stringify(S.project.digest):'';
+  const cardText=S.project.card?JSON.stringify(S.project.card.fields||{}):'';
   const n = S.assets.filter(a=>a.use).length;
-  count.textContent = S.assets.length ? `선택 ${n}/${S.assets.length}개` : '성운이 비어 있습니다';
+  assetCount.textContent = S.assets.length ? `선택 ${n}/${S.assets.length}개` : '성운이 비어 있습니다';
   box.innerHTML = S.assets.length ? S.assets.map(talkAssetRow).join('')
     : '<div class="note">재료 탭에서 파일이나 글을 먼저 넣어 주세요.</div>';
+  const assets=$('#ctxAssets'), digest=$('#ctxDigest'), card=$('#ctxCard');
+  assets.disabled=!(S.assets.length||curBrief().trim()); digest.disabled=!digestText; card.disabled=!cardText;
+  $('#ctxAssetsMeta').textContent=materialText.trim()
+    ? `${n?`고른 재료 ${n}개${curBrief().trim()?' + 구상':''}`:'구상'} · ${tok(materialText)} 토큰쯤`
+    : '선택한 재료나 구상 없음';
+  $('#ctxDigestMeta').textContent=digestText?`${tok(digestText)} 토큰쯤`:'아직 정리한 내용 없음';
+  $('#ctxCardMeta').textContent=cardText?`${activePreset().name} · ${tok(cardText)} 토큰쯤`:'아직 만든 결과 없음';
+  const kinds=(c.assets&&materialText.trim()?1:0)+(c.digest&&digestText?1:0)+(c.card&&cardText?1:0);
+  $('#talkPickCount').textContent=`선택 ${kinds}개`;
+  $('#talkMaterialPick').hidden=!c.assets;
 }
 $('#talkAssetList').addEventListener('change', e=>{
   if(e.target.classList.contains('t-use')){
