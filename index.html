@@ -276,9 +276,9 @@
       <div class="bar"><span class="note" id="continueMeta"></span><span class="sp"></span><button class="primary" id="btnContinue">이어서 만들기</button></div>
     </div>
     <details class="convertbox" id="convertBox" hidden>
-      <summary>번역 · 토큰 최적화 · YAML</summary>
+      <summary>최종 출력 만들기</summary>
       <div class="convert-body">
-        <p class="note">세계·인물·프롬프트에 공통으로 쓰는 내보내기 변환입니다. 현재 결과는 바꾸지 않고 변환본을 따로 만듭니다.</p>
+        <p class="note">현재 결과는 그대로 두고, 필요한 항목만 골라 별도의 최종본을 만듭니다.</p>
         <div class="convert-langs">
           <div class="field"><label class="fl" for="convertSourceLang">원본 언어</label><input id="convertSourceLang" list="convertLanguages" value="한국어" placeholder="예: 한국어"></div>
           <div class="convert-arrow" aria-hidden="true">→</div>
@@ -291,11 +291,21 @@
           <label class="convert-opt"><input type="checkbox" id="convertTranslate" checked><span><b>번역</b><small>번역 언어로 바꿉니다</small></span></label>
           <label class="convert-opt"><input type="checkbox" id="convertOptimize" checked><span><b>핵심 유지·토큰 최적화</b><small>설정과 제약은 보존하고 군더더기·중복을 줄입니다</small></span></label>
           <label class="convert-opt"><input type="checkbox" id="convertYaml"><span><b>YAML로 정리</b><small>칸 구조를 유지한 유효한 YAML로 만듭니다</small></span></label>
+          <div class="convert-opt convert-summary-opt" id="convertSummaryOption">
+            <input type="checkbox" id="convertSummarize">
+            <label for="convertSummarize"><b>약 N자로 요약</b><small>핵심을 남기고 목표 길이에 가깝게 줄입니다</small></label>
+            <label class="convert-count" for="convertMaxChars"><input id="convertMaxChars" type="number" min="100" max="20000" step="100" value="1200" inputmode="numeric"><span>자 안팎</span></label>
+          </div>
           <label class="convert-opt"><input type="checkbox" id="convertMeaning" checked><span><b>원본 언어 뜻풀이 함께</b><small>변환된 최종본이 원본 언어로 무슨 뜻인지 함께 만듭니다</small></span></label>
         </div>
-        <div class="bar convert-run"><span class="note" id="convertCallNote">API 호출 1회가 기본입니다 · 응답이 잘리면 자동 이어받기</span><span class="sp"></span><button class="primary" id="btnConvert">변환하기</button></div>
+        <div class="convert-final-request">
+          <label class="fl" for="convertExtra">마지막 추가 요청 <span class="note">· 선택</span></label>
+          <textarea id="convertExtra" rows="2" placeholder="예: 고유명사는 원어를 함께 쓰고, 설명 없이 바로 붙여넣을 최종본만 출력"></textarea>
+          <span class="note">위에서 고른 항목을 적용한 뒤 마지막에 반영합니다.</span>
+        </div>
+        <div class="bar convert-run"><span class="note" id="convertCallNote">API 호출 1회가 기본입니다 · 응답이 잘리면 자동 이어받기</span><span class="sp"></span><button class="primary" id="btnConvert">최종본 만들기</button></div>
         <div class="convert-result" id="convertOut" hidden>
-          <div class="convert-result-h"><b id="convertResultTitle">변환본</b><span class="note" id="convertMeta"></span><span class="sp"></span><button class="mini ghost" id="btnConvertContinue" title="응답이 중간에 끝났다면 새 내용만 이어 붙입니다 · API 호출" aria-label="변환본 이어서 만들기">이어서</button><button class="mini ghost" id="btnConvertCopy">복사</button><button class="mini ghost" id="btnConvertDownload">내려받기</button><button class="mini ghost danger" id="btnConvertClear">지우기</button></div>
+          <div class="convert-result-h"><b id="convertResultTitle">최종본</b><span class="note" id="convertMeta"></span><span class="sp"></span><button class="mini ghost" id="btnConvertContinue" title="응답이 중간에 끝났다면 새 내용만 이어 붙입니다 · API 호출" aria-label="최종본 이어서 만들기">이어서</button><button class="mini ghost" id="btnConvertCopy">복사</button><button class="mini ghost" id="btnConvertDownload">내려받기</button><button class="mini ghost danger" id="btnConvertClear">지우기</button></div>
           <pre id="convertResult"></pre>
           <div class="convert-meaning" id="convertMeaningBox" hidden>
             <div class="convert-result-h"><b id="convertMeaningTitle">원본 언어 뜻풀이</b><span class="sp"></span><button class="mini ghost" id="btnConvertMeaningToggle">숨기기</button><button class="mini ghost" id="btnConvertMeaningCopy">복사</button></div>

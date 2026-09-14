@@ -18,7 +18,7 @@ let S = {
   connections: [], activeConn: null,
   assets: [], assetFolders: [],
   presets: [], activePreset: null,
-  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,meaning:true,sourceLang:'한국어',targetLang:'English'} },
+  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,summarize:false,maxChars:1200,meaning:true,sourceLang:'한국어',targetLang:'English',extraBy:{world:'',character:'',prompt:''}} },
   project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null },
   library: [],
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
@@ -32,9 +32,15 @@ let LAST_RAW = '', LAST_RAW_AT = 0;
 let DRAFT_DIRTY = false, DRAFT_TIMER = null, BOOTING = true;
 let SAVE_FAILED = false, SAVE_STATE_TIMER = null, LOAD_ERROR = null;
 
-const CONVERT_DEFAULTS = {translate:true,optimize:true,yaml:false,meaning:true,sourceLang:'한국어',targetLang:'English'};
+const CONVERT_DEFAULTS = {
+  translate:true,optimize:true,yaml:false,summarize:false,maxChars:1200,meaning:true,
+  sourceLang:'한국어',targetLang:'English'
+};
 function convertPrefs(){
   S.opts.convert=Object.assign({},CONVERT_DEFAULTS,S.opts.convert||{});
+  if(!S.opts.convert.extraBy) S.opts.convert.extraBy={world:'',character:'',prompt:''};
+  if(S.opts.convert.extra && !S.opts.convert.extraBy[S.opts.group]) S.opts.convert.extraBy[S.opts.group]=S.opts.convert.extra;
+  delete S.opts.convert.extra;
   if(!S.opts.extraBy) S.opts.extraBy={world:'',character:'',prompt:''};
   if(S.opts.extra && !S.opts.extraBy[S.opts.group]) S.opts.extraBy[S.opts.group]=S.opts.extra;
   S.opts.extra='';
@@ -42,6 +48,10 @@ function convertPrefs(){
   if(S.opts.brief && !S.opts.briefBy[S.opts.group]) S.opts.briefBy[S.opts.group]=S.opts.brief;
   S.opts.brief='';
   return S.opts.convert;
+}
+function curConvertExtra(){
+  const p=convertPrefs();
+  return String(p.extraBy[S.opts.group]||'');
 }
 function curBrief(){
   const by=S.opts.briefBy||(S.opts.briefBy={world:'',character:'',prompt:''});
