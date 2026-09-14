@@ -31,6 +31,8 @@
     <select id="connSel"></select>
     <button id="btnTest" class="mini" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="9.4"/><path d="m11.4 16.4 3.2 3.3 6.6-7.2" stroke="#e9b654"/></svg><span class="btxt">확인</span></button>
     <span class="tsep"></span>
+    <button class="mini" id="btnEasy" title="쉬운 모드 — 복잡한 기능을 감추고 만들기·결과만 남깁니다" aria-pressed="false"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.5c.9 4.2 1.9 5.2 6.1 6.1-4.2.9-5.2 1.9-6.1 6.1-.9-4.2-1.9-5.2-6.1-6.1 4.2-.9 5.2-1.9 6.1-6.1Z" fill="#e9b654" stroke="none"/><circle cx="23.5" cy="22" r="1" fill="#e9b654" stroke="none" opacity=".7"/></svg><span class="btxt">쉬운 모드</span></button>
+    <span class="tsep"></span>
     <button class="mini" id="btnMore" title="메뉴" aria-label="메뉴" aria-expanded="false"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6.5 10h19M6.5 16h19M6.5 22h13"/></svg></button>
     <div class="topmore" id="topMore">
     <button class="mini" data-tab="settings"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="9.6" stroke-dasharray="2.3 3.5" opacity=".85"/><path d="m12.7 19 6.7-6.3"/><circle cx="21.8" cy="10.6" r="3.1"/><circle cx="10.4" cy="21" r="2.7" stroke="#e9b654"/><circle cx="10.4" cy="21" r="1" fill="#e9b654" stroke="none"/></svg><span class="btxt">연결</span></button>
@@ -141,6 +143,7 @@
     <span class="sp"></span>
     <button class="mini ghost" id="btnNewWork" title="현재 분류의 작업만 비웁니다. 재료와 기록은 남습니다.">새 작업</button>
   </div>
+  <div class="easy-banner"><span><b>쉬운 모드</b> · 복잡한 기능은 감춰 뒀어요. 생각을 적고 <b>만들기</b>만 누르면 됩니다.</span></div>
   <div class="formrow">
     <label class="fl" for="studioPreset">양식</label>
     <select id="studioPreset"></select>
@@ -182,7 +185,7 @@
       <div class="refine-head"><span class="fl">다듬는 방향</span><span class="note">하나만 선택합니다</span></div>
       <div class="refine-choices" id="refineBox" aria-label="다듬는 방향"></div>
     </div>
-    <details class="adv">
+    <details class="adv" id="optAdv">
       <summary>세부 설정</summary>
       <div>
         <div class="row">
@@ -269,7 +272,7 @@
       <span class="sp"></span>
       <button class="ghost mini" id="btnRawView" title="현재 결과를 만들거나 다시 쓸 때 받은 응답을 그대로 봅니다">생성 원문</button>
     </div>
-    <div class="field" style="margin-top:12px">
+    <div class="field" id="rerollField" style="margin-top:12px">
       <label class="fl" for="rerollNote">다시 쓰기 지시</label>
       <input id="rerollNote" placeholder="안 잠근 칸을 다시 쓸 때만 사용합니다.">
     </div>
@@ -608,6 +611,43 @@
     <div class="modal-b">
       <p class="note" style="margin-bottom:10px">모델이 마지막으로 보낸 응답 그대로입니다. 양식 인식에 실패하거나 중간에 끊겨도 여기서 내용을 건질 수 있습니다.</p>
       <textarea id="rawText" readonly rows="18" style="width:100%;font-family:var(--mono);font-size:12px;line-height:1.6;white-space:pre-wrap"></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="libViewModal" hidden>
+  <div class="modal-in" style="max-width:760px">
+    <div class="modal-h">
+      <h2 id="libViewTitle" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></h2>
+      <button class="mini" id="libViewRename" title="이름 바꾸기">이름</button>
+      <button class="mini" id="libViewClose" aria-label="닫기">닫기</button>
+    </div>
+    <p class="note" id="libViewMeta" style="padding:0 16px"></p>
+    <div class="modal-b">
+      <div id="libViewBody" class="libview-body"></div>
+    </div>
+    <div class="modal-f" id="libViewActions" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--line)">
+      <button class="mini" id="libViewOpen">작업대로 불러오기</button>
+      <button class="mini ghost" id="libViewMat">재료로 넣기</button>
+      <button class="mini ghost" id="libViewMd">글로 내려받기</button>
+      <button class="mini ghost" id="libViewJson" hidden>카드 JSON</button>
+      <button class="mini ghost" id="libViewPng" hidden>PNG 카드</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="welcomeModal" hidden>
+  <div class="modal-in" style="max-width:600px">
+    <div class="modal-h"><h2>무엇을 만들까요?</h2><button class="mini" id="welcomeClose" aria-label="닫기">닫기</button></div>
+    <div class="modal-b">
+      <p class="note" style="margin-bottom:14px">하나 골라서 바로 시작해요. 재료(자료 파일)는 없어도 됩니다 — 떠오른 생각만 적으면 만들어 줍니다.</p>
+      <div class="welcome-cards">
+        <button class="welcome-card" data-group="world"><b>세계</b><span>배경·설정·세계관을 만들어요</span></button>
+        <button class="welcome-card" data-group="character"><b>인물</b><span>캐릭터 한 명(또는 여러 명)을 만들어요</span></button>
+        <button class="welcome-card" data-group="prompt"><b>프롬프트</b><span>AI에게 줄 지시문을 만들어요</span></button>
+      </div>
+      <label class="welcome-easy"><input type="checkbox" id="welcomeEasy" checked><span>쉬운 모드로 시작 — 복잡한 기능은 감춰 둡니다 (헤더에서 언제든 끌 수 있어요)</span></label>
+      <p class="note" id="welcomeConnNote" hidden style="margin-top:12px;color:var(--brass)">※ 실제로 만들려면 먼저 헤더의 <b>연결</b>에서 API 연결을 하나 등록해야 해요. (어른의 도움이 필요할 수 있어요)</p>
     </div>
   </div>
 </div>

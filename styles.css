@@ -988,3 +988,44 @@ button.build-mode.on .bn{color:#f1b94f}
   *{animation:none!important}
   *{transition-duration:1ms!important}
 }
+
+/* 기록 미리보기 모달 본문 */
+.libview-body h4{ margin:14px 0 4px; font-size:13px; color:var(--brass); letter-spacing:.02em }
+.libview-body h4:first-child{ margin-top:0 }
+.libview-body>div{ font-size:14px; line-height:1.7; color:var(--text); white-space:normal; word-break:break-word }
+
+/* ===== 쉬운 모드 ===== */
+#btnEasy.on{ background:var(--brass); border-color:var(--brass); color:#1a1206 }
+#btnEasy.on .ic path{ fill:#1a1206 }
+#btnEasy.on .ic circle{ fill:#1a1206 }
+body.easy #buildModeBox,
+body.easy #buildGuide,
+body.easy #optAdv,
+body.easy #convertBox,
+body.easy #checkPanel,
+body.easy #continueBox,
+body.easy #btnLockAll,
+body.easy #btnUnlockAll,
+body.easy .lockbtn,
+body.easy #btnReroll,
+body.easy #rerollField,
+body.easy #btnRawView{ display:none !important }
+/* 쉬운 모드 안내 배너 */
+.easy-banner{ display:none }
+body.easy .easy-banner{ display:flex; align-items:center; gap:8px; margin:0 0 12px;
+  padding:8px 12px; border:1px solid var(--line2); border-radius:10px;
+  background:rgba(233,182,84,0.07); font-size:13px; color:var(--dim) }
+body.easy .easy-banner b{ color:var(--brass) }
+
+/* ===== 환영 온보딩 ===== */
+.welcome-cards{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px }
+@media(max-width:520px){ .welcome-cards{ grid-template-columns:1fr } }
+.welcome-card{ display:flex; flex-direction:column; gap:6px; text-align:left;
+  padding:16px 14px; border:1px solid var(--line2); border-radius:12px;
+  background:rgba(138,182,225,0.04); cursor:pointer; transition:border-color .12s, background .12s }
+.welcome-card:hover{ border-color:var(--brass); background:rgba(233,182,84,0.08) }
+.welcome-card b{ font-size:16px; color:var(--brass) }
+.welcome-card span{ font-size:12.5px; color:var(--dim); line-height:1.5 }
+.welcome-easy{ display:flex; align-items:flex-start; gap:8px; margin-top:16px;
+  font-size:13px; color:var(--dim); line-height:1.5; cursor:pointer }
+.welcome-easy input{ width:auto; min-height:0; margin-top:2px; flex:none; accent-color:var(--brass) }

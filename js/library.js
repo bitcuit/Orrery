@@ -71,7 +71,7 @@ function renderLib(){
     return `
     <div class="libitem" data-id="${r.id}">
       <button class="mini ghost l-star" style="flex:none;border:none;font-size:15px;padding:2px 6px;color:${r.star?'var(--brass)':'var(--dim2)'}">${r.star?'★':'☆'}</button>
-      <span class="ln l-name" title="눌러서 이름 바꾸기">${esc(r.name||'이름 없음')}</span>
+      <span class="ln l-name" title="눌러서 내용 보기">${esc(r.name||'이름 없음')}</span>
       <span class="lm">${esc(GROUP_LABEL[r.group]||'')} · ${esc(r.presetName||'')}${r.world?' · '+esc(r.world):''} · ${new Date(r.updated||r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
       <button class="mini ghost l-open">불러오기</button>
       <button class="mini ghost l-md">글</button>
@@ -87,11 +87,7 @@ $('#libList').addEventListener('click', async e=>{
   const rec = S.library.find(x=>x.id===it.dataset.id); if(!rec) return;
   const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
   if(e.target.closest('.l-star')){ rec.star = !rec.star; save(); renderLib(); return; }
-  if(e.target.closest('.l-name')){
-    const n = prompt('이름 바꾸기', rec.name);
-    if(n && n.trim()){ rec.name = n.trim(); rec.fields.name = rec.fields.name ? n.trim() : rec.fields.name; save(); renderLib(); }
-    return;
-  }
+  if(e.target.closest('.l-name')){ openLibView(rec.id); return; }
   if(e.target.closest('.l-del')){
     if(rec.star && !confirm('고정해둔 항목입니다. 지울까요?')) return;
     S.library = S.library.filter(x=>x.id!==rec.id);
@@ -103,16 +99,78 @@ $('#libList').addEventListener('click', async e=>{
   if(e.target.closest('.l-json')){ dl(fn+'.json', JSON.stringify(toV2(rec.fields),null,2)); return; }
   if(e.target.closest('.l-png')){
     try{ dlBlob(fn+'.png', await makeCardPng(rec.fields)); }catch(err){ toast(err.message,1); } return; }
-  if(e.target.closest('.l-open')){
-    if(rec.presetId && S.presets.find(x=>x.id===rec.presetId)) switchPreset(rec.presetId);
-    S.project.card = {fields:clone(rec.fields), seed:null, truncated:!!rec.truncated,
-      truncatedField:rec.truncatedField||'', continuations:clone(rec.continuations||[]),
-      conversion:rec.conversion?clone(rec.conversion):null};
-    $('#continueNote').value='';
-    S.project.libId = rec.id; S.project.locked={};
-    S.project.violations=null; S.project.verdict=null; S.project.qa=[];
-    renderCard(); renderCheck(); renderQA(); tab('studio'); toast('작업대로 불러왔습니다');
+  if(e.target.closest('.l-open')){ loadRecordToStudio(rec); }
+});
+function loadRecordToStudio(rec){
+  if(rec.presetId && S.presets.find(x=>x.id===rec.presetId)) switchPreset(rec.presetId);
+  S.project.card = {fields:clone(rec.fields), seed:null, truncated:!!rec.truncated,
+    truncatedField:rec.truncatedField||'', continuations:clone(rec.continuations||[]),
+    conversion:rec.conversion?clone(rec.conversion):null};
+  $('#continueNote').value='';
+  S.project.libId = rec.id; S.project.locked={};
+  S.project.violations=null; S.project.verdict=null; S.project.qa=[];
+  renderCard(); renderCheck(); renderQA(); tab('studio'); toast('작업대로 불러왔습니다');
+}
+function recordToMaterial(rec){
+  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
+  S.assets.push({ id:uid(), kind:'text',
+    name: (rec.name||'기록') + ' (' + (rec.presetName||P.name) + ')',
+    body: fieldsToText(rec.fields, P), purposes:[rec.group||'character'], tags:[], use:true });
+  renderAssets(); toast('재료에 넣었습니다 — 다른 양식에서 이어서 쓸 수 있습니다');
+}
+
+/* --- 기록 미리보기 모달 --- */
+let libViewId = null;
+function openLibView(id){
+  const rec = S.library.find(x=>x.id===id); if(!rec) return;
+  libViewId = id;
+  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
+  const cardExport = (P&&P.kind==='character')||(!P&&rec.group==='character');
+  $('#libViewTitle').textContent = rec.name || '이름 없음';
+  $('#libViewMeta').textContent = `${GROUP_LABEL[rec.group]||''} · ${rec.presetName||''}${rec.world?' · '+rec.world:''} · ${new Date(rec.updated||rec.at).toLocaleString('ko-KR')}`;
+  const rows = [];
+  const seen = {};
+  P.schema.forEach(f=>{ seen[f.key]=1;
+    if(rec.fields[f.key]) rows.push(`<h4>${esc(f.label)}</h4><div>${esc(rec.fields[f.key]).replace(/\n/g,'<br>')}</div>`); });
+  Object.keys(rec.fields).forEach(k=>{ if(!seen[k] && rec.fields[k])
+    rows.push(`<h4>${esc(k)}</h4><div>${esc(rec.fields[k]).replace(/\n/g,'<br>')}</div>`); });
+  $('#libViewBody').innerHTML = rows.length ? rows.join('') : '<p class="note">내용이 비어 있습니다.</p>';
+  $('#libViewJson').hidden = !cardExport;
+  $('#libViewPng').hidden = !cardExport;
+  $('#libViewModal').hidden = false;
+}
+function closeLibView(){ $('#libViewModal').hidden = true; libViewId = null; }
+$('#libViewClose').addEventListener('click', closeLibView);
+$('#libViewModal').addEventListener('click', e=>{ if(e.target.id==='libViewModal') closeLibView(); });
+$('#libViewRename').addEventListener('click', ()=>{
+  const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
+  const n = prompt('이름 바꾸기', rec.name);
+  if(n && n.trim()){
+    rec.name = n.trim(); rec.fields.name = rec.fields.name ? n.trim() : rec.fields.name;
+    save(); renderLib(); $('#libViewTitle').textContent = rec.name;
   }
+});
+$('#libViewOpen').addEventListener('click', ()=>{
+  const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
+  closeLibView(); loadRecordToStudio(rec);
+});
+$('#libViewMat').addEventListener('click', ()=>{
+  const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
+  recordToMaterial(rec);
+});
+$('#libViewMd').addEventListener('click', ()=>{
+  const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
+  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
+  dl((rec.name||'record').replace(/[\\/:*?"<>|]/g,'_')+'.md', fieldsToText(rec.fields, P), 'text/markdown;charset=utf-8');
+});
+$('#libViewJson').addEventListener('click', ()=>{
+  const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
+  dl((rec.name||'card').replace(/[\\/:*?"<>|]/g,'_')+'.json', JSON.stringify(toV2(rec.fields),null,2));
+});
+$('#libViewPng').addEventListener('click', async ()=>{
+  const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
+  try{ dlBlob((rec.name||'card').replace(/[\\/:*?"<>|]/g,'_')+'.png', await makeCardPng(rec.fields)); }
+  catch(err){ toast(err.message,1); }
 });
 $('#btnLibExport').addEventListener('click', ()=>{
   if(!S.library.length) return toast('기록이 비어 있습니다',1);

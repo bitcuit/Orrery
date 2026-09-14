@@ -160,7 +160,7 @@ $('#btnConnHelp').addEventListener('click', ()=>{ $('#connHelp').hidden = false;
 $('#connHelpClose').addEventListener('click', ()=>{ $('#connHelp').hidden = true; });
 $('#connHelp').addEventListener('click', e=>{ if(e.target.id==='connHelp') $('#connHelp').hidden = true; });
 $('#btnCopyCmd').addEventListener('click', ()=> copy($('#serveCmd').textContent));
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#connHelp').hidden) $('#connHelp').hidden=true; if(!$('#assetCompare').hidden) $('#assetCompare').hidden=true; if(!$('#assetFolderModal').hidden) closeAssetFolderModal(); if(!$('#assetClearModal').hidden) closeAssetClearModal(); if(!$('#backupModal').hidden) $('#backupModal').hidden=true; } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#welcomeModal').hidden){ $('#welcomeModal').hidden=true; } if(!$('#libViewModal').hidden){ $('#libViewModal').hidden=true; } if(!$('#connHelp').hidden) $('#connHelp').hidden=true; if(!$('#assetCompare').hidden) $('#assetCompare').hidden=true; if(!$('#assetFolderModal').hidden) closeAssetFolderModal(); if(!$('#assetClearModal').hidden) closeAssetClearModal(); if(!$('#backupModal').hidden) $('#backupModal').hidden=true; } });
 
 $('#btnTest').addEventListener('click', async e=>{
   const c = connById(S.activeConn);

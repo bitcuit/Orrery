@@ -21,6 +21,44 @@ function tab(name){
 }
 $$('.topctl button[data-tab]').forEach(b=> b.addEventListener('click', ()=>tab(b.dataset.tab)));
 
+/* 쉬운 모드 */
+function applyEasy(){
+  const on = !!S.opts.easy;
+  document.body.classList.toggle('easy', on);
+  const btn = $('#btnEasy');
+  if(btn){ btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on); }
+  if(on && S.opts.buildMode!=='oneshot'){ S.opts.buildMode='oneshot'; if(typeof renderBuildMode==='function') renderBuildMode(); }
+}
+function setEasy(on){
+  S.opts.easy = !!on;
+  if(on) S.opts.buildMode='oneshot';
+  applyEasy();
+  if(typeof renderBuildMode==='function') renderBuildMode();
+  if(typeof renderOneshot==='function') renderOneshot();
+  save();
+  toast(on ? '쉬운 모드 — 복잡한 기능을 감췄어요' : '쉬운 모드를 껐어요');
+}
+$('#btnEasy').addEventListener('click', ()=> setEasy(!S.opts.easy));
+
+/* 첫 진입 온보딩 */
+function openWelcome(){ $('#welcomeConnNote').hidden = !!S.connections.length; $('#welcomeModal').hidden = false; }
+function closeWelcome(){ $('#welcomeModal').hidden = true; }
+$('#welcomeClose').addEventListener('click', closeWelcome);
+$('#welcomeModal').addEventListener('click', e=>{ if(e.target.id==='welcomeModal') closeWelcome(); });
+$('#welcomeModal').addEventListener('click', e=>{
+  const c = e.target.closest('.welcome-card'); if(!c) return;
+  const g = c.dataset.group;
+  if($('#welcomeEasy').checked){ S.opts.easy = true; }
+  else { S.opts.easy = false; }
+  S.opts.buildMode = S.opts.easy ? 'oneshot' : S.opts.buildMode;
+  applyEasy();
+  closeWelcome();
+  if(g && g!==S.opts.group) applyGroup(g); else renderBuildMode();
+  save();
+  tab('studio');
+  setTimeout(()=>{ const bf=$('#optBrief'); if(bf) bf.focus(); }, 200);
+});
+
 function bootUI(){
   convertPrefs();
   $('#optLang').value = S.opts.lang;
@@ -43,6 +81,7 @@ function bootUI(){
   renderConnSel(); renderConns(); renderGroup(); renderPresetSel(); renderSchema(); renderStages();
   renderAssets(); renderDigest(); renderSeeds(); renderCard(); renderCheck(); renderCast(); renderQA(); renderLib(); renderChat(); renderMat(); applyGroupUi(); renderOneshot();
   updateTalkRoleUI();
+  applyEasy();
 }
 
 (function init(){
@@ -97,8 +136,8 @@ function bootUI(){
 log('Orrery 궤도 진입. ' + (location.protocol==='file:'
     ? '파일에서 직접 열었습니다.'
     : '주소: '+location.origin));
-  if(!had && !LOAD_ERROR && !S.connections.length){
-    setTimeout(()=>{ tab('settings'); toast('먼저 연결을 하나 만들어 주세요'); }, 500);
+  if(!had && !LOAD_ERROR){
+    setTimeout(openWelcome, 500);
   }
   window.addEventListener('keydown', e=>{
     if(e.key==='Escape' && abortCurrentCall()) toast('요청을 멈추는 중입니다');
