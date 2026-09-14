@@ -18,7 +18,7 @@ let S = {
   connections: [], activeConn: null,
   assets: [], assetFolders: [],
   presets: [], activePreset: null,
-  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, refineBy:{world:'balanced',character:'balanced',prompt:'balanced'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,summarize:false,maxChars:1200,meaning:true,sourceLang:'한국어',targetLang:'English',extraBy:{world:'',character:'',prompt:''}} },
+  opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, refineBy:{world:'balanced',character:'balanced',prompt:'balanced'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, easy:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,summarize:false,maxChars:1200,meaning:true,sourceLang:'한국어',targetLang:'English',extraBy:{world:'',character:'',prompt:''}} },
   project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null },
   library: [],
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
