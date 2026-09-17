@@ -1,0 +1,6 @@
+{
+  "name": "orrery-regression-tests",
+  "private": true,
+  "scripts": { "test": "node --test *.test.cjs", "test:layout": "node browser-layout.cjs" },
+  "devDependencies": { "jsdom": "30.0.1" }
+}

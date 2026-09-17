@@ -29,6 +29,7 @@ orrery-lorebook*.json
 orrery-settings*.json
 orrery-preset-*.json
 orrery-backup*.json
+orrery-connections*.json
 *.settings.json
 .env
 .env.*
@@ -55,3 +56,5 @@ desktop.ini
 # ── 예외 ──
 # 문서용 스크린샷을 두게 되면 여기서 되살린다.
 # !docs/*.png
+!tests/package.json
+!tests/package-lock.json

@@ -29,34 +29,103 @@ function talkContext(){
   if(c.card && S.project.card) parts.push('[지금 만든 것]\n'+JSON.stringify(S.project.card.fields,null,1));
   return parts.join('\n\n');
 }
-function renderChat(){
+let CHAT_SENDING=false;
+function resizeChatInput(){
+  const input=$('#chatIn');
+  if(!input || !input.clientWidth) return;
+  const css=getComputedStyle(input);
+  const min=parseFloat(css.minHeight)||48, max=parseFloat(css.maxHeight)||160;
+  const border=(parseFloat(css.borderTopWidth)||0)+(parseFloat(css.borderBottomWidth)||0);
+  const scrollTop=input.scrollTop;
+  const log=$('#chatLog'), logTop=log.scrollTop;
+  const atBottom=logTop+log.clientHeight>=log.scrollHeight-1;
+  input.style.height='auto';
+  input.style.overflowY='hidden';
+  const needed=input.scrollHeight+border;
+  input.style.height=Math.min(max,Math.max(min,needed))+'px';
+  input.style.overflowY=needed>max?'auto':'hidden';
+  input.scrollTop=scrollTop;
+  log.scrollTop=atBottom?log.scrollHeight:logTop;
+}
+if(typeof ResizeObserver==='function'){
+  let previousWidth=0;
+  new ResizeObserver(entries=>{
+    const width=entries[0].contentRect.width;
+    if(width===previousWidth) return;
+    previousWidth=width;
+    resizeChatInput();
+  }).observe($('#chatIn'));
+}
+if(document.fonts) document.fonts.ready.then(resizeChatInput);
+function talkTurnIndexes(index){
+  const msgs=S.chat.msgs;
+  if(!msgs[index]) return [];
+  let start=index, end=index+1;
+  while(start>0 && msgs[start].role!=='user') start--;
+  while(end<msgs.length && msgs[end].role!=='user') end++;
+  return Array.from({length:end-start},(_,i)=>start+i);
+}
+function talkTurnExcluded(index){
+  return talkTurnIndexes(index).some(i=>S.chat.msgs[i].includeHistory===false);
+}
+function talkHistoryMessages(pendingMessage=null, limit=Infinity){
+  const messages=S.chat.msgs.filter((m,i)=>(m===pendingMessage || !m.status)
+    && (m.role==='user' || m.role==='assistant') && !talkTurnExcluded(i)).slice(-limit);
+  // A history limit must not leave an answer without its question.
+  while(messages.length && messages[0].role!=='user') messages.shift();
+  return messages;
+}
+function talkSummaryItems(){
+  const items=(S.chat.summaryHistory||[]).map(m=>({...m,current:false}));
+  if(S.chat.summary) items.push({id:'current',content:S.chat.summary,includeHistory:S.chat.summaryIncluded!==false,current:true});
+  return items;
+}
+function talkHistorySummary(){
+  return talkSummaryItems().filter(m=>m.includeHistory!==false).map(m=>m.content).join('\n\n');
+}
+function talkHistoryButton(excluded, attributes, subject){
+  const label=`${subject}을 다음 전송에서 ${excluded?'포함':'제외'}`;
+  const icon=excluded
+    ? '<path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.8 10.8 0 0 1 12 5c6 0 10 7 10 7a18 18 0 0 1-3.2 3.8M6.2 6.2A19.2 19.2 0 0 0 2 12s4 7 10 7a10.4 10.4 0 0 0 5-1.3"/>'
+    : '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
+  return `<button type="button" class="mini ghost chat-history-toggle" ${attributes} aria-label="${label}" title="${label}" aria-pressed="${excluded}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></button>`;
+}
+function renderChat(preserveScroll=false){
+  if(!CHAT_SENDING) S.chat.msgs.forEach(m=>{
+    if(m.status==='pending'){ m.status='failed'; m.error='응답을 받기 전에 작업이 종료됐습니다.'; }
+  });
   const box = $('#chatLog');
-  const wrapHtml = S.chat.summary
-    ? `<div class="msg bot wrap"><span class="who">지금까지의 정리</span>${esc(S.chat.summary)}</div>` : '';
+  const scrollTop=box.scrollTop;
+  const wrapHtml = talkSummaryItems().map(m=>{
+    const excluded=m.includeHistory===false;
+    return `<div class="msg bot wrap${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.current?'지금까지의 정리':'이전 정리'}</span><div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${talkHistoryButton(excluded,`data-summary="${esc(m.id)}"`,'이 요약')}</div></div>${esc(m.content)}</div>`;
+  }).join('');
   if(!S.chat.msgs.length && !wrapHtml){
     box.innerHTML = '<div class="empty"><b>아직 아무 말도 안 했습니다</b>만든 것을 보여주고 물어보세요.</div>';
   } else {
-    box.innerHTML = wrapHtml + S.chat.msgs.map(m=>
-      `<div class="msg ${m.role==='user'?'user':'bot'}"><span class="who">${m.role==='user'?'나':'상대'}</span>${esc(m.content)}</div>`
-    ).join('');
+    box.innerHTML = wrapHtml + S.chat.msgs.map((m,i)=>{
+      const excluded=talkTurnExcluded(i), completed=talkTurnIndexes(i).every(n=>!S.chat.msgs[n].status);
+      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span><div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}</div></div>${esc(m.content)}${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
+    }).join('');
   }
-  box.scrollTop = box.scrollHeight;
   const t = tok(talkContext());
-  const ct = tok((S.chat.summary||'')+S.chat.msgs.map(m=>m.content).join('\n'));
+  const ct = tok(talkHistorySummary()+talkHistoryMessages().map(m=>m.content).join('\n'));
   $('#ctxTok').textContent = (t ? `함께 보낼 분량 ${t} 토큰쯤` : '함께 보낼 것 없음')
     + (ct ? ` · 대화 ${ct} 토큰쯤` : '');
   renderTalkAssets();
   renderWrapNudge(ct);
   const toCard = $('#btnTalkToCard');
-  if(toCard) toCard.disabled = !(S.project.card && (S.chat.msgs.length || S.chat.summary));
+  if(toCard) toCard.disabled = !(S.project.card && (talkHistoryMessages().length || talkHistorySummary()));
+  resizeChatInput();
+  box.scrollTop = preserveScroll?scrollTop:box.scrollHeight;
 }
 const WRAP_NUDGE_AT = 2500;
 function renderWrapNudge(convoTok){
   const el = $('#wrapNudge'); if(!el) return;
-  const ct = convoTok!=null ? convoTok : tok((S.chat.summary||'')+S.chat.msgs.map(m=>m.content).join('\n'));
-  const show = ct >= WRAP_NUDGE_AT && S.chat.msgs.length >= 4 && !S.chat.nudgeOff;
+  const ct = convoTok!=null ? convoTok : tok(talkHistorySummary()+talkHistoryMessages().map(m=>m.content).join('\n'));
+  const show = ct >= WRAP_NUDGE_AT && talkHistoryMessages().length >= 4 && !S.chat.nudgeOff;
   el.hidden = !show;
-  if(show) $('#wrapNudgeText').textContent = `대화가 ${ct} 토큰쯤으로 길어졌습니다. 마무리하면 다음 입력부터 가벼워집니다.`;
+  if(show) $('#wrapNudgeText').textContent = '대화가 길어졌습니다.';
 }
 $('#btnTalkToCard').addEventListener('click', e=> guard(e.currentTarget,'반영 중', async()=>{
   const P=activePreset();
@@ -130,36 +199,59 @@ $('#talkAssetList').addEventListener('click', e=>{
   renderTalkAssets();
 });
 async function wrapTalk(){
-  if(S.chat.msgs.length < 2) return toast('마무리할 대화가 아직 없습니다',1);
+  if(!canChangeWork()) return;
+  if(S.chat.msgs.some(m=>m.status)) return toast('응답을 받지 못한 메시지를 먼저 다시 보내거나 삭제해 주세요.',1);
+  const included=talkHistoryMessages();
+  if(included.length < 2) return toast('정리할 대화가 없습니다',1);
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) return toast('먼저 연결을 만들어 주세요',1);
-  if(!confirm('지금까지의 대화를 요약 하나로 압축합니다.\n원문이 필요하면 먼저 복사하거나 재료로 남겨 두세요. 계속할까요?')) return;
+  if(!confirm('전송에 포함한 대화를 요약으로 바꿉니다. 제외한 대화는 남습니다.\n원문이 필요하면 먼저 복사해 두세요. 계속할까요?')) return;
+  const task=beginTask(); if(!task) return;
+  const chat=S.chat;
   const btn = $('#btnTalkWrap');
   busy(btn, true, '정리 중');
   try{
-    const convo = (S.chat.summary ? '[이전 정리]\n'+S.chat.summary+'\n\n' : '')
-      + S.chat.msgs.map(m=>(m.role==='user'?'[나] ':'[상대] ')+m.content).join('\n\n');
+    const convo = talkTranscript(true);
     const before = tok(convo);
     const out = await callProvider(conn, [
       {role:'system', content:'너는 진행 중인 창작 상담 대화를 이어가기 위한 압축 정리를 만든다. 새 의견이나 제안을 덧붙이지 않는다. '+(S.opts.lang||'한국어')+' 로 쓴다.'},
       {role:'user', content:'아래 대화를 다음 항목으로 정리하라. 각 항목은 짧은 개조식으로, 없는 항목은 빼라.\n- 다룬 주제\n- 정해진 것·합의\n- 검토했지만 접은 것\n- 아직 열린 질문\n\n대화:\n'+convo}
     ], {temperature:0.3, maxTokens:1000});
-    S.chat.summary = out.trim();
-    S.chat.msgs = [];
-    S.chat.nudgeOff = false;
+    assertTask(task);
+    if(S.chat!==chat) throw new Error('__ABORT__');
+    chat.summaryHistory=(chat.summaryHistory||[]).filter(m=>m.includeHistory===false);
+    if(chat.summary && chat.summaryIncluded===false){
+      chat.summaryHistory.push({id:uid(),content:chat.summary,includeHistory:false});
+    }
+    chat.summary = out.trim();
+    chat.summaryIncluded = true;
+    chat.msgs = chat.msgs.filter(m=>!included.includes(m));
+    chat.nudgeOff = false;
     save(); renderChat();
     toast(`대화를 정리했습니다 — ${before} 토큰 → ${tok(out)} 토큰`);
   }catch(err){ showErr(err); }
-  finally{ busy(btn, false); }
+  finally{ busy(btn, false); endTask(task); }
 }
 $('#btnTalkWrap').addEventListener('click', wrapTalk);
-async function sendChat(){
-  const inp = $('#chatIn'), text = inp.value.trim();
+async function sendChat(retryId){
+  if(!canChangeWork() || CHAT_SENDING) return;
+  const chat=S.chat, inp=$('#chatIn');
+  const failed=chat.msgs.find(m=>m.status==='failed');
+  const retry=typeof retryId==='string' && failed && failed.id===retryId;
+  if(failed&&!retry) return toast('실패한 메시지의 다시 보내기를 눌러 주세요. 새 입력은 그대로 남겨 뒀습니다.',1);
+  const text=retry?failed.content:inp.value.trim();
   if(!text) return;
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) return toast('먼저 연결을 만들어 주세요',1);
-  S.chat.msgs.push({role:'user', content:text});
-  inp.value=''; renderChat(); save();
+  const task=beginTask(); if(!task) return;
+  CHAT_SENDING=true;
+  const message=retry?failed:{id:uid(),role:'user',content:text,includeHistory:true};
+  message.includeHistory=true; message.status='pending'; delete message.error;
+  if(!retry){ chat.msgs.push(message); inp.value=''; chat.inputDraft=''; }
+  const btn=$('#btnSend');
+  busy(btn,true,'응답 중');
+  try{
+  renderChat(); save();
   const sys = [];
   const roleKey = S.chat.role;
   const customPrompt = S.customTalkPrompts && S.customTalkPrompts[roleKey];
@@ -169,22 +261,57 @@ async function sendChat(){
     sys.push(TALK_ROLE[roleKey]);
   }
   sys.push(`{{lang}} 로 답한다.`.replace('{{lang}}', S.opts.lang||'한국어'));
-  if(S.chat.summary) sys.push('아래는 지금까지 나눈 대화를 압축한 정리다. 이 맥락 위에서 이어서 대화한다.\n\n'+S.chat.summary);
+  const summary=talkHistorySummary();
+  if(summary) sys.push('아래는 지금까지 나눈 대화를 압축한 정리다. 이 맥락 위에서 이어서 대화한다.\n\n'+summary);
   const ctx = talkContext();
   if(ctx) sys.push('아래는 상대가 지금 다루고 있는 자료다. 묻지 않은 것까지 통째로 다시 써주지 마라.\n\n'+ctx);
   const msgs = [{role:'system', content: sys.join('\n\n')}].concat(
-    S.chat.msgs.slice(-24).map(m=>({role:m.role, content:m.content})));
-  const btn = $('#btnSend');
-  busy(btn, true, '…');
-  try{
+    talkHistoryMessages(message,24).map(m=>({role:m.role, content:m.content})));
     const out = await callProvider(conn, msgs, {temperature:0.85, maxTokens:2200});
-    S.chat.msgs.push({role:'assistant', content: out.trim()});
-    if(S.chat.msgs.length>60) S.chat.msgs = S.chat.msgs.slice(-60);
+    assertTask(task);
+    if(S.chat!==chat) throw new Error('__ABORT__');
+    delete message.status; delete message.error;
+    chat.msgs.push({id:uid(),role:'assistant',content:out.trim(),includeHistory:true});
     save(); renderChat();
-  }catch(err){ S.chat.msgs.pop(); renderChat(); showErr(err); }
-  finally{ busy(btn,false); }
+  }catch(err){
+    message.status='failed'; message.error=err.message==='__ABORT__'?'요청을 중지했습니다. 메시지는 보관돼 있습니다.':err.message;
+    if(S.chat===chat){ save(); renderChat(); }
+    showErr(err);
+  }
+  finally{ CHAT_SENDING=false; busy(btn,false); endTask(task); }
 }
 $('#btnSend').addEventListener('click', sendChat);
+$('#chatLog').addEventListener('click',e=>{
+  const historyToggle=e.target.closest('.chat-history-toggle');
+  if(historyToggle){
+    if(!canChangeWork() || CHAT_SENDING) return;
+    if(historyToggle.dataset.summary){
+      if(historyToggle.dataset.summary==='current') S.chat.summaryIncluded=S.chat.summaryIncluded===false;
+      else{
+        const summary=(S.chat.summaryHistory||[]).find(m=>m.id===historyToggle.dataset.summary);
+        if(!summary) return;
+        summary.includeHistory=summary.includeHistory===false;
+      }
+    } else{
+      const index=Number(historyToggle.dataset.messageIndex), indexes=talkTurnIndexes(index);
+      if(!indexes.length || indexes.some(i=>S.chat.msgs[i].status)) return;
+      const included=talkTurnExcluded(index);
+      indexes.forEach(i=>{ S.chat.msgs[i].includeHistory=included; });
+    }
+    const {summary,messageIndex}=historyToggle.dataset;
+    save(); renderChat(true);
+    [...$('#chatLog').querySelectorAll('.chat-history-toggle')].find(button=>summary
+      ? button.dataset.summary===summary : button.dataset.messageIndex===messageIndex)?.focus({preventScroll:true});
+    return;
+  }
+  const retry=e.target.closest('.chat-retry'), discard=e.target.closest('.chat-discard');
+  if(retry) return sendChat(retry.dataset.message);
+  if(discard && canChangeWork()){
+    S.chat.msgs=S.chat.msgs.filter(m=>!(m.id===discard.dataset.message && m.status==='failed'));
+    save(); renderChat();
+  }
+});
+$('#chatIn').addEventListener('input',e=>{ S.chat.inputDraft=e.target.value; resizeChatInput(); save(); });
 $('#chatIn').addEventListener('keydown', e=>{
   if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); sendChat(); }
 });
@@ -219,22 +346,27 @@ $('#btnTalkResetRole').addEventListener('click', ()=>{
   });
 });
 $('#btnTalkClear').addEventListener('click', ()=>{
-  if((!S.chat.msgs.length && !S.chat.summary) || confirm('대화와 정리를 모두 비울까요?')){
-    S.chat.msgs=[]; S.chat.summary=''; S.chat.nudgeOff=false; save(); renderChat();
+  if(!canChangeWork()) return;
+  if((!S.chat.msgs.length && !talkSummaryItems().length) || confirm('대화와 정리를 모두 비울까요?')){
+    S.chat.msgs=[]; S.chat.summary=''; S.chat.summaryHistory=[]; S.chat.summaryIncluded=true; S.chat.nudgeOff=false; save(); renderChat();
   }
 });
-function talkTranscript(marks){
+function talkTranscript(marks, includeExcluded=false){
   const parts=[];
-  if(S.chat.summary) parts.push((marks?'[지금까지의 정리]\n':'지금까지의 정리:\n')+S.chat.summary);
-  parts.push(...S.chat.msgs.map(m=>(m.role==='user'?(marks?'[나] ':'나: '):(marks?'[상대] ':'상대: '))+m.content));
+  const summary=includeExcluded?talkSummaryItems().map(m=>m.content).join('\n\n'):talkHistorySummary();
+  if(summary) parts.push((marks?'[지금까지의 정리]\n':'지금까지의 정리:\n')+summary);
+  const messages=includeExcluded?S.chat.msgs:talkHistoryMessages();
+  parts.push(...messages.map(m=>(m.role==='user'?(marks?'[나] ':'나: '):(marks?'[상대] ':'상대: '))+m.content));
   return parts.join('\n\n');
 }
-$('#btnTalkCopy').addEventListener('click', ()=> copy(talkTranscript(false)));
+$('#btnTalkCopy').addEventListener('click', ()=> copy(talkTranscript(false,true)));
 $('#btnTalkToAsset').addEventListener('click', ()=>{
-  if(!S.chat.msgs.length && !S.chat.summary) return toast('대화가 없습니다',1);
+  if(!canChangeWork()) return;
+  const transcript=talkTranscript(true);
+  if(!transcript.trim()) return toast('재료로 보낼 대화가 없습니다',1);
   const purpose={world:'world',char:'character',prompt:'prompt'}[S.chat.role];
   S.assets.push({ id:uid(), kind:'text', name:'대화 기록 '+new Date().toLocaleTimeString('ko-KR'),
-    body: talkTranscript(true), purposes:purpose?[purpose]:[], tags:[], use:true });
-  renderAssets(); toast('재료에 넣었습니다');
+    body: transcript, purposes:purpose?[purpose]:[], tags:[], use:true });
+  renderAssets(); materialChanged(); renderChat(true); toast('재료에 넣었습니다');
 });
 

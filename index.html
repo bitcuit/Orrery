@@ -80,6 +80,7 @@
 </div>
 
 <main>
+  <p class="working-note" role="status">요청을 처리하고 있습니다. 작업대 입력과 분류는 요청이 끝난 뒤 변경할 수 있습니다.</p>
 
 <!-- ============ 재료 ============ -->
 <section class="view on" id="v-sources">
@@ -141,28 +142,28 @@
   <div class="bare studio-head" style="margin-bottom:14px">
     <h2 id="studioTitle">작업대</h2>
     <span class="sp"></span>
+    <button class="mini ghost" id="btnViewResult" hidden>결과 다시 보기</button>
     <button class="mini ghost" id="btnNewWork" title="현재 분류의 작업만 비웁니다. 재료와 기록은 남습니다.">새 작업</button>
   </div>
-  <div class="easy-banner"><span><b>쉬운 모드</b> · 복잡한 기능은 감춰 뒀어요. 생각을 적고 <b>만들기</b>만 누르면 됩니다.</span></div>
+  <div class="studio-result-nav" id="studioResultNav" hidden>
+    <button class="mini ghost" id="btnBackToInput">← 입력으로 돌아가기</button>
+    <button class="mini ghost" id="btnBackToCast" hidden>캐스트로 돌아가기</button>
+    <span class="note" id="studioResultPreset"></span>
+  </div>
+  <div class="studio-loading" id="studioLoading" hidden role="status" aria-live="polite">
+    <div class="loading-orbit" aria-hidden="true"></div>
+    <h2 id="studioLoadingTitle" tabindex="-1">만드는 중입니다</h2>
+    <p class="note" id="studioLoadingStep"></p>
+    <div id="studioStopSlot"></div>
+  </div>
+  <div id="studioInput">
   <div class="formrow">
     <label class="fl" for="studioPreset">양식</label>
     <select id="studioPreset"></select>
-    <span class="note" id="studioNote"></span>
-  </div>
-  <div class="matrow" id="matStatus"></div>
-  <div class="reqrow">
-    <label class="fl" for="optExtra">추가 요청</label>
-    <textarea id="optExtra" rows="2" placeholder="추가로 지켜야 할 조건을 적으세요."></textarea>
-    <p class="note" id="reqNote"></p>
-    <details class="nebula-pick" id="nebulaPick">
-      <summary>사용할 재료 · <span id="nebulaCount">선택 0개</span></summary>
-      <div class="nebula-list" id="nebulaList"></div>
-    </details>
   </div>
   <div class="panel" id="modePanel">
-    <details class="adv" id="modeAdv">
-    <summary>만드는 방식 · <b id="modeCurName">세계에서 사람 뽑기</b></summary>
-    <div class="modes" id="modeBox">
+    <p class="input-heading" id="modeHeading">시작 방식</p>
+    <div class="modes" id="modeBox" role="group" aria-labelledby="modeHeading">
       <div class="mode on" data-mode="w2c">
         <div class="mn">세계에서 사람 뽑기</div>
         <div class="md">로어북·설정을 읽고 그 세계에 실제로 살고 있을 법한 인물을 만듭니다.</div>
@@ -180,14 +181,44 @@
         <div class="md">같은 세계에서 여러 명을 뽑고 서로를 어떻게 보는지까지 짭니다.</div>
       </div>
     </div>
-    </details>
-    <div class="refine-panel" id="refinePanel" hidden>
-      <div class="refine-head"><span class="fl">다듬는 방향</span><span class="note">하나만 선택합니다</span></div>
-      <div class="refine-choices" id="refineBox" aria-label="다듬는 방향"></div>
+  </div>
+  <div class="panel brief-panel" id="briefPanel">
+    <div class="field">
+      <label class="fl" id="briefLabel" for="optBrief">구상</label>
+      <textarea id="optBrief" rows="2"></textarea>
     </div>
+  <div class="matrow" id="matStatus"></div>
+    <div class="studio-material-group">
+    <details class="nebula-pick studio-materials" id="nebulaPick">
+      <summary><strong id="studioMaterialTitle">사용할 재료</strong><span id="nebulaCount">선택 0개</span></summary>
+      <div class="nebula-list" id="nebulaList"></div>
+    </details>
+    <button type="button" class="mini ghost" id="btnStudioMaterials">재료 추가·관리</button>
+    </div>
+  </div>
+  <div class="build-choices" id="buildModeBox" aria-label="만드는 방법">
+    <button class="build-mode on" data-build="staged">
+      <span class="bn">단계별로 만들기</span>
+      <span class="bd">재료 정리 확인 → 후보 선택 → 결과 완성</span>
+      <span class="build-cost" id="stagedCost"></span>
+    </button>
+    <button class="build-mode" data-build="oneshot">
+      <span class="bn">한 번에 만들기</span>
+      <span class="bd">구상·재료로 바로 완성 · 후보 선택·자동 검증 생략</span>
+      <span class="build-cost" id="oneshotCost">API 기본 1회</span>
+    </button>
+  </div>
     <details class="adv" id="optAdv">
-      <summary>세부 설정</summary>
+      <summary>추가 설정</summary>
       <div>
+        <div class="field" id="promptEditField" hidden>
+          <label class="fl" for="promptEditMode">수정 목적</label>
+          <select id="promptEditMode"><option value="supplement">같은 용도로 다듬기</option><option value="adapt">다른 용도로 바꾸기</option></select>
+        </div>
+        <div class="refine-panel" id="refinePanel" hidden>
+          <div class="refine-head"><span class="fl">다듬는 방향</span></div>
+          <div class="refine-choices" id="refineBox" aria-label="다듬는 방향"></div>
+        </div>
         <div class="row">
           <div class="field"><label class="fl">출력 언어</label><input id="optLang" value="한국어"></div>
           <div class="field"><label class="fl">전체 톤 <button type="button" class="qhelp" aria-label="전체 톤이란" data-tip="결과물 전체의 문체와 분위기입니다. 비워 두면 따로 지정하지 않고 재료의 분위기를 따라갑니다.">?</button></label><input id="optTone" placeholder="예: 냉소적, 축축한, 담백한"></div>
@@ -202,24 +233,16 @@
           <select id="optCheck"><option value="1">켬 — 재료와의 어긋남·내부 모순 확인</option><option value="0">끔</option></select></div>
       </div>
     </details>
-  </div>
-
-  <div class="build-choices" id="buildModeBox" aria-label="만드는 방법">
-    <button class="build-mode on" data-build="staged">
-      <span class="bn">단계별로 만들기</span>
-      <span class="bd">재료를 읽고 후보를 고른 뒤 확장·검증합니다.</span>
-    </button>
-    <button class="build-mode" data-build="oneshot">
-      <span class="bn">한 번에 만들기</span>
-      <span class="bd">선택한 성운 재료를 통째로 보내 빠르게 완성합니다.</span>
-    </button>
+    <div class="studio-start" id="oneshotBox">
+      <button class="primary" id="btnOneShot">만들기</button>
+    </div>
   </div>
   <div class="stagedlabel" id="buildGuide">단계별 만들기 — 아래 1단계부터 하나씩</div>
 
   <ol class="spine" id="spine">
     <li data-st="digest"><span class="n">1</span><span class="t" id="spine1">설계 준비</span></li>
-    <li data-st="seed"><span class="n">2</span><span class="t">별씨앗</span></li>
-    <li data-st="expand"><span class="n">3</span><span class="t">확장</span></li>
+    <li data-st="seed"><span class="n">2</span><span class="t">후보 선택</span></li>
+    <li data-st="expand"><span class="n">3</span><span class="t">결과</span></li>
     <li data-st="check"><span class="n">4</span><span class="t">검증</span></li>
   </ol>
 
@@ -227,15 +250,6 @@
   <div class="panel" id="digestPanel">
     <h2><span class="stepno">1 · </span><span id="s1Title">설계 준비</span></h2>
     <p class="hint" id="s1Hint"></p>
-    <div class="field">
-      <label class="fl" id="briefLabel" for="optBrief">구상</label>
-      <textarea id="optBrief" rows="2"></textarea>
-      <p class="note" id="briefNote"></p>
-    </div>
-    <div class="oneshot" id="oneshotBox" hidden>
-      <button class="primary" id="btnOneShot">한 번에 만들기</button>
-      <span class="note" id="oneshotNote"></span>
-    </div>
     <div class="bar" id="digestBar">
       <button class="primary" id="btnDigest"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 8.5h7.2a3.3 3.3 0 0 1 3.3 2 3.3 3.3 0 0 1 3.3-2h7.2v15h-7.2a3.3 3.3 0 0 0-3.3 2 3.3 3.3 0 0 0-3.3-2H5.5Z"/><path d="M16 10.5v15" stroke="#e9b654"/></svg>재료 정리하기</button>
       <span class="sp"></span>
@@ -243,6 +257,7 @@
       <button class="ghost mini danger" id="btnDigestClear" title="정리한 내용 지우기" aria-label="정리한 내용 지우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
     </div>
     <div id="digestOut" style="margin-top:15px"></div>
+    <div class="stage-next"><button class="primary" id="btnDigestNext">후보 만들기 →</button></div>
   </div>
 
   <!-- 2 -->
@@ -254,34 +269,53 @@
       <span class="note" id="seedHint"></span>
     </div>
     <div id="seedOut" style="margin-top:15px"></div>
+    <div class="stage-next"><button class="primary" id="btnSeedNext" disabled>이 후보로 만들기 →</button></div>
   </div>
 
   <!-- 3 -->
+  <div id="studioResults" hidden>
   <div class="panel" id="expandPanel">
     <div class="panel-h">
-      <h2><span class="stepno">3 · </span>확장</h2>
+      <h2 id="resultHeading"><span class="stepno">3 · </span><span id="s3Title">확장</span></h2>
       <span class="sp"></span>
       <button class="mini ghost" id="btnToggleFields" title="결과 카드 전체 펼치기 또는 접기" disabled>모두 펼치기</button>
-      <button class="iconbtn" id="btnLockAll" title="전부 잠금" aria-label="전부 잠금"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 10 0V14" stroke="#e9b654"/></svg></button>
-      <button class="iconbtn" id="btnUnlockAll" title="전부 해제" aria-label="전부 해제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 9.6-1.9" stroke="#e9b654"/></svg></button>
     </div>
-    <p class="hint" id="s3Hint">고른 별씨앗으로 결과를 만듭니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.</p>
+    <div id="cardOut" style="margin-top:6px"></div>
+    <details class="continuebox" id="continueBox" hidden>
+      <summary class="continue-title"><b id="continueTitle">이어서 만들기</b><span class="note" id="continueHint"></span></summary>
+      <label class="fl" for="continueNote">이어쓰기 지시 <span class="note">· 선택</span></label>
+      <textarea id="continueNote" rows="2" placeholder="비우면 잘린 곳이나 마지막 칸부터 자연스럽게 잇습니다."></textarea>
+      <div class="bar"><span class="note" id="continueMeta"></span><span class="sp"></span><button class="primary" id="btnContinue">이어서 만들기</button></div>
+    </details>
+    <div class="bar" id="cardBar" style="display:none">
+      <button class="primary" id="btnSaveLib"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9z" stroke="#e9b654"/></svg>고정하기</button>
+      <button class="ghost" id="btnCopyText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg>글로 복사</button>
+      <button class="ghost" id="btnDlText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>글로 내려받기</button>
+      <details class="export-more"><summary>다른 형식·재료로</summary><div class="bar">
+      <button class="ghost" id="btnCopyCard"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg>카드 JSON</button>
+      <button class="ghost" id="btnDlCard"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>JSON</button>
+      <button class="ghost" id="btnDlPng"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>PNG 카드</button>
+      <button class="ghost" id="btnDlBook" style="display:none">로어북으로 뽑기</button>
+      <button class="ghost" id="btnToAsset"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg>재료로 넣기</button>
+      </div></details>
+      <button class="primary" id="btnMakePreset" style="display:none">이 양식 등록하기</button>
+    </div>
+  </div>
+
+  <details class="adv result-advanced" id="resultAdvanced">
+    <summary>추가 도구 · 수정·검증·최종 출력 <span class="note" id="checkSummary"></span></summary>
+    <div>
     <div class="bar">
       <button class="primary" id="btnExpand" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 12V8a2.5 2.5 0 0 1 2.5-2.5h4M20 5.5h4A2.5 2.5 0 0 1 26.5 8v4M26.5 20v4a2.5 2.5 0 0 1-2.5 2.5h-4M12 26.5H8A2.5 2.5 0 0 1 5.5 24v-4"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/></svg>결과 만들기</button>
       <button class="ghost" id="btnReroll" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 7.5v6.4h-6.4"/><path d="M25.6 13.9A10 10 0 1 0 26 18.6"/></svg>안 잠근 칸만 다시</button>
+      <button class="iconbtn" id="btnLockAll" title="전부 잠금" aria-label="전부 잠금"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 10 0V14" stroke="#e9b654"/></svg></button>
+      <button class="iconbtn" id="btnUnlockAll" title="전부 해제" aria-label="전부 해제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7" y="14" width="18" height="12.5" rx="2.2"/><path d="M11 14v-3.5a5 5 0 0 1 9.6-1.9" stroke="#e9b654"/></svg></button>
       <span class="sp"></span>
       <button class="ghost mini" id="btnRawView" title="현재 결과를 만들거나 다시 쓸 때 받은 응답을 그대로 봅니다">생성 원문</button>
     </div>
     <div class="field" id="rerollField" style="margin-top:12px">
       <label class="fl" for="rerollNote">다시 쓰기 지시</label>
       <input id="rerollNote" placeholder="안 잠근 칸을 다시 쓸 때만 사용합니다.">
-    </div>
-    <div id="cardOut" style="margin-top:6px"></div>
-    <div class="continuebox" id="continueBox" hidden>
-      <div class="continue-title"><b id="continueTitle">이어서 만들기</b><span class="note" id="continueHint"></span></div>
-      <label class="fl" for="continueNote">이어쓰기 지시 <span class="note">· 선택</span></label>
-      <textarea id="continueNote" rows="2" placeholder="비우면 잘린 곳이나 마지막 칸부터 자연스럽게 잇습니다."></textarea>
-      <div class="bar"><span class="note" id="continueMeta"></span><span class="sp"></span><button class="primary" id="btnContinue">이어서 만들기</button></div>
     </div>
     <details class="convertbox" id="convertBox" hidden>
       <summary>최종 출력 만들기</summary>
@@ -322,22 +356,9 @@
         </div>
       </div>
     </details>
-    <div class="bar" id="cardBar" style="display:none">
-      <button class="primary" id="btnSaveLib"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9z" stroke="#e9b654"/></svg>고정하기</button>
-      <button class="ghost" id="btnCopyText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg>글로 복사</button>
-      <button class="ghost" id="btnDlText"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>글로 내려받기</button>
-      <button class="ghost" id="btnCopyCard"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg>카드 JSON</button>
-      <button class="ghost" id="btnDlCard"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>JSON</button>
-      <button class="ghost" id="btnDlPng"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>PNG 카드</button>
-      <button class="ghost" id="btnDlBook" style="display:none">로어북으로 뽑기</button>
-      <button class="ghost" id="btnToAsset"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg>재료로 넣기</button>
-      <button class="primary" id="btnMakePreset" style="display:none">이 양식 등록하기</button>
-    </div>
-  </div>
-
   <!-- 4 -->
   <div class="panel" id="checkPanel">
-    <h2><span class="stepno">4 · </span>검증</h2>    <div class="bar">
+    <h2>검증</h2>    <div class="bar">
       <button class="primary" id="btnCheck" disabled>결과 검증</button>
       <span class="sp"></span>
       <span id="verdictBox"></span>
@@ -366,6 +387,9 @@
     <div id="qaOut" style="margin-top:12px"></div>
   </div>
 
+    </div>
+  </details>
+  </div>
   <!-- 캐스트 -->
   <div class="panel" id="castPanel" style="display:none">
     <h2>캐스트 · 관계망 <button type="button" class="qhelp" aria-label="캐스트란" data-tip="캐스트는 ‘여러 명 + 관계망’ 방식으로 함께 뽑은 인물들의 무리입니다. 서로를 어떻게 보는지 시선을 양방향으로 짭니다.">?</button></h2>    <div class="bar">
@@ -381,15 +405,10 @@
 
 <!-- ============ 대화 ============ -->
 <section class="view" id="v-talk">
-  <div class="panel">
-    <div class="panel-h">
-      <h2>대화</h2>
-      <span class="sp"></span>
-      <button class="iconbtn danger" id="btnTalkClear" title="대화 비우기" aria-label="대화 비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
-      <button class="iconbtn" id="btnTalkToAsset" title="이 대화를 재료로" aria-label="이 대화를 재료로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
-      <button class="iconbtn" id="btnTalkCopy" title="전부 복사" aria-label="전부 복사"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg></button>
-    </div>    <div class="row">
-      <div class="field" style="flex:0 1 260px"><label class="fl">상대 역할</label>
+  <details class="talk-settings" id="talkSettings" open>
+    <summary><span>대화 설정</span><span id="talkSettingsSummary">세계관 상담역</span></summary>
+    <div class="talk-settings-body">
+      <div class="field"><label class="fl" for="talkRole">상대 역할</label>
         <select id="talkRole">
           <option value="world">세계관 상담역</option>
           <option value="char">인물 상담역</option>
@@ -397,54 +416,62 @@
           <option value="critic">냉정한 평가자</option>
           <option value="free">역할 없음</option>
         </select></div>
-    </div>
-    <details class="adv" id="talkRoleEdit" style="margin-bottom:12px">
+    <details class="adv" id="talkRoleEdit">
       <summary>역할 프롬프트 편집</summary>
       <div>
         <div class="field">
-          <label class="fl">직접 입력</label>
-          <textarea id="talkCustomPrompt" rows="4" placeholder="비워두면 위에서 고른 역할의 기본 프롬프트가 쓰입니다."></textarea>
+          <label class="fl" for="talkCustomPrompt">직접 입력</label>
+          <textarea id="talkCustomPrompt" rows="4" placeholder="비워두면 기본 프롬프트 사용"></textarea>
         </div>
         <div class="field">
-          <label class="fl">기본 프롬프트</label>
+          <label class="fl" for="talkDefaultPrompt">기본 프롬프트</label>
           <textarea id="talkDefaultPrompt" rows="4" readonly style="color:var(--dim2);background:rgba(8,12,20,0.35)"></textarea>
         </div>
         <div class="bar" style="margin-top:4px">
-          <button class="ghost mini" id="btnTalkResetRole">기본값으로 되돌리기</button>
-          <span class="sp"></span>
-          <span class="note">직접 입력한 내용은 이 브라우저에만 저장됩니다.</span>
+          <button class="ghost mini" id="btnTalkResetRole">기본값으로</button>
         </div>
       </div>
     </details>
-    <details class="nebula-pick talk-context-pick" id="talkPick" style="margin:0 0 12px">
-      <summary>같이 보낼 내용 고르기 · <span id="talkPickCount">선택 0개</span></summary>
+    <details class="nebula-pick talk-context-pick" id="talkPick" open>
+      <summary>보낼 내용 · <span id="talkPickCount">선택 0개</span></summary>
       <div class="talk-context-options">
         <label class="talk-context-option"><input type="checkbox" id="ctxAssets" checked><span><b>작업 재료</b><small id="ctxAssetsMeta">고른 재료와 구상</small></span></label>
         <label class="talk-context-option"><input type="checkbox" id="ctxDigest" checked><span><b>정리한 내용</b><small id="ctxDigestMeta">아직 정리한 내용 없음</small></span></label>
         <label class="talk-context-option"><input type="checkbox" id="ctxCard"><span><b>지금 만든 것</b><small id="ctxCardMeta">아직 만든 결과 없음</small></span></label>
       </div>
       <div class="talk-material-pick" id="talkMaterialPick">
-        <div class="talk-material-head"><span class="fl">보낼 재료 선택</span><span class="note" id="talkAssetCount"></span></div>
+        <div class="talk-material-head"><span class="fl">재료</span><span class="note" id="talkAssetCount"></span></div>
         <div class="nebula-list" id="talkAssetList"></div>
       </div>
     </details>
+    </div>
+  </details>
+  <div class="panel talk-conversation">
+    <div class="panel-h">
+      <h2>대화</h2>
+      <span class="sp"></span>
+      <button class="iconbtn danger" id="btnTalkClear" title="대화 비우기" aria-label="대화 비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
+      <button class="iconbtn" id="btnTalkToAsset" title="보내는 대화 재료로" aria-label="보내는 대화 재료로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
+      <button class="iconbtn" id="btnTalkCopy" title="대화 전체 복사" aria-label="대화 전체 복사"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg></button>
+    </div>
     <div class="ctxbar">
       <span class="note" id="ctxTok"></span>
-      <span class="sp"></span>
-      <button type="button" class="mini ghost" id="btnTalkToCard" title="지금 작업대의 결과를 이 대화에서 정해진 내용대로 고칩니다. 잠근 칸은 그대로 두고 바뀐 부분만 반영합니다. 작업대에 결과가 있어야 눌립니다." disabled>결론을 작업대에 반영</button>
-      <button type="button" class="mini ghost" id="btnTalkWrap" title="대화가 길어질수록 매번 보내는 입력이 커집니다. 지금까지의 대화를 요약 하나로 압축해 토큰을 줄이고, 그 요약 위에서 이어갑니다.">대화 마무리</button>
+      <div class="talk-actions">
+      <button type="button" class="mini ghost" id="btnTalkToCard" title="대화에서 정한 내용을 작업대 결과에 반영합니다. 잠근 칸은 유지합니다." disabled>결론을 작업대에 반영</button>
+      <button type="button" class="mini ghost" id="btnTalkWrap" title="지금까지의 대화를 요약하고 이어갑니다.">대화 요약</button>
+      </div>
     </div>
     <div class="wrapnudge" id="wrapNudge" hidden>
       <span id="wrapNudgeText"></span>
       <span class="sp"></span>
-      <button type="button" class="mini primary" id="btnWrapNudge">지금 마무리</button>
-      <button type="button" class="mini ghost" id="btnWrapNudgeDismiss" aria-label="닫기">나중에</button>
+      <button type="button" class="mini primary" id="btnWrapNudge">요약</button>
+      <button type="button" class="mini ghost" id="btnWrapNudgeDismiss" aria-label="요약 안내 닫기">닫기</button>
     </div>
     <div class="chatwrap">
       <div class="chatlog" id="chatLog"></div>
       <div class="chatin">
-        <textarea id="chatIn" rows="2" placeholder="물어보거나, 보여주고 평가를 청하세요.  Ctrl+Enter 로 보냅니다."></textarea>
-        <button class="primary" id="btnSend" style="flex:none">보내기</button>
+        <textarea id="chatIn" rows="1" aria-label="메시지" placeholder="메시지 입력"></textarea>
+        <button class="primary" id="btnSend" title="보내기 (Ctrl+Enter)">보내기</button>
       </div>
     </div>
   </div>
@@ -541,11 +568,15 @@
     <p class="hint">API 키는 이 브라우저에만 저장됩니다. 공용 PC에서는 쓰지 마세요.</p>
     <div class="bar">
       <button class="primary" id="btnConnNew">연결 추가</button>
+      <button class="ghost mini" id="btnConnExport" title="API 키·업체·모델·주소를 JSON으로 저장">API 연결 백업</button>
+      <button class="ghost mini" id="btnConnImport">API 연결 불러오기</button>
       <span class="sp"></span>
       <button class="ghost mini" id="btnDataExport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg>전체 백업</button>
       <button class="ghost mini" id="btnDataImport"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg>백업 불러오기</button>
     </div>
     <input type="file" id="dataFile" accept=".json" style="display:none">
+    <input type="file" id="connBackupFile" accept=".json,application/json" hidden>
+    <p class="note">API 연결 백업 파일에는 API 키가 포함됩니다.</p>
   </div>
   <div id="connList"></div>
   </section>
@@ -569,6 +600,14 @@
 </section>
 
 </main>
+<div class="modal materials-manager" id="materialsManagerModal" hidden>
+  <div class="modal-in">
+    <div class="modal-h"><h2>재료 추가·관리</h2><button type="button" class="mini" id="materialsManagerClose" aria-label="재료 관리 닫기">닫기</button></div>
+    <div class="modal-b" id="materialsManagerMount"></div>
+    <div class="materials-manager-footer"><span class="note" id="materialsManagerCount" aria-live="polite">선택한 재료 0개</span><span class="sp"></span><button type="button" class="mini primary" id="materialsManagerDone">완료</button></div>
+  </div>
+</div>
+
 <div class="modal" id="assetFolderModal" hidden>
   <div class="modal-in" style="max-width:430px">
     <div class="modal-h"><h2 id="assetFolderModalTitle">즐겨찾기 폴더 만들기</h2><button class="mini" id="assetFolderClose" aria-label="닫기">닫기</button></div>
@@ -647,7 +686,7 @@
         <button class="welcome-card" data-group="prompt"><b>프롬프트</b><span>AI에게 줄 지시문을 만들어요</span></button>
       </div>
       <label class="welcome-easy"><input type="checkbox" id="welcomeEasy" checked><span>쉬운 모드로 시작 — 복잡한 기능은 감춰 둡니다 (헤더에서 언제든 끌 수 있어요)</span></label>
-      <p class="note" id="welcomeConnNote" hidden style="margin-top:12px;color:var(--brass)">※ 실제로 만들려면 먼저 헤더의 <b>연결</b>에서 API 연결을 하나 등록해야 해요. (어른의 도움이 필요할 수 있어요)</p>
+      <p class="note" id="welcomeConnNote" hidden style="margin-top:12px;color:var(--brass)">처음 한 번은 API 연결이 필요합니다. 작업대의 <b>연결 설정하고 만들기</b>에서 시작할 수 있습니다.</p>
     </div>
   </div>
 </div>

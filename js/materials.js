@@ -226,6 +226,7 @@ const MAT_HINT = {
   character: '세계 로어북 · 기존 캐릭터 카드',
   prompt: '캐릭터 카드 · 세계 설정 · 기존 프롬프트'
 };
+const ASSET_KIND_LABEL = {character:'인물 카드', lorebook:'로어북', text:'텍스트'};
 const STAR_SVG = on=>`<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9Z" ${on?'fill="currentColor"':'fill="none"'} stroke="currentColor"/></svg>`;
 const FOLDER_ADD_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5.5 9.5h8l2.2 2.6h10.8v11.4a2.5 2.5 0 0 1-2.5 2.5H8a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M20 15.5v7M16.5 19h7" stroke="#e9b654"/></svg>';
 const PENCIL_SVG = '<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m7.5 24.5 1.2-5.2L20.5 7.5a2.4 2.4 0 0 1 3.4 0l.6.6a2.4 2.4 0 0 1 0 3.4L12.7 23.3Z"/><path d="m18.8 9.2 4 4M8.7 19.3l4 4" stroke="#e9b654"/></svg>';
@@ -301,27 +302,20 @@ function openAssetFolderModal(folder){
 }
 function renderMat(){
   const box = $('#matStatus'); if(!box) return;
-  const P = activePreset(), st = assetStats(), brief = curBrief().trim();
-  const selectedAssets=S.assets.filter(a=>a.use).length;
+  const P = activePreset(), st = assetStats();
   const req = P.needs === 'required';
   let cls='matrow', html='';
+  box.hidden=st.tokens===0&&!req;
   if(st.tokens > 0){
     cls += ' ok';
-    html = selectedAssets
-      ? `<span class="pip"></span>재료 ${selectedAssets}개${brief?' + 구상':''} · ${st.tokens} 토큰쯤 읽습니다`
-      : `<span class="pip"></span>재료 없이 아래 구상만으로 시작합니다 · ${st.tokens} 토큰쯤`;
+    html = `<span class="pip"></span>입력 약 ${st.tokens}토큰`;
   } else if(req){
     cls += ' warn';
-    html = `<span class="pip"></span>이 양식은 읽을 원본이 필요합니다 — 재료를 넣거나 구상 칸에 원문을 붙여 주세요`
-         + ` <button class="mini ghost" id="matGo">재료 넣으러 가기</button>`;
-  } else if(brief){
-    cls += ' ok';
-    html = `<span class="pip"></span>아래 구상만으로 시작합니다 · 재료를 더하면 함께 읽습니다`;
-  } else {
-    html = `<span class="pip"></span>재료 없이도 됩니다 — 아래 구상 칸에 몇 마디만 적으세요`;
+    html = `<span class="pip"></span>원본 재료가 필요합니다`
+         + ` <button class="mini ghost" id="matGo">재료 추가</button>`;
   }
   box.className = cls; box.innerHTML = html;
-  const go = $('#matGo'); if(go) go.addEventListener('click', ()=> tab('sources'));
+  const go = $('#matGo'); if(go) go.addEventListener('click', openMaterialsManager);
   const mh = $('#matHint');
   if(mh) mh.textContent = MAT_HINT[S.opts.group] || '';
 }
@@ -342,15 +336,17 @@ function renderAssets(keepFolderBar){
     const meta = a.kind==='lorebook' ? `${on}/${a.entries.length}개 · ${tok(a.entries.filter(e=>e.use).map(e=>e.content).join(''))} 토큰쯤`
       : a.kind==='character' ? `${Object.keys(a.fields).length}개 항목 · ${tok(Object.values(a.fields).join(''))} 토큰쯤`
       : `${tok(a.body)} 토큰쯤`;
-    const kindLabel = {character:'캐릭터', lorebook:'로어북', text:'텍스트'}[a.kind];
-    const purposeHtml=a.purposes.map(k=>`<span class="asset-purpose">${ASSET_PURPOSE_LABEL[k]}</span>`).join('');
+    const purposeHtml=a.purposes.map(k=>`<span class="asset-purpose" data-purpose="${k}">${ASSET_PURPOSE_LABEL[k]}</span>`).join('')
+      || '<span class="asset-purpose unassigned">미분류</span>';
     const tagHtml=a.tags.map(t=>`<button class="asset-tag" data-tag="${esc(t)}" title="이 태그로 검색">#${esc(t)}</button>`).join('');
     return `<div class="asset ${a.kind}" data-id="${a.id}">
       <div class="asset-head">
         <label style="flex:none;display:flex;align-items:center">
           <input type="checkbox" class="a-use" ${a.use?'checked':''} style="width:auto;accent-color:var(--brass)"></label>
-        <span class="asset-kind">${kindLabel}</span>
-        <span class="asset-name">${esc(a.name)}</span>
+        <div class="asset-title">
+          <span class="asset-purposes" aria-label="쓸 곳">${purposeHtml}</span>
+          <span class="asset-name">${esc(a.name)}</span>
+        </div>
         <span class="asset-meta">${meta}</span>
         ${a.favorite?`<select class="asset-folder-select a-folder" aria-label="${esc(a.name)} 폴더">${folderOptions(a)}</select>`:''}
         ${a.kind==='lorebook' ? '<button class="mini ghost a-toggle">항목 고르기</button>':''}
@@ -362,7 +358,7 @@ function renderAssets(keepFolderBar){
           <button class="iconbtn danger a-del" title="삭제" aria-label="삭제">${TRASH_SVG}</button>
         </span>
       </div>
-      ${purposeHtml||tagHtml?`<div class="asset-taxonomy">${purposeHtml}${tagHtml}</div>`:''}
+      ${tagHtml?`<div class="asset-taxonomy">${tagHtml}</div>`:''}
       ${a.kind==='lorebook' ? entriesHtml(a) : ''}
       ${a.kind==='character' ? `<div class="entries"><pre style="white-space:pre-wrap;font-size:12px;color:var(--dim);margin:0;max-height:280px;overflow:auto">${esc(Object.keys(a.fields).map(k=>'['+k+']\n'+a.fields[k]).join('\n\n'))}</pre></div>`:''}
       ${assetEditorHtml(a)}
@@ -383,6 +379,7 @@ function assetEditorHtml(a){
   else body = `<div class="editrow"><label class="fl">본문</label><textarea class="ae-body" rows="8">${esc(a.body||'')}</textarea></div>`;
   return `<div class="asset-editor ${EDIT_ASSETS.has(a.id)?'open':''}">
     <div class="asset-editor-head"><span>재료 수정</span><span class="sp"></span><button class="iconbtn a-edit-close" title="닫기 · 이번 수정은 적용하지 않음" aria-label="닫기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m8.5 8.5 15 15M23.5 8.5l-15 15"/></svg></button></div>
+    <div class="editrow asset-format"><span class="fl">자료 형식</span><span class="note">${esc(ASSET_KIND_LABEL[a.kind]||a.kind)}</span></div>
     <div class="editrow"><label class="fl">재료 이름</label><input class="ae-name" value="${esc(a.name||'')}"></div>
     <div class="editrow"><span class="fl">쓸 곳</span><div class="purpose-options" role="group" aria-label="${esc(a.name||'재료')} 쓸 곳">${ASSET_PURPOSE_KEYS.map(k=>`<label class="purpose-choice"><input type="checkbox" class="ae-purpose" value="${k}" ${a.purposes.includes(k)?'checked':''}><span>${ASSET_PURPOSE_LABEL[k]}</span></label>`).join('')}</div></div>
     <div class="editrow"><label class="fl">태그</label><input class="ae-tags" value="${esc(a.tags.join(', '))}" placeholder="예: 마법학교, 라이벌, 겨울 · 쉼표로 구분"></div>
@@ -441,10 +438,42 @@ function showAssetCompare(a){
   $('#assetCompareCurrent').textContent=assetReadable(a);
   $('#assetCompare').hidden=false;
 }
+// 같은 재료 화면을 모달에 잠시 옮겨 파일 입력과 편집 중인 내용을 유지합니다.
+const MATERIALS_HOME=document.createComment('materials-home');
+$('#v-sources').before(MATERIALS_HOME);
+function openMaterialsManager(){
+  if(!canChangeWork()) return;
+  if(curTab==='sources') return;
+  const modal=$('#materialsManagerModal');
+  if(!modal.hidden) return;
+  $('#materialsManagerMount').append($('#v-sources'));
+  renderAssets(); renderNebulaPicker();
+  modal.hidden=false;
+}
+function restoreMaterialsHome(){
+  const source=$('#v-sources');
+  if(source.parentElement!==$('#materialsManagerMount')) return;
+  MATERIALS_HOME.after(source);
+  renderDigest(); renderMat(); renderNebulaPicker(); renderOneshot();
+}
+function closeMaterialsManager(){
+  $('#materialsManagerModal').hidden=true;
+  restoreMaterialsHome();
+}
+$('#btnStudioMaterials').addEventListener('click',openMaterialsManager);
+$('#materialsManagerClose').addEventListener('click',closeMaterialsManager);
+$('#materialsManagerDone').addEventListener('click',closeMaterialsManager);
+$('#materialsManagerModal').addEventListener('click',e=>{
+  if(e.target.id==='materialsManagerModal') closeMaterialsManager();
+});
+new MutationObserver(()=>{
+  if($('#materialsManagerModal').hidden) restoreMaterialsHome();
+}).observe($('#materialsManagerModal'),{attributes:true,attributeFilter:['hidden']});
 function renderNebulaPicker(){
   const box = $('#nebulaList'), count = $('#nebulaCount'); if(!box || !count) return;
   const n = S.assets.filter(a=>a.use).length;
   count.textContent = `선택 ${n}/${S.assets.length}개`;
+  $('#materialsManagerCount').textContent=`선택한 재료 ${n}개`;
   const ordered=[...S.assets].map(normalizeAssetMetadata).sort((a,b)=>Number(b.purposes.includes(S.opts.group))-Number(a.purposes.includes(S.opts.group)));
   box.innerHTML = ordered.length ? ordered.map(a=>`
     <label class="nebula-row"><input type="checkbox" class="n-use" data-id="${a.id}" ${a.use?'checked':''}>
@@ -533,7 +562,7 @@ $('#assetClearModal').addEventListener('click', e=>{ if(e.target.id==='assetClea
 
 $('#assetList').addEventListener('click', e=>{
   const start=e.target.closest('[data-group-start]');
-  if(start){ applyGroup(start.dataset.groupStart); tab('studio'); return; }
+  if(start){ closeMaterialsManager(); if(applyGroup(start.dataset.groupStart)!==false) tab('studio'); return; }
   const wrap = e.target.closest('.asset'); if(!wrap) return;
   const a = assetById(wrap.dataset.id); if(!a) return;
   const tag=e.target.closest('.asset-tag');
