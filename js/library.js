@@ -35,18 +35,7 @@ function saveRecord(){
   pruneLib(); save(); renderLib(); touchDraft();
   return rec;
 }
-function pruneLib(){
-  const LIMIT = 200;
-  if(S.library.length <= LIMIT) return;
-  const drop = S.library.filter(r=>!r.star).sort((a,b)=>(a.updated||a.at)-(b.updated||b.at));
-  const n = S.library.length - LIMIT;
-  const ids = new Set(drop.slice(0,n).map(r=>r.id));
-  if(ids.size){
-    log(`기록이 ${LIMIT}개를 넘어 고정하지 않은 오래된 항목 ${ids.size}개를 지웠습니다.`);
-    setTimeout(()=>toast(`기록이 ${LIMIT}개를 넘어 오래된 항목 ${ids.size}개를 정리했습니다`),900);
-  }
-  S.library = S.library.filter(r=>!ids.has(r.id));
-}
+function pruneLib(){ /* Records are retained until the user deletes them. */ }
 let libQuery = '', libFilter = '';
 function syncLibFilter(){ libFilter = S.opts.group || ''; const el=$('#libFilter'); if(el) el.value = libFilter; }
 function libMatches(r){
@@ -325,6 +314,7 @@ function digestStale(){
   return m.tpl === digestTpl(activePreset()) ? null : `정리 양식이 “${m.presetName}”에서 바뀌었습니다`;
 }
 function applyGroupUi(){
+  renderWorldSettings();
   const u = GROUP_UI[S.opts.group] || GROUP_UI.world;
   const set = (sel,v)=>{ const el=$(sel); if(el) el.textContent = v; };
   set('#studioTitle', (GROUP_LABEL[S.opts.group]||'') + ' 작업대');
@@ -374,7 +364,7 @@ function renderGroup(){
     || '<option value="">이 분류에 양식이 없습니다</option>';
 }
 function emptyWork(){
-  return {digest:null,digestSrc:'',digestMeta:null,seeds:[],sel:[],card:null,locked:{},
+  return {digest:null,digestSrc:'',digestMeta:null,seeds:[],sel:[],seedNote:'',card:null,locked:{},
     violations:null,verdict:null,cast:[],relations:null,qa:[],libId:null,screen:null};
 }
 function flushCardEdits(){
@@ -409,7 +399,7 @@ function switchPreset(id){
   S.project.card = null; S.project.locked = {}; S.project.qa = [];
   if($('#continueNote')) $('#continueNote').value='';
   S.project.violations = null; S.project.verdict = null;
-  S.project.seeds=[]; S.project.sel=[]; S.project.cast=[]; S.project.relations=null;
+  S.project.seeds=[]; S.project.sel=[]; S.project.seedNote=''; S.project.cast=[]; S.project.relations=null;
   S.project.libId = null;
   save(); touchDraft();
   renderGroup(); renderPresetSel(); renderSchema(); renderStages();
@@ -587,7 +577,7 @@ function inheritedCommonHtml(){
           <textarea rows="${Math.min(14, Math.max(3, it.content.split('\n').length))}" readonly>${esc(it.content)}</textarea></div>
       </div>
     </details>`).join('');
-  return `<p class="note" style="margin:0 0 8px">아래 <b>기본</b> 항목은 prompts.js(또는 편집기 반영)에서 이 양식에 자동으로 들어갑니다. 여기 목록엔 안 보여도 생성에는 늘 반영됩니다.</p>${rows}`;
+  return rows;
 }
 function renderCommon(){
   const P = activePreset();
@@ -629,7 +619,7 @@ function renderCommon(){
       </div>
     </details>`).join('');
   const emptyMsg = (!ownHtml && !inherited)
-    ? '<div class="empty" style="padding:18px"><b>아직 없습니다</b>+ 로 추가하거나, ST 프리셋을 가져오면 여기로 들어옵니다.</div>'
+    ? '<div class="empty" style="padding:18px"><b>추가한 지시문이 없습니다</b>+ 로 필요한 구획을 추가하세요.</div>'
     : (!ownHtml ? '<p class="note" style="margin:8px 0 0">이 양식만의 공통 지시문은 아직 없습니다. + 로 추가할 수 있어요.</p>' : '');
   $('#commonBox').innerHTML = inherited + ownHtml + emptyMsg;
   $('#commonBox').querySelectorAll('.stitem:not(.inherited)').forEach(el=>{
@@ -879,33 +869,6 @@ $('#presetFile').addEventListener('change', async e=>{
       j.id = uid(); if(!j.common) j.common = [];
       S.presets.push(j); switchPreset(j.id);
       toast('프리셋을 가져왔습니다');
-    } else if(j.prompts || j.prompt_order){ // 외부 프리셋 — 자동 판별
-      const n = importST(j);
-      save(); renderCommon();
-      toast(n ? `ST 프리셋에서 ${n}개 구획을 공통 지시문으로 가져왔습니다` : 'ST 프리셋에서 가져올 사용자 구획이 없습니다');
-    } else throw new Error('Orrery 프리셋도 ST 프리셋도 아닙니다.');
+    } else throw new Error('Orrery 양식 파일이 아닙니다. 외부 앱 파일은 재료 가져오기를 사용해 주세요.');
   }catch(err){ toast('가져오기 실패: '+err.message, 1); log('가져오기 실패: '+err.message,'err'); }
 });
-const ST_BUILTIN = /^(main|nsfw|jailbreak|chatHistory|charDescription|charPersonality|scenario|personaDescription|worldInfo(Before|After)|dialogueExamples|enhanceDefinitions)$/i;
-function importST(j){
-  const P = activePreset();
-  if(!P.common) P.common = [];
-  const prompts = j.prompts || [];
-  const byId = {}; prompts.forEach(p=>{ if(p.identifier) byId[p.identifier]=p; });
-  const orderList = (j.prompt_order && j.prompt_order.length)
-    ? (j.prompt_order[j.prompt_order.length-1].order || [])
-    : prompts.map(p=>({identifier:p.identifier, enabled:!p.system_prompt}));
-  let n = 0;
-  orderList.forEach(o=>{
-    const p = byId[o.identifier]; if(!p) return;
-    if(ST_BUILTIN.test(p.identifier||'')) return;
-    if(p.marker) return;
-    const content = (p.content||'').trim(); if(!content) return;
-    P.common.push({ id:uid(), name:p.name || p.identifier || '가져온 구획',
-      role:(p.role==='assistant'||p.role==='user')?p.role:'system',
-      content, enabled: o.enabled !== false });
-    n++;
-  });
-  return n;
-}
-

@@ -114,7 +114,40 @@ let browser,ws,closeBrowser;
       await screenshot('studio-'+group+'-1920x'+height);
     }
   }
-  await evaluate("$('#optAdv').open=true;window.scrollTo(0,document.documentElement.scrollHeight)");
+  for(const width of [1920,390,320]){
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1080,deviceScaleFactor:1,mobile:false});
+    for(const group of ['world','character','prompt']){
+    await evaluate(`applyGroup('${group}');tab('studio');showStudioScreen('input');window.scrollTo(0,0);window.seedLayoutBackup=clone(S.project)`);await delay(450);
+    const before=await evaluate("({x:$('#studioTitle').getBoundingClientRect().x,y:$('#studioTitle').getBoundingClientRect().y})");
+    await evaluate("S.project.digest={title:'Town'};S.project.seeds=[{id:'layout',line:'Harbor village'}];renderSeeds();showStudioScreen('seed');window.scrollTo(0,0)");await delay(100);
+    const after=await evaluate("(()=>{const r=id=>{const b=$('#'+id).getBoundingClientRect();return {x:b.x,y:b.y,right:b.right,bottom:b.bottom}};return {title:r('studioTitle'),back:r('btnBackToInput'),preset:r('studioResultPreset'),note:r('seedNote'),page:document.documentElement.scrollWidth}})()");
+    assert.ok(after.page<=width+1,'Candidate screen fits at '+width);
+    assert.ok(after.note.x>=0&&after.note.right<=width,'Candidate adjustment input fits at '+width);
+    if(width===1920){
+      assert.equal(after.title.x,before.x,'Desktop title keeps its horizontal position');
+      assert.equal(after.title.y,before.y,'Desktop title keeps its vertical position');
+      assert.ok(after.back.right<=after.title.x,'Back arrow is left of the title');
+      assert.ok(after.preset.x>=after.title.right&&after.preset.y<after.title.bottom,'Preset is beside the title');
+    }
+    await screenshot('seed-adjustment-'+group+'-'+width);
+    await evaluate("S.project.seeds=[{id:'k1',line:'해안 도시',keyword:true},{id:'k2',line:'축제',keyword:true},{id:'k3',line:'느슨한 규칙',keyword:true}];S.project.sel=[];renderSeeds();['k1','k2','k3'].forEach(id=>$$('.seed-keyword').find(el=>el.dataset.sid===id).click())");
+    const keywords=await evaluate("({count:S.project.sel.length,disabled:$('#btnSeedNext').disabled,overflow:document.documentElement.scrollWidth,boxes:$$('.seed-keyword').map(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right}))})");
+    assert.equal(keywords.count,3);assert.equal(keywords.disabled,false);
+    assert.ok(keywords.overflow<=width+1&&keywords.boxes.every(b=>b.left>=0&&b.right<=width),'Keyword chips fit '+group+' at '+width);
+    await screenshot('seed-keywords-'+group+'-'+width);
+    await evaluate("Object.assign(S.project,window.seedLayoutBackup);renderSeeds();showStudioScreen('input')");
+    }
+  }
+  for(const width of [1920,390,320]){
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1080,deviceScaleFactor:1,mobile:false});
+    await evaluate("applyGroup('world');$('#optAdv').open=true;$('#worldSettings details').open=true");await delay(100);
+    const layout=await evaluate("({width:innerWidth,scroll:document.documentElement.scrollWidth,controls:['worldMood','worldDensity','worldChars'].map(id=>{const r=$('#'+id).getBoundingClientRect();return {left:r.left,right:r.right,width:r.width}})})");
+    assert.ok(layout.scroll<=width+1,'World advanced settings have no horizontal overflow at '+width);
+    for(const control of layout.controls) assert.ok(control.width>0&&control.left>=0&&control.right<=width,'World control fits at '+width);
+    await screenshot('world-settings-'+width);
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1920,height:920,deviceScaleFactor:1,mobile:false});
+  await evaluate("$('#worldSettings details').open=false;$('#optAdv').open=true;window.scrollTo(0,document.documentElement.scrollHeight)");
   assert.ok(await evaluate("scrollY>0&&$('#btnOneShot').getBoundingClientRect().bottom<=innerHeight"),'Expanded settings remain scrollable');
   await evaluate("$('#optAdv').open=false;$('#optBrief').style.height='360px';window.scrollTo(0,document.documentElement.scrollHeight)");
   assert.ok(await evaluate("scrollY>0&&$('#btnOneShot').getBoundingClientRect().bottom<=innerHeight"),'Resized brief remains scrollable');

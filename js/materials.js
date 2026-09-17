@@ -49,7 +49,7 @@ async function pngChunks(buf){
 }
 
 /* --- ZIP(CHARX) 최소 읽기 --- */
-async function zipEntries(buf){
+async function zipEntries(buf,filter=()=>true){
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   let eo = -1;
   for(let i=buf.length-22;i>=0 && i>buf.length-70000;i--){
@@ -57,24 +57,34 @@ async function zipEntries(buf){
   }
   if(eo<0) throw new Error('ZIP 구조를 찾지 못했습니다.');
   const n = dv.getUint16(eo+10,true);
-  let p = dv.getUint32(eo+16,true);
+  const declared=dv.getUint32(eo+16,true),centralSize=dv.getUint32(eo+12,true);
+  let p=declared;
+  if(p+4>buf.length||dv.getUint32(p,true)!==0x02014b50)p=eo-centralSize;
+  const offset=p-declared;
   const list = [];
   for(let k=0;k<n;k++){
-    if(dv.getUint32(p,true)!==0x02014b50) break;
+    if(p<0||p+46>buf.length||dv.getUint32(p,true)!==0x02014b50) throw new Error('ZIP 목록이 손상되었습니다.');
     const method = dv.getUint16(p+10,true);
     const csize  = dv.getUint32(p+20,true);
     const nlen   = dv.getUint16(p+28,true);
     const elen   = dv.getUint16(p+30,true);
     const clen   = dv.getUint16(p+32,true);
-    const lho    = dv.getUint32(p+42,true);
+    const lho    = dv.getUint32(p+42,true)+offset;
     const name   = utf8(buf.slice(p+46,p+46+nlen));
-    list.push({name, method, csize, lho});
+    if(filter(name)){
+      if(dv.getUint16(p+8,true)&1)throw new Error('암호화된 ZIP 파일은 지원하지 않습니다.');
+      if(![0,8].includes(method))throw new Error('지원하지 않는 ZIP 압축 방식입니다.');
+      if(dv.getUint32(p+24,true)>50*1024*1024)throw new Error('재료 파일 하나의 압축 해제 크기가 너무 큽니다.');
+      list.push({name, method, csize, lho});
+    }
     p += 46+nlen+elen+clen;
   }
   for(const e of list){
+    if(e.lho<0||e.lho+30>buf.length||dv.getUint32(e.lho,true)!==0x04034b50)throw new Error('ZIP 항목이 손상되었습니다.');
     const ln = dv.getUint16(e.lho+26,true), le = dv.getUint16(e.lho+28,true);
     const start = e.lho+30+ln+le;
     const raw = buf.slice(start, start+e.csize);
+    if(start+e.csize>buf.length)throw new Error('ZIP 데이터가 잘렸습니다.');
     e.data = e.method===0 ? raw : await inflate(raw, true);
   }
   return list;
@@ -121,8 +131,10 @@ function cardAsset(data, fallbackName){
   const d = (data && data.data && typeof data.data==='object') ? data.data : data;
   const out = [];
   const fields = {};
-  ['description','personality','scenario','first_mes','mes_example','system_prompt','creator_notes']
+  ['description','personality','scenario','first_mes','mes_example','system_prompt','post_history_instructions','creator_notes']
     .forEach(k=>{ if(d[k]) fields[k]=String(d[k]); });
+  for(const key of ['backstory','appearance'])if(typeof d.extensions?.[key]==='string'&&d.extensions[key])fields[key]=d.extensions[key];
+  if(d.extensions?.depth_prompt?.prompt)fields.depth_prompt=String(d.extensions.depth_prompt.prompt);
   if(Array.isArray(d.alternate_greetings) && d.alternate_greetings.length)
     fields.alternate_greetings = d.alternate_greetings.join('\n\n');
   out.push({ id:uid(), kind:'character', name: d.name || fallbackName || '이름 없는 카드',
@@ -143,6 +155,12 @@ function isCard(j){
   return !!(d.name && (d.description || d.first_mes || d.personality));
 }
 function fromJson(j, fname){
+  if(j?.type==='marinara_character' && j.data) return fromJson(j.data,fname);
+  if(j?.type==='marinara_lorebook' && j.data){
+    const data=j.data;return fromJson({name:data.lorebook?.name||data.name||fname,entries:data.entries||data.lorebook?.entries||[]},fname);
+  }
+  if(j?.type==='marinara_profile'||j?.type==='marinara_chat_settings_profile')throw new Error('앱 전체 설정 파일입니다. 재료로 사용할 카드·로어북·프리셋을 내보내 주세요.');
+  const prompt=externalPromptMaterial(j,fname);if(prompt)return [prompt];
   if(isCard(j)) return cardAsset(j, fname);
   if(j && j.entries && looksLikeEntries(j.entries)){
     const en = normEntries(j.entries);
@@ -159,6 +177,27 @@ function fromJson(j, fname){
   }
   return [{ id:uid(), kind:'text', name: fname||'텍스트', body: JSON.stringify(j,null,2), use:true }];
 }
+function externalPromptMaterial(j,fname){
+  if(!j||typeof j!=='object')return null;
+  let parts=[],name=j.name||fname;
+  if(j.type==='marinara_preset'&&j.data){
+    const data=j.data,p=data.preset||{},sections=Array.isArray(data.sections)?data.sections:[];
+    name=p.name||name;
+    const order=p.sectionOrder||[];
+    parts=[...sections].sort((a,b)=>{const ai=order.indexOf(a.id),bi=order.indexOf(b.id);return (ai<0?1e9:ai)-(bi<0?1e9:bi);}).filter(s=>!s.isMarker).map(s=>({name:s.name,role:s.role,text:s.content,enabled:s.enabled}));
+    for(const key of ['conversationPrompt','gamePrompt'])if(p[key])parts.push({name:key,text:p[key]});
+  }else if(Array.isArray(j.prompts)){
+    const order=Array.isArray(j.prompt_order)?j.prompt_order.at(-1)?.order:[];
+    const prompts=j.prompts.filter(p=>p&&!p.marker);
+    const ordered=Array.isArray(order)&&order.length?order.map(o=>{const p=prompts.find(p=>p.identifier===o.identifier);return p?{...p,enabled:o.enabled!==false}:null;}).filter(Boolean):prompts;
+    parts=ordered.map(p=>({name:p.name||p.identifier,role:p.role,text:p.content,enabled:p.enabled}));
+  }else if(Array.isArray(j.promptTemplate)){
+    parts=j.promptTemplate.map(p=>({name:p.name||p.type,role:p.role,text:p.text||p.content,enabled:p.enabled}));
+  }else return null;
+  const body=parts.filter(p=>typeof p.text==='string'&&p.text.trim()).map(p=>`## ${p.name||'구획'}${p.role?' · '+p.role:''}${p.enabled===false?' · 비활성 구획':''}\n${p.text}`).join('\n\n');
+  if(!body)throw new Error('이 프리셋에는 읽을 수 있는 지문이 없습니다.');
+  return {id:uid(),kind:'text',name:name||'가져온 프롬프트',body,purposes:['prompt'],use:true};
+}
 
 async function sniff(file){
   const buf = new Uint8Array(await file.arrayBuffer());
@@ -171,15 +210,22 @@ async function sniff(file){
     try{ txt = utf8(b64bytes(ch[key])); }catch(e){ txt = ch[key]; }
     return fromJson(JSON.parse(txt), base);
   }
-  if(buf[0]===0x50 && buf[1]===0x4B){
-    const es = await zipEntries(buf);
-    const cj = es.find(e=>/(^|\/)card\.json$/i.test(e.name)) || es.find(e=>/\.json$/i.test(e.name));
-    if(!cj) throw new Error('CHARX 안에서 card.json을 찾지 못했습니다.');
-    return fromJson(JSON.parse(utf8(cj.data)), base);
+  if((buf[0]===0x50 && buf[1]===0x4B)||/\.(charx|zip|jpg|jpeg)$/i.test(file.name)){
+    const es = await zipEntries(buf,name=>/\.(json|marinara)$/i.test(name));
+    const card=es.find(e=>/(^|\/)card\.json$/i.test(e.name));
+    if(card)return fromJson(JSON.parse(utf8(card.data)),base);
+    if(!es.length) throw new Error('압축 파일 안에서 카드·재료 JSON을 찾지 못했습니다.');
+    return es.flatMap(e=>fromJson(JSON.parse(utf8(e.data)),e.name));
   }
   const text = utf8(buf);
-  try{ return fromJson(JSON.parse(text), base); }
-  catch(e){ return [{ id:uid(), kind:'text', name:file.name, body:text, use:true }]; }
+  if(/\.(risup|risupreset|risum)$/i.test(file.name))throw new Error('이 바이너리 형식은 아직 지원하지 않습니다. JSON 또는 PNG·CHARX로 내보낸 파일을 사용해 주세요.');
+  let json;
+  try{json=JSON.parse(text);}catch(e){
+    if(/\.(json|marinara|preset)$/i.test(file.name))throw new Error('JSON 형식이 올바르지 않습니다.');
+    if(text.includes('\u0000')||(text.match(/\ufffd/g)||[]).length>3)throw new Error('읽을 수 없는 바이너리 파일입니다.');
+    return [{ id:uid(), kind:'text', name:file.name, body:text, use:true }];
+  }
+  return fromJson(json,base);
 }
 
 /* --- 재료 → 프롬프트용 텍스트 --- */

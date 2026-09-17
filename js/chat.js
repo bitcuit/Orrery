@@ -234,7 +234,7 @@ async function wrapTalk(){
 }
 $('#btnTalkWrap').addEventListener('click', wrapTalk);
 async function sendChat(retryId){
-  if(!canChangeWork() || CHAT_SENDING) return;
+  if(!canChangeWork(true) || CHAT_SENDING) return;
   const chat=S.chat, inp=$('#chatIn');
   const failed=chat.msgs.find(m=>m.status==='failed');
   const retry=typeof retryId==='string' && failed && failed.id===retryId;
