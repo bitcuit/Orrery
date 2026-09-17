@@ -19,7 +19,7 @@ let S = {
   assets: [], assetFolders: [],
   presets: [], activePreset: null,
   opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, refineBy:{world:'balanced',character:'balanced',prompt:'balanced'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, easy:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,summarize:false,maxChars:1200,meaning:true,sourceLang:'한국어',targetLang:'English',extraBy:{world:'',character:'',prompt:''}} },
-  project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null },
+  project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null, workBy:{}, screen:null },
   library: [],
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
   customTalkPrompts: {},
@@ -27,6 +27,7 @@ let S = {
 };
 let LOG = [];
 let ABORT = null;
+let ACTIVE_TASK = null;
 let LAST_USAGE = null;
 let LAST_RAW = '', LAST_RAW_AT = 0;
 let DRAFT_DIRTY = false, DRAFT_TIMER = null, BOOTING = true;
@@ -56,6 +57,18 @@ function curConvertExtra(){
 function curBrief(){
   const by=S.opts.briefBy||(S.opts.briefBy={world:'',character:'',prompt:''});
   return by[S.opts.group]||'';
+}
+
+function mergeLegacyRequests(){
+  convertPrefs();
+  let changed=false;
+  for(const g of ['world','character','prompt']){
+    const extra=String(S.opts.extraBy[g]||'').trim();
+    if(!extra) continue;
+    S.opts.briefBy[g]=[String(S.opts.briefBy[g]||'').trim(),'추가 조건:\n'+extra].filter(Boolean).join('\n\n');
+    S.opts.extraBy[g]=''; changed=true;
+  }
+  return changed;
 }
 
 const ASSET_PURPOSE_LABEL = {world:'세계', character:'인물', prompt:'프롬프트'};
@@ -146,13 +159,16 @@ function hasDraftWork(){
   const extras=Object.values(S.opts.extraBy||{}).some(v=>String(v||'').trim());
   const briefs=Object.values(S.opts.briefBy||{}).some(v=>String(v||'').trim());
   const digests=Object.values(p.digestBy||{}).some(Boolean);
-  return !!(briefs || extras || digests || p.digest || (p.seeds&&p.seeds.length) || p.card || (p.cast&&p.cast.length));
+  const otherWork=Object.values(p.workBy||{}).some(w=>w && w.project &&
+    (w.project.digest || w.project.card || w.project.seeds?.length || w.project.cast?.length));
+  return !!(briefs || extras || digests || otherWork || p.digest || (p.seeds&&p.seeds.length) || p.card || (p.cast&&p.cast.length));
 }
 function saveDraftNow(){
   clearTimeout(DRAFT_TIMER); DRAFT_TIMER=null;
   if(!DRAFT_DIRTY) return;
   if(!hasDraftWork()){ clearDraft(); return; }
-  const base = {version:1, at:Date.now(), activePreset:S.activePreset, opts:clone(S.opts), project:clone(S.project)};
+  const base = {version:1, at:Date.now(), activePreset:S.activePreset, opts:clone(S.opts), project:clone(S.project),
+    continueNote:$('#continueNote').value, rerollNote:$('#rerollNote').value};
   try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(base)); }
   catch(e){
     log('마지막 작업 임시 저장에 실패했습니다.','err');
@@ -176,11 +192,13 @@ function offerDraftRestore(){
   try{ const raw=localStorage.getItem(DRAFT_KEY); if(raw) d=JSON.parse(raw); }catch(e){ clearDraft(); }
   if(!d || !d.project) return false;
   const when = d.at ? new Date(d.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '이전 방문';
-  if(!confirm(`${when}에 저장하지 않고 끝낸 작업이 있습니다.\n이전 작업물을 불러올까요?`)){ clearDraft(); return false; }
+  if(!confirm(`${when}에 진행하던 작업이 있습니다.\n이전 작업물을 불러올까요?`)){ clearDraft(); return false; }
   if(d.opts) Object.assign(S.opts,d.opts);
   convertPrefs();
   if(d.activePreset) S.activePreset=d.activePreset;
   S.project=Object.assign(S.project,d.project||{});
+  $('#continueNote').value=d.continueNote||'';
+  $('#rerollNote').value=d.rerollNote||'';
   if(Array.isArray(d.assets)) S.assets=mergeAssetsById(d.assets,S.assets);
   normalizeAssetFolders();
   DRAFT_DIRTY=true;
@@ -306,12 +324,42 @@ async function copy(text){
 }
 function busy(btn, on, label){
   if(!btn) return;
-  if(on){ btn._t = btn.innerHTML; btn.innerHTML = '<span class="busy"></span>'+(label||'하는 중'); btn.disabled = true; }
-  else  { if(btn._t) btn.innerHTML = btn._t; btn.disabled = false; }
+  if(on){ if(btn._t==null) btn._t = btn.innerHTML; btn.innerHTML = '<span class="busy"></span>'+(label||'하는 중'); btn.disabled = true; }
+  else  { if(btn._t!=null) btn.innerHTML = btn._t; delete btn._t; btn.disabled = false; }
+  if(on&&ACTIVE_TASK?.studio){ ACTIVE_TASK.label=label||'만드는 중입니다'; renderStudioScreen(); }
+}
+function workIsBusy(){ return !!(ACTIVE_TASK || ABORT); }
+function canChangeWork(){
+  if(!workIsBusy()) return true;
+  toast('요청이 끝난 뒤 변경할 수 있습니다. 먼저 요청 중지를 눌러 주세요.',1);
+  return false;
+}
+function beginTask(){
+  if(!canChangeWork()) return null;
+  const task={project:S.project, group:S.opts.group, preset:S.activePreset, cancelled:false};
+  ACTIVE_TASK=task;
+  document.body.classList.add('working');
+  return task;
+}
+function endTask(task){
+  if(ACTIVE_TASK!==task) return;
+  ACTIVE_TASK=null;
+  document.body.classList.remove('working');
+  if(task.studio){
+    const stop=$('#btnAbortCall'); stop.hidden=true; document.body.append(stop); stop.classList.remove('inline');
+    renderStudioScreen();
+  }
+}
+function assertTask(task){
+  if(task && (task.cancelled || task.project!==S.project || task.group!==S.opts.group || task.preset!==S.activePreset))
+    throw new Error('__ABORT__');
 }
 function abortCurrentCall(){
-  if(!ABORT) return false;
-  ABORT.abort(); return true;
+  if(!workIsBusy()) return false;
+  if(ACTIVE_TASK) ACTIVE_TASK.cancelled=true;
+  if(ABORT) ABORT.abort();
+  if(ACTIVE_TASK?.studio) renderStudioScreen();
+  return true;
 }
 
 /* ==================================================================
@@ -456,14 +504,20 @@ const PROV_ORDER = ['openai','anthropic','gemini','vertex','openrouter','nanogpt
 
 /* --- 호출 --- */
 async function callProvider(conn, messages, opts){
+  const task=ACTIVE_TASK;
+  assertTask(task);
+  if(ABORT) throw new Error('다른 요청이 진행 중입니다. 완료 후 다시 시도해 주세요.');
   const p = PROV[conn.provider];
   if(!p) throw new Error('알 수 없는 연결 종류: '+conn.provider);
   if(!conn.model) throw new Error('모델을 고르지 않았습니다.');
   if(!p.noKey && !conn.apiKey) throw new Error('API 키가 비어 있습니다.');
   const o = Object.assign({}, opts||{});
-  if(conn.maxTokens)         o.maxTokens   = conn.maxTokens;
-  if(conn.temperature!=null) o.temperature = conn.temperature;
-  if(conn.topP!=null)        o.topP        = conn.topP;
+  if(o.connectionOverrides!==false){
+    if(conn.maxTokens)         o.maxTokens   = conn.maxTokens;
+    if(conn.temperature!=null) o.temperature = conn.temperature;
+    if(conn.topP!=null)        o.topP        = conn.topP;
+  }
+  delete o.connectionOverrides;
   const est = messages.reduce((a,m)=>a+tok(m.content),0);
   if(conn.contextLimit){
     const room = conn.contextLimit - (o.maxTokens||2000);
@@ -477,10 +531,12 @@ async function callProvider(conn, messages, opts){
   LAST_USAGE = null;
   const controller = new AbortController();
   ABORT = controller;
+  if(task?.studio){ task.calls=(task.calls||0)+1; renderStudioScreen(); }
   const stop=$('#btnAbortCall');
   if(stop){
     const activeBtn=document.querySelector('button .busy')?.closest('button');
-    if(activeBtn && activeBtn.isConnected){ activeBtn.insertAdjacentElement('afterend',stop); stop.classList.add('inline'); }
+    if(task?.studio){ $('#studioStopSlot').append(stop); stop.classList.add('inline'); }
+    else if(activeBtn && activeBtn.isConnected){ activeBtn.insertAdjacentElement('afterend',stop); stop.classList.add('inline'); }
     else { document.body.append(stop); stop.classList.remove('inline'); }
     stop.hidden=false;
   }
@@ -499,9 +555,10 @@ async function callProvider(conn, messages, opts){
   }finally{
     if(ABORT===controller){
       ABORT=null;
-      if(stop){ stop.hidden=true; document.body.append(stop); stop.classList.remove('inline'); }
+      if(stop&&!task?.studio){ stop.hidden=true; document.body.append(stop); stop.classList.remove('inline'); }
     }
   }
+  assertTask(task);
   if(!res.ok){
     log(`← ${res.status} ${txt.slice(0,600)}`,'err');
     let detail = txt.slice(0,300);

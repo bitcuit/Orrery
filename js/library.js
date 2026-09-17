@@ -10,7 +10,7 @@ function fieldsToText(fields, preset){
   P.schema.forEach(f=>{ seen[f.key]=1;
     if(fields[f.key]) rows.push('## '+f.label+'\n\n'+fields[f.key]); });
   Object.keys(fields).forEach(k=>{ if(!seen[k] && fields[k]) rows.push('## '+k+'\n\n'+fields[k]); });
-  return '# '+guessName(fields)+'\n\n'+rows.join('\n\n');
+  return '# '+guessName(fields, P)+'\n\n'+rows.join('\n\n');
 }
 function saveRecord(){
   if(!S.project.card) return null;
@@ -96,12 +96,14 @@ $('#libList').addEventListener('click', async e=>{
   }
   const fn = (rec.name||'record').replace(/[\\/:*?"<>|]/g,'_');
   if(e.target.closest('.l-md')){ dl(fn+'.md', fieldsToText(rec.fields, P), 'text/markdown;charset=utf-8'); return; }
-  if(e.target.closest('.l-json')){ dl(fn+'.json', JSON.stringify(toV2(rec.fields),null,2)); return; }
+  if(e.target.closest('.l-json')){ dl(fn+'.json', JSON.stringify(toV2(rec.fields, P),null,2)); return; }
   if(e.target.closest('.l-png')){
-    try{ dlBlob(fn+'.png', await makeCardPng(rec.fields)); }catch(err){ toast(err.message,1); } return; }
+    try{ dlBlob(fn+'.png', await makeCardPng(rec.fields, P)); }catch(err){ toast(err.message,1); } return; }
   if(e.target.closest('.l-open')){ loadRecordToStudio(rec); }
 });
 function loadRecordToStudio(rec){
+  if(!canChangeWork()) return;
+  flushCardEdits();
   if(rec.presetId && S.presets.find(x=>x.id===rec.presetId)) switchPreset(rec.presetId);
   S.project.card = {fields:clone(rec.fields), seed:null, truncated:!!rec.truncated,
     truncatedField:rec.truncatedField||'', continuations:clone(rec.continuations||[]),
@@ -109,14 +111,16 @@ function loadRecordToStudio(rec){
   $('#continueNote').value='';
   S.project.libId = rec.id; S.project.locked={};
   S.project.violations=null; S.project.verdict=null; S.project.qa=[];
-  renderCard(); renderCheck(); renderQA(); tab('studio'); toast('작업대로 불러왔습니다');
+  renderCard(); renderCheck(); renderQA(); touchDraft(); tab('studio'); toast('작업대로 불러왔습니다');
+  showStudioScreen('result');
 }
 function recordToMaterial(rec){
+  if(!rec||!rec.fields||!canChangeWork()) return;
   const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
   S.assets.push({ id:uid(), kind:'text',
     name: (rec.name||'기록') + ' (' + (rec.presetName||P.name) + ')',
     body: fieldsToText(rec.fields, P), purposes:[rec.group||'character'], tags:[], use:true });
-  renderAssets(); toast('재료에 넣었습니다 — 다른 양식에서 이어서 쓸 수 있습니다');
+  renderAssets(); materialChanged(); renderChat(true); toast('재료에 넣었습니다 — 다른 양식에서 이어서 쓸 수 있습니다');
 }
 
 /* --- 기록 미리보기 모달 --- */
@@ -165,11 +169,13 @@ $('#libViewMd').addEventListener('click', ()=>{
 });
 $('#libViewJson').addEventListener('click', ()=>{
   const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
-  dl((rec.name||'card').replace(/[\\/:*?"<>|]/g,'_')+'.json', JSON.stringify(toV2(rec.fields),null,2));
+  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
+  dl((rec.name||'card').replace(/[\\/:*?"<>|]/g,'_')+'.json', JSON.stringify(toV2(rec.fields, P),null,2));
 });
 $('#libViewPng').addEventListener('click', async ()=>{
   const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
-  try{ dlBlob((rec.name||'card').replace(/[\\/:*?"<>|]/g,'_')+'.png', await makeCardPng(rec.fields)); }
+  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
+  try{ dlBlob((rec.name||'card').replace(/[\\/:*?"<>|]/g,'_')+'.png', await makeCardPng(rec.fields, P)); }
   catch(err){ toast(err.message,1); }
 });
 $('#btnLibExport').addEventListener('click', ()=>{
@@ -209,36 +215,40 @@ const MODE_UI = {
     title:'세계를 어떻게 만들까요',
     hint:'성운의 재료로 새 세계를 만들지, 기존 세계를 덜고 보완해 다시 다듬을지 고릅니다.',
     items:[
-      ['new','새 세계 만들기','키워드와 설정 조각을 바탕으로 새로운 세계를 설계합니다.'],
-      ['supplement','기존 세계 다듬기','핵심 설정은 지키면서 불필요한 것은 덜고, 필요한 것은 보완하거나 다시 설계합니다.']
+      ['new','새 세계 만들기','키워드·설정 조각에서 시작'],
+      ['supplement','기존 세계 다듬기','기존 설정을 정리·보완']
     ]
   },
   character: {
     title:'인물을 어떻게 뽑을까요',
     hint:'세계에서 새로 뽑거나, 기존 인물을 다듬거나, 함께 얽힐 상대와 관계망을 만듭니다.',
     items:[
-      ['w2c','세계에서 사람 뽑기','로어북·설정을 읽고 그 세계에 실제로 살고 있을 법한 인물을 만듭니다.'],
-      ['supplement','기존 인물 다듬기','인물의 정체성은 지키면서 중복은 덜고, 필요한 부분은 보완하거나 다시 설계합니다.'],
-      ['foil','맞부딪힐 상대','기존 인물을 읽고 그와 어긋나고 얽힐 다른 인물을 만듭니다.'],
-      ['cast','여러 명 + 관계망','같은 세계에서 여러 명을 뽑고 서로를 어떻게 보는지까지 짭니다.']
+      ['w2c','세계에서 인물 만들기','세계 설정에 맞는 새 인물'],
+      ['supplement','기존 인물 다듬기','기존 인물을 정리·보완'],
+      ['foil','상대역 만들기','기존 인물과 얽힐 상대'],
+      ['cast','여러 인물 만들기','같은 세계의 인물과 관계']
     ]
   },
   prompt: {
     title:'프롬프트를 어떻게 만들까요',
     hint:'새로 설계하거나, 이미 쓰는 프롬프트를 덜고 보완해 다듬거나, 다른 용도로 변형합니다.',
     items:[
-      ['new','새 프롬프트 만들기','목적과 재료에서 역할·작동 원칙·출력 형식을 새로 설계합니다.'],
-      ['supplement','기존 프롬프트 다듬기','잘 작동하는 부분은 두고 중복을 덜거나 빠진 통제·출력 규칙을 보완합니다.'],
-      ['adapt','기존 프롬프트 변형하기','핵심 작동 원리는 살리면서 구상 칸에 적은 새 용도에 맞춥니다.']
+      ['new','새 프롬프트 만들기','목적과 조건에서 시작'],
+      ['supplement','기존 프롬프트 수정','기존 프롬프트를 개선·변형']
     ]
   }
 };
 function renderModeChooser(){
-  const u = MODE_UI[S.opts.group] || MODE_UI.character, cur = activeMode();
-  const curName = (u.items.find(x=>x[0]===cur) || u.items[0])[1];
-  const nameEl = $('#modeCurName'); if(nameEl) nameEl.textContent = curName;
-  $('#modeBox').innerHTML = u.items.map(([id,name,note])=>`
-    <div class="mode ${id===cur?'on':''}" data-mode="${id}"><div class="mn">${esc(name)}</div><div class="md">${esc(note)}</div></div>`).join('');
+  const u = MODE_UI[S.opts.group] || MODE_UI.character, mode = activeMode();
+  const editingPrompt=S.opts.group==='prompt'&&['supplement','adapt'].includes(mode);
+  if(editingPrompt) S.opts.promptEditMode=mode;
+  const cur=editingPrompt?'supplement':mode;
+  $('#promptEditField').hidden=!editingPrompt;
+  $('#promptEditMode').value=S.opts.promptEditMode==='adapt'?'adapt':'supplement';
+  $('#modeBox').innerHTML = u.items.map(([id,name,note])=>{
+    if(editingPrompt&&id==='supplement') note=mode==='adapt'?'다른 용도로 바꾸기':'같은 용도로 다듬기';
+    return `<button type="button" class="mode ${id===cur?'on':''}" data-mode="${id}" aria-pressed="${id===cur}"><span class="mn">${esc(name)}</span><span class="md">${esc(note)}</span></button>`;
+  }).join('');
   renderRefineChooser();
 }
 
@@ -287,7 +297,7 @@ const GROUP_UI = {
     s1:'요구 정리', spine1:'요구 정리', btn:'요구 정리하기', combinedBtn:'정리하고 결과 만들기',
     hint:'무엇을 만들어야 하는지, 무엇이 정해졌고 무엇이 비었는지 먼저 정리합니다.',
     brief:'구상', briefNote:'여기가 주 입력입니다 — 무엇을 만들 프롬프트인지 적으세요',
-    ph:'예: 설정집을 읽고 그 세계의 사건 사고를 뉴스 형식으로 뽑는 프롬프트',
+    ph:'예: 담백한 문체로 감정이 서서히 고조되는 장면을 쓰는 프롬프트',
     extraPh:'예: 입력이 부족하면 질문부터 · 금지 사항은 판정 가능하게 · 바로 복사해 쓸 수 있게',
     rerollPh:'예: 출력 형식을 더 엄격하고 간단하게',
     continuePh:'비우면 잘린 곳이나 마지막 칸부터 잇습니다 · 예: 실패 처리와 자기 검증 규칙까지 써줘',
@@ -319,16 +329,16 @@ function applyGroupUi(){
   const set = (sel,v)=>{ const el=$(sel); if(el) el.textContent = v; };
   set('#studioTitle', (GROUP_LABEL[S.opts.group]||'') + ' 작업대');
   set('#s1Title', u.s1); set('#spine1', u.spine1); set('#s1Hint', u.hint);
-  set('#briefLabel', u.brief); set('#briefNote', u.briefNote || '');
+  set('#briefLabel', '구상');
   const bd = $('#btnDigest');
   if(bd && !bd.querySelector('.busy')){
     // 아이콘(svg)은 남기고 텍스트 노드만 바꾼다
     const txt = Array.from(bd.childNodes).find(n=>n.nodeType===3 && n.textContent.trim());
-    const label=activePreset().skipSeed?(u.combinedBtn||'정리하고 결과 만들기'):u.btn;
+    const label=u.btn;
     if(txt) txt.textContent = label; else bd.append(label);
   }
   const setPh=(sel,v)=>{ const el=$(sel); if(el) el.placeholder=v||''; };
-  setPh('#optBrief',u.ph); setPh('#optExtra',u.extraPh); setPh('#rerollNote',u.rerollPh);
+  setPh('#optBrief',u.ph); setPh('#rerollNote',u.rerollPh);
   setPh('#continueNote',u.continuePh); setPh('#askIn',u.askPh);
   const castField=$('#castCountField'); if(castField) castField.hidden=S.opts.group!=='character';
   renderModeChooser(); renderNebulaPicker();
@@ -362,46 +372,69 @@ function renderGroup(){
   $('#studioPreset').innerHTML = list.map(p=>
     `<option value="${p.id}" ${p.id===S.activePreset?'selected':''}>${esc(p.name)}</option>`).join('')
     || '<option value="">이 분류에 양식이 없습니다</option>';
-  $('#studioNote').textContent = PRESET_NOTE[S.activePreset] || '';
+}
+function emptyWork(){
+  return {digest:null,digestSrc:'',digestMeta:null,seeds:[],sel:[],card:null,locked:{},
+    violations:null,verdict:null,cast:[],relations:null,qa:[],libId:null,screen:null};
+}
+function flushCardEdits(){
+  if(window.__saveT){
+    clearTimeout(window.__saveT); window.__saveT=null;
+    if(S.project.card) saveRecord();
+  }
+}
+function stashWork(){
+  flushCardEdits();
+  stashDigest(S.opts.group);
+  const project={};
+  Object.keys(emptyWork()).forEach(k=>{ project[k]=S.project[k]??emptyWork()[k]; });
+  const by=S.project.workBy||(S.project.workBy={});
+  by[S.opts.group]={presetId:S.activePreset, project:clone(project),
+    continueNote:$('#continueNote').value, rerollNote:$('#rerollNote').value};
 }
 function switchPreset(id){
-  if(!id) return;
+  if(!id || id===S.activePreset) return true;
+  if(!canChangeWork()){ renderGroup(); renderPresetSel(); return false; }
+  const next=S.presets.find(p=>p.id===id); if(!next) return false;
+  flushCardEdits();
   OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
   const prevGroup = S.opts.group;
-  S.activePreset = id;
-  const p = activePreset();
-  const pg = p.group || 'character';
+  const pg = next.group || 'character';
   if(pg!=='all' && pg!==prevGroup){
-    // 분류가 바뀌면 읽은 요약도 그 분류 것으로 갈아끼운다
-    stashDigest(prevGroup);
-    S.opts.group = pg;
-    loadDigest(pg);
-    $('#optBrief').value=curBrief();
-    $('#optExtra').value=curExtra();
-    syncLibFilter(); renderLib();
+    applyGroup(pg);
+    if(id===S.activePreset) return true;
   }
+  S.activePreset = id;
+  S.project.screen='input';
   S.project.card = null; S.project.locked = {}; S.project.qa = [];
   if($('#continueNote')) $('#continueNote').value='';
   S.project.violations = null; S.project.verdict = null;
+  S.project.seeds=[]; S.project.sel=[]; S.project.cast=[]; S.project.relations=null;
   S.project.libId = null;
-  save();
+  save(); touchDraft();
   renderGroup(); renderPresetSel(); renderSchema(); renderStages();
-  renderDigest(); renderSeeds(); renderCard(); renderCheck(); renderQA();
+  renderDigest(); renderSeeds(); renderCard(); renderCheck(); renderCast(); renderQA();
   renderMat(); applyGroupUi(); renderOneshot();
+  return true;
 }
 function applyGroup(g){
+  if(!['world','character','prompt'].includes(g)) return false;
+  if(g===S.opts.group) return true;
+  if(!canChangeWork()) return false;
   OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
-  stashDigest(S.opts.group);
+  stashWork();
   S.opts.group = g;
-  loadDigest(g);
   $('#optBrief').value=curBrief();
   const list = presetsInGroup(g);
-  if(list.length && !list.find(p=>p.id===S.activePreset)) S.activePreset = list[0].id;
-  // 작업 중이던 것은 분류마다 따로 둔다
-  S.project.card = null; S.project.locked = {}; S.project.qa = [];
-  if($('#continueNote')) $('#continueNote').value='';
-  S.project.violations = null; S.project.verdict = null;
-  S.project.seeds = []; S.project.sel = []; S.project.libId = null;
+  const saved=(S.project.workBy||{})[g];
+  const restore=saved && list.some(p=>p.id===saved.presetId);
+  if(restore) S.activePreset=saved.presetId;
+  else if(list.length && !list.find(p=>p.id===S.activePreset)) S.activePreset = list[0].id;
+  Object.assign(S.project,emptyWork(),restore?clone(saved.project):{});
+  if(restore) delete S.project.workBy[g];
+  else loadDigest(g);
+  $('#continueNote').value=restore?saved.continueNote||'':'';
+  $('#rerollNote').value=restore?saved.rerollNote||'':'';
   renderDigest();
   // 기록과 대화도 지금 분류에 맞춘다
   libFilter = g; if($('#libFilter')) $('#libFilter').value = g;
@@ -410,10 +443,10 @@ function applyGroup(g){
     S.chat.role = roleFor[g] || 'world';
     if($('#talkRole')) $('#talkRole').value = S.chat.role;
   }
-  save();
-  $('#optExtra').value = curExtra(); renderReq();
+  save(); touchDraft();
   renderGroup(); renderPresetSel(); renderSchema(); renderStages();
-  renderSeeds(); renderCard(); renderCheck(); renderQA(); renderLib(); renderMat(); applyGroupUi(); renderOneshot();
+  renderSeeds(); renderCard(); renderCheck(); renderCast(); renderQA(); renderLib(); renderMat(); applyGroupUi(); renderOneshot();
+  return true;
 }
 $('#groupBox').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;

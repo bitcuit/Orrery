@@ -10,7 +10,8 @@ function tab(name){
   markNav();
   $$('.view').forEach(v=>v.classList.toggle('on', v.id==='v-'+name));
   if(name==='log') renderLog();
-  if(name==='talk') renderChat();
+  if(name==='studio'){ renderConnectionAction(); renderStudioScreen(); }
+  if(name==='talk'){ renderChat(); syncTalkSettingsLabel(); }
   if(name==='library'){ // 기록은 열 때마다 분류 '전부'·검색 초기화
     libFilter=''; libQuery='';
     if($('#libFilter')) $('#libFilter').value='';
@@ -21,17 +22,27 @@ function tab(name){
 }
 $$('.topctl button[data-tab]').forEach(b=> b.addEventListener('click', ()=>tab(b.dataset.tab)));
 
+function syncTalkSettingsLabel(){
+  const select=$('#talkRole');
+  $('#talkSettingsSummary').textContent=select.selectedOptions[0]?.textContent||'';
+}
+$('#talkRole').addEventListener('change',syncTalkSettingsLabel);
+(function(){
+  if(typeof window.matchMedia!=='function') return;
+  const desktop=window.matchMedia('(min-width: 981px)');
+  const sync=()=>{ $('#talkSettings').open=desktop.matches; };
+  desktop.addEventListener('change',sync); sync();
+})();
+
 /* 쉬운 모드 */
 function applyEasy(){
   const on = !!S.opts.easy;
   document.body.classList.toggle('easy', on);
   const btn = $('#btnEasy');
   if(btn){ btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on); }
-  if(on && S.opts.buildMode!=='oneshot'){ S.opts.buildMode='oneshot'; if(typeof renderBuildMode==='function') renderBuildMode(); }
 }
 function setEasy(on){
   S.opts.easy = !!on;
-  if(on) S.opts.buildMode='oneshot';
   applyEasy();
   if(typeof renderBuildMode==='function') renderBuildMode();
   if(typeof renderOneshot==='function') renderOneshot();
@@ -61,6 +72,7 @@ $('#welcomeModal').addEventListener('click', e=>{
 
 function bootUI(){
   convertPrefs();
+  if(mergeLegacyRequests()){ save(); touchDraft(); }
   $('#optLang').value = S.opts.lang;
   $('#optTone').value = S.opts.tone;
   $('#optSeedN').value = S.opts.seedCount;
@@ -68,10 +80,9 @@ function bootUI(){
   $('#optNsfw').value = S.opts.nsfw ? '1':'0';
   $('#optCheck').value = S.opts.check ? '1':'0';
   $('#logVerbose').checked = !!S.logVerbose;
-  $('#optExtra').value = curExtra();
-  renderReq();
   $('#optBrief').value = curBrief();
   $('#talkRole').value = S.chat.role;
+  $('#chatIn').value=S.chat.inputDraft||'';
   $('#ctxAssets').checked = !!S.chat.ctx.assets;
   $('#ctxDigest').checked = !!S.chat.ctx.digest;
   $('#ctxCard').checked   = !!S.chat.ctx.card;
@@ -81,6 +92,7 @@ function bootUI(){
   renderConnSel(); renderConns(); renderGroup(); renderPresetSel(); renderSchema(); renderStages();
   renderAssets(); renderDigest(); renderSeeds(); renderCard(); renderCheck(); renderCast(); renderQA(); renderLib(); renderChat(); renderMat(); applyGroupUi(); renderOneshot();
   updateTalkRoleUI();
+  syncTalkSettingsLabel();
   applyEasy();
 }
 
@@ -127,6 +139,7 @@ function bootUI(){
   if(S.connections.length && !S.connections.find(c=>c.id===S.activeConn)) S.activeConn = S.connections[0].id;
   bootUI();
   BOOTING=false;
+  if(restoredDraft) touchDraft();
   if(restoredDraft) setTimeout(()=>toast('이전 작업물을 불러왔습니다'),250);
   if(LOAD_ERROR){
     setSaveState('저장 데이터 읽기 실패 · 복구본 보존됨','err',true);
@@ -143,6 +156,85 @@ log('Orrery 궤도 진입. ' + (location.protocol==='file:'
     if(e.key==='Escape' && abortCurrentCall()) toast('요청을 멈추는 중입니다');
   });
   window.addEventListener('beforeunload', ()=>{ if(DRAFT_DIRTY) saveDraftNow(); });
+})();
+
+/* 요청 중에는 입력과 작업 교체를 막고, 탐색·복사·중지는 허용한다. */
+(function(){
+  const safe='#btnAbortCall,.qhelp,.fld-toggle,#btnToggleFields,.stage-toggle,#spine li,.modal-h button,'+
+    '#btnCopyText,#btnDlText,#btnCopyCard,#btnDlCard,#btnDlPng,#btnLogCopy,#btnTalkCopy,.l-md,.l-json,.l-png';
+  function locked(target){
+    if(!workIsBusy() || !(target instanceof Element) || target.closest(safe)) return false;
+    if(target.closest('#groupBox [data-group],#btnEasy,#connSel,#drop,#talkAssetList')) return true;
+    const control=target.closest('button,input,select,textarea,.mode,.seed,.q-apply,.l-open');
+    return !!(control && target.closest('#v-studio,#v-sources,#v-settings,#v-prompts,#libList,#libViewActions'));
+  }
+  function block(e){
+    if(e.type==='keydown' && ['Tab','Escape'].includes(e.key)) return;
+    if(!locked(e.target)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if(e.type==='click'||e.type==='keydown') canChangeWork();
+  }
+  ['pointerdown','click','keydown','beforeinput','change','drop'].forEach(type=>document.addEventListener(type,block,true));
+})();
+
+/* 모달의 포커스·배경 입력·닫기 동작을 한곳에서 관리한다. */
+(function(){
+  const stack=[], background=new Map();
+  let overflow='', hadModal=false;
+  const focusable='button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex]:not([tabindex="-1"])';
+  function top(){ return stack[stack.length-1]; }
+  function focusIn(modal){
+    const first=Array.from(modal.querySelectorAll(focusable)).find(el=>el.getClientRects().length);
+    (first||modal).focus();
+  }
+  function sync(records){
+    let closed;
+    records.forEach(({target:modal})=>{
+      if(!modal.classList.contains('modal')) return;
+      const index=stack.indexOf(modal);
+      if(modal.hidden){ if(index>=0){ stack.splice(index,1); closed=modal; } }
+      else if(index<0){ modal._returnFocus=document.activeElement; stack.push(modal); }
+    });
+    const active=top();
+    if(active){
+      if(!hadModal){ overflow=document.body.style.overflow; document.body.style.overflow='hidden'; }
+      Array.from(document.body.children).forEach(el=>{
+        if(!background.has(el)) background.set(el,el.inert);
+        el.inert=el!==active;
+      });
+      active.inert=false;
+      if(!active.contains(document.activeElement)) focusIn(active);
+    }else if(hadModal){
+      background.forEach((inert,el)=>{ el.inert=inert; }); background.clear();
+      document.body.style.overflow=overflow;
+      const origin=closed&&closed._returnFocus;
+      if(origin&&origin.isConnected) origin.focus();
+    }
+    hadModal=!!active;
+  }
+  const modals=$$('.modal');
+  modals.forEach(modal=>{
+    modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); modal.tabIndex=-1;
+    const heading=modal.querySelector('h2');
+    if(heading){ if(!heading.id) heading.id=modal.id+'Title'; modal.setAttribute('aria-labelledby',heading.id); }
+  });
+  const observer=new MutationObserver(sync);
+  modals.forEach(modal=>observer.observe(modal,{attributes:true,attributeFilter:['hidden']}));
+  sync(modals.map(target=>({target})));
+  document.addEventListener('keydown',e=>{
+    const modal=top(); if(!modal) return;
+    if(e.key==='Escape'){
+      e.preventDefault(); e.stopImmediatePropagation();
+      const close=Array.from(modal.querySelectorAll('.modal-h button')).find(btn=>/close$/i.test(btn.id));
+      if(close) close.click(); else modal.hidden=true;
+    }else if(e.key==='Tab'){
+      const list=Array.from(modal.querySelectorAll(focusable)).filter(el=>el.getClientRects().length);
+      const first=list[0],last=list[list.length-1];
+      if(!first){ e.preventDefault(); modal.focus(); }
+      else if(e.shiftKey&&(document.activeElement===first||document.activeElement===modal)){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey&&document.activeElement===last){ e.preventDefault(); first.focus(); }
+    }
+  },true);
 })();
 
 $('#btnAbortCall').addEventListener('click', ()=>{
@@ -174,58 +266,112 @@ function dragScroll(el){
 }
 dragScroll(document.querySelector('.ctxbar2'));
 
-/* 용어 도움말 툴팁 — 데스크톱은 hover, 모바일은 탭으로 여닫기 */
+/* 용어 도움말 툴팁 — hover·클릭·키보드 포커스로 여닫기 */
 (function(){
   const tip = document.createElement('div'); tip.id = 'tipbox';
+  tip.setAttribute('role','tooltip'); tip.hidden=true;
   document.body.appendChild(tip);
-  let cur = null;
+  let cur=null, openedBy='', pointerTarget=null, ownsDescription=false;
+  const helpButton=target=>target instanceof Element?target.closest('.qhelp'):null;
+  function visible(btn){
+    if(!btn || !btn.isConnected || btn.matches(':disabled')) return false;
+    for(let el=btn; el; el=el.parentElement){
+      const css=getComputedStyle(el);
+      if(el.hidden || el.getAttribute('aria-hidden')==='true' || css.display==='none' || css.visibility==='hidden' || css.visibility==='collapse') return false;
+      if(el.tagName==='DETAILS' && !el.open){
+        const summary=Array.from(el.children).find(child=>child.tagName==='SUMMARY');
+        if(!summary || !summary.contains(btn)) return false;
+      }
+    }
+    return true;
+  }
   function place(){
     if(!cur) return;
+    if(!visible(cur)) return hide();
     const r = cur.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+    if(r.bottom<0 || r.top>innerHeight || r.right<0 || r.left>innerWidth) return hide();
     let x = r.left + r.width/2 - tw/2;
     x = Math.max(12, Math.min(x, innerWidth - tw - 12));
     let y = r.bottom + 8;
     if(y + th > innerHeight - 12) y = r.top - th - 8;
+    y=Math.max(12,y);
     tip.style.left = x+'px'; tip.style.top = y+'px';
   }
-  function show(btn){
-    if(cur) cur.classList.remove('on');
-    cur = btn; btn.classList.add('on');
-    tip.textContent = btn.dataset.tip || '';
-    tip.classList.add('on');
+  function show(btn,source){
+    if(!visible(btn) || !btn.dataset.tip) return;
+    if(cur!==btn){
+      hide(); cur=btn;
+      const ids=(btn.getAttribute('aria-describedby')||'').split(/\s+/).filter(Boolean);
+      ownsDescription=!ids.includes(tip.id);
+      if(ownsDescription) btn.setAttribute('aria-describedby',[...ids,tip.id].join(' '));
+    }
+    openedBy=source; btn.classList.add('on');
+    tip.textContent=btn.dataset.tip;
+    tip.hidden=false; tip.classList.add('on');
     place();
   }
   function hide(){
-    if(cur) cur.classList.remove('on');
-    cur = null; tip.classList.remove('on');
+    if(cur){
+      cur.classList.remove('on');
+      if(ownsDescription){
+        const ids=(cur.getAttribute('aria-describedby')||'').split(/\s+/).filter(id=>id && id!==tip.id);
+        if(ids.length) cur.setAttribute('aria-describedby',ids.join(' '));
+        else cur.removeAttribute('aria-describedby');
+      }
+    }
+    cur=null; openedBy=''; ownsDescription=false;
+    tip.hidden=true; tip.classList.remove('on');
   }
-  // 마우스만 hover로 — 터치는 pointerover가 탭 직전에 와서 click 토글과 겹친다
+  // 포인터로 받은 포커스는 클릭에서 처리해 첫 터치가 곧바로 닫히지 않게 한다.
+  document.addEventListener('pointerdown',e=>{ pointerTarget=helpButton(e.target); });
+  document.addEventListener('pointercancel',()=>{ pointerTarget=null; });
+  // 마우스만 hover로 — 터치는 클릭 토글만 사용한다.
   document.addEventListener('pointerover', e=>{
     if(e.pointerType!=='mouse') return;
-    const b = e.target.closest('.qhelp'); if(b && cur!==b) show(b);
+    const b=helpButton(e.target);
+    if(b && !b.contains(e.relatedTarget) && cur!==b) show(b,'hover');
   });
   document.addEventListener('pointerout', e=>{
     if(e.pointerType!=='mouse') return;
-    const b = e.target.closest('.qhelp'); if(b && cur===b) hide();
+    const b=helpButton(e.target);
+    if(b && !b.contains(e.relatedTarget) && cur===b && openedBy==='hover') hide();
+  });
+  document.addEventListener('focusin',e=>{
+    const b=helpButton(e.target);
+    if(b && pointerTarget!==b) show(b,'focus');
+  });
+  document.addEventListener('focusout',e=>{
+    const b=helpButton(e.target);
+    if(b && cur===b && !b.contains(e.relatedTarget)) hide();
   });
   document.addEventListener('click', e=>{
-    const b = e.target.closest('.qhelp');
+    pointerTarget=null;
+    const b=helpButton(e.target);
     if(b){
       e.preventDefault();
-      // 마우스는 hover로 이미 떠 있으니 클릭으로 닫지 않는다 — 토글은 터치용
-      if(cur===b){ if(e.pointerType!=='mouse') hide(); }
-      else show(b);
+      // button의 Enter/Space도 기본 click으로 들어오므로 별도 키 토글을 겹치지 않는다.
+      if(cur===b) hide(); else show(b,'click');
       return;
     }
     if(cur) hide();
   });
-  window.addEventListener('keydown', e=>{ if(e.key==='Escape') hide(); });
-  // 스크롤 중에는 닫지 않고 앵커를 따라간다 — 화면 밖으로 나가면 닫기
-  window.addEventListener('scroll', ()=>{
-    if(!cur) return;
-    const r = cur.getBoundingClientRect();
-    if(r.bottom < 0 || r.top > innerHeight) hide(); else place();
-  }, true);
+  window.addEventListener('keydown',e=>{
+    pointerTarget=null;
+    if(e.key==='Escape' && cur){
+      hide(); e.preventDefault(); e.stopPropagation();
+    }
+  },true);
+  // 화면 전환·접기·동적 문구 변경을 따라가고, 사라진 트리거의 설명은 남기지 않는다.
+  const observer=new MutationObserver(records=>{
+    if(!cur || !records.some(record=>record.target!==tip && !tip.contains(record.target))) return;
+    if(!visible(cur) || !cur.dataset.tip) return hide();
+    if(tip.textContent!==cur.dataset.tip) tip.textContent=cur.dataset.tip;
+    place();
+  });
+  observer.observe(document.body,{subtree:true,childList:true,attributes:true,
+    attributeFilter:['class','style','hidden','open','disabled','data-tip','aria-hidden']});
+  // 스크롤 중에는 앵커를 따라가고 화면 밖으로 나가면 닫는다.
+  window.addEventListener('scroll',place,true);
   window.addEventListener('resize', place);
 })();
 

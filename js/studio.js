@@ -1402,8 +1402,7 @@ function modeNote(stage){
 }
 
 function curExtra(){
-  const e = S.opts.extraBy || (S.opts.extraBy = {world:'',character:'',prompt:''});
-  return (e[S.opts.group] || '').trim();
+  return curBrief().trim();
 }
 function activePreset(){
   return S.presets.find(p=>p.id===S.activePreset) || S.presets[0];
@@ -1478,7 +1477,7 @@ async function parseJsonReply(conn, msgs, opts, raw, retryOnce){
         ]);
     let raw2;
     try{ raw2=await callProvider(conn,follow,opts); }
-    catch(callErr){ callErr.raw=raw; throw callErr; }
+    catch(callErr){ if(callErr.message!=='__ABORT__') callErr.raw=raw; throw callErr; }
     const candidates=cut ? [joinResponseChunks(raw,raw2),raw2] : [raw2];
     for(const candidate of candidates){
       try{
@@ -1555,10 +1554,13 @@ async function runStage(stageName, vars, retryOnce){
     msgs.push({role:'user',content:'작업 방식 — 아래 방향을 반드시 적용할 것.\n'+modeInstruction});
   }
   const req = curExtra();
-  if(req && !st.blocks.some(b=>/\{\{extra(Rule)?\}\}/.test(b.content))){
-    msgs.push({role:'user', content:'추가 요청 — 아래를 반드시 지킬 것.\n'+req});
+  if(req && !msgs.some(m=>m.content.includes(req))){
+    msgs.push({role:'user', content:'사용자의 구상·요청 — 아래 조건을 지킬 것.\n'+req});
   }
   const opts = {temperature:st.temperature, maxTokens:st.maxTokens};
+  if(ACTIVE_TASK?.studio){
+    ACTIVE_TASK.label=({digest:'재료를 정리하고 있습니다',seed:'후보를 만들고 있습니다',cross:'후보를 섞고 있습니다',expand:'결과를 만들고 있습니다',check:'결과를 검증하고 있습니다',relate:'관계를 만들고 있습니다'})[stageName]||'결과를 다듬고 있습니다';
+  }
   const raw = await callProvider(conn, msgs, opts);
   try{
     const parsed=await parseJsonReply(conn,msgs,opts,raw,retryOnce);
@@ -1595,8 +1597,10 @@ async function doSeeds(){
     ? `\n이미 만들어진 인물 (겹치지 않게):\n${S.project.cast.map(c=>'- '+(c.fields.name||'?')+': '+(c.seed?c.seed.line:'')).join('\n')}\n` : '';
   const j = await runStage('seed', { digest: digestStr(), castNote, modeNote: modeNote('seed') });
   const arr = Array.isArray(j) ? j : (j.seeds || j.items || []);
-  S.project.seeds = arr.map((s,i)=>({ id:s.id||('s'+i), line:s.line||s.concept||'', hook:s.hook||'', angle:s.angle||'' }))
-                       .filter(s=>s.line);
+  if(!Array.isArray(arr)) throw new Error('후보 목록을 읽지 못했습니다. 다시 뽑아 주세요.');
+  const seeds=arr.filter(s=>s&&typeof s==='object').map((s,i)=>({ id:s.id||('s'+i), line:s.line||s.concept||'', hook:s.hook||'', angle:s.angle||'' })).filter(s=>s.line);
+  if(!seeds.length) throw new Error('만들어진 후보가 없습니다. 다시 뽑아 주세요.');
+  S.project.seeds=seeds;
   S.project.sel = [];
   return S.project.seeds;
 }
@@ -1628,6 +1632,7 @@ async function doExpand(seed){
   const fields = {};
   P.schema.forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
   Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string') fields[k]=j[k]; });
+  if(!Object.keys(fields).length) throw new Error('결과에서 칸을 찾지 못했습니다. 다시 만들어 주세요.');
   return { fields, seed, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:STAGE_RAW.expand?clone(Object.assign({},STAGE_RAW.expand,{label:'결과 만들기 원문'})):null };
 }
 async function doPatch(){
@@ -1808,15 +1813,14 @@ async function doContinueConversion(){
 // 대화에서 정해진 내용을 지금 결과에 반영 (잠근 칸은 건드리지 않음)
 async function doChatToCard(){
   const card=S.project.card; if(!card) throw new Error('먼저 작업대에서 결과를 만들어 주세요.');
-  if(!S.chat.msgs.length && !S.chat.summary) throw new Error('반영할 대화가 없습니다.');
+  const convo=talkTranscript(true);
+  if(!convo.trim()) throw new Error('반영할 대화가 없습니다.');
   const conn=S.connections.find(c=>c.id===S.activeConn);
   if(!conn) throw new Error('먼저 연결을 만들어 주세요.');
   const P=activePreset();
   const locked = P.schema.filter(f=>S.project.locked[f.key]).map(f=>f.key);
   const editable = P.schema.filter(f=>!S.project.locked[f.key]).map(f=>f.key);
   if(!editable.length) throw new Error('모든 칸이 잠겨 있습니다. 반영할 칸을 열어 주세요.');
-  const convo = (S.chat.summary?'[지금까지의 정리]\n'+S.chat.summary+'\n\n':'')
-    + S.chat.msgs.map(m=>(m.role==='user'?'[나] ':'[상대] ')+m.content).join('\n\n');
   const messages=[
     {role:'system',content:`당신은 이미 작성된 결과를, 아래 대화에서 정해진 내용대로 고치는 편집자다. 대화에서 실제로 합의되거나 결정된 것만 반영하고, 언급되지 않은 칸은 절대 바꾸지 마라. 새 내용을 멋대로 지어내지 마라. ${(S.opts.lang||'한국어')} 로 쓴다.`},
     {role:'user',content:`결과의 칸:\n${schemaSpec()}\n\n지금 결과:\n${JSON.stringify(card.fields,null,1)}\n\n바꾸면 안 되는(잠긴) 칸: ${locked.join(', ')||'(없음)'}\n고칠 수 있는 칸: ${editable.join(', ')}\n\n대화:\n${convo}\n\n아래 형식의 유효한 JSON 하나만 출력하라.\n{"updates":{"칸_키":"그 칸의 새 전체 값"}}\n- updates에는 대화에서 실제로 바뀐 칸만, 고칠 수 있는 칸 중에서만 넣어라.\n- 값은 기존 값을 덮어쓸 전체 문장으로 써라(일부만 쓰지 마라).\n- 바뀐 칸이 없으면 {"updates":{}} 를 출력하라.\n- 설명·코드펜스는 쓰지 마라.`}
@@ -1854,10 +1858,10 @@ async function doRelate(){
 }
 
 /* --- V2 카드로 조립 --- */
-function guessName(fields){
+function guessName(fields, preset){
   if(fields.name) return String(fields.name).trim();
   const keys = ['name','head','이름']
-    .concat(activePreset().schema.map(f=>f.key), Object.keys(fields))
+    .concat((preset||activePreset()).schema.map(f=>f.key), Object.keys(fields))
     .filter((k,i,a)=>a.indexOf(k)===i);
   for(const k of keys){
     const v = fields[k]; if(!v) continue;
@@ -1868,8 +1872,8 @@ function guessName(fields){
   }
   return '이름 없음';
 }
-function toV2(fields){
-  const P = activePreset();
+function toV2(fields, preset){
+  const P = preset || activePreset();
   const special = ['name','first_mes','mes_example','scenario','personality','description'];
   const seen = {};
   const rows = [];
@@ -1883,7 +1887,7 @@ function toV2(fields){
   return {
     spec:'chara_card_v2', spec_version:'2.0',
     data:{
-      name: guessName(fields),
+      name: guessName(fields, P),
       description: desc,
       personality: fields.personality || '',
       scenario: fields.scenario || '',
@@ -1919,7 +1923,8 @@ function bytesToB64(bytes){
   for(let i=0;i<bytes.length;i+=CH) s += String.fromCharCode.apply(null, bytes.subarray(i,i+CH));
   return btoa(s);
 }
-async function makeCardPng(fields){
+async function makeCardPng(fields, preset){
+  const card=toV2(fields, preset || activePreset());
   const cv = document.createElement('canvas'); cv.width=400; cv.height=600;
   const g = cv.getContext('2d');
   if(!g) throw new Error('이 브라우저에서 PNG를 만들지 못했습니다. JSON 내려받기를 쓰세요.');
@@ -1928,14 +1933,14 @@ async function makeCardPng(fields){
   g.fillStyle=grd; g.fillRect(0,0,400,600);
   g.strokeStyle='#A97F37'; g.lineWidth=2; g.strokeRect(14,14,372,572);
   g.fillStyle='#D5A24E'; g.font='600 30px Georgia, serif'; g.textAlign='center';
-  const nm = guessName(fields).slice(0,16);
+  const nm = card.data.name.slice(0,16);
   g.fillText(nm, 200, 300);
   g.fillStyle='#63768A'; g.font='11px monospace';
   g.fillText('ORRERY', 200, 330);
   const blob = await new Promise(r=>cv.toBlob(r,'image/png'));
   if(!blob) throw new Error('이 브라우저에서 PNG를 만들지 못했습니다. JSON 내려받기를 쓰세요.');
   const buf = new Uint8Array(await blob.arrayBuffer());
-  const json = JSON.stringify(toV2(fields));
+  const json = JSON.stringify(card);
   const b64 = bytesToB64(new TextEncoder().encode(json));
   const payload = new TextEncoder().encode('chara\0'+b64);
   const chunk = pngChunk('tEXt', payload);
@@ -1960,29 +1965,99 @@ async function makeCardPng(fields){
    ================================================================== */
 const STAGE_PANEL = { digest:'digestPanel', seed:'seedPanel', expand:'expandPanel', check:'checkPanel' };
 let OPEN_DONE_STAGE = null, CLOSED_DONE_STAGE = null, STAGE_SCROLL_TIMER = null;
-function scrollToStage(stage, reopen){
-  if(reopen){ OPEN_DONE_STAGE=stage; if(CLOSED_DONE_STAGE===stage) CLOSED_DONE_STAGE=null; }
-  else OPEN_DONE_STAGE=null;
-  setSpine();
-  const panel=$('#'+STAGE_PANEL[stage]);
-  if(!panel || panel.style.display==='none') return;
+function currentStudioScreen(){
+  const p=S.project;
+  let screen=p.screen || (p.card&&!p.card.inputOpen?'result':'input');
+  if(!['input','digest','seed','result','cast'].includes(screen)) screen='input';
+  if(screen==='result'&&!p.card) screen='input';
+  if(screen==='digest'&&!p.digest) screen='input';
+  if(screen==='seed'&&!p.seeds.length) screen=p.digest?'digest':'input';
+  if(screen==='cast'&&!p.cast.length) screen='input';
+  return screen;
+}
+function renderStudioScreen(){
+  const p=S.project, P=activePreset(), one=S.opts.buildMode==='oneshot', screen=currentStudioScreen();
+  const loading=!!(ACTIVE_TASK&&ACTIVE_TASK.studio), shown=loading?'loading':screen;
+  $('#studioInput').hidden=shown!=='input';
+  $('#studioResults').hidden=shown!=='result';
+  $('#digestPanel').hidden=shown!=='digest';
+  $('#seedPanel').hidden=shown!=='seed';
+  $('#castPanel').hidden=shown!=='cast';
+  if(shown==='cast') $('#castPanel').style.display='';
+  $('#studioLoading').hidden=!loading;
+  $('#studioResultNav').hidden=loading||shown==='input';
+  $('#btnViewResult').hidden=loading||screen!=='input'||!(p.card||p.cast.length||p.seeds.length||p.digest);
+  $('#btnViewResult').textContent=p.card?'결과 다시 보기':'진행 중인 작업 보기';
+  $('#btnBackToCast').hidden=shown!=='result'||!p.cast.length;
+  $('#v-studio').classList.toggle('result-screen',shown==='result');
+  $('#v-studio').setAttribute('aria-busy',String(loading));
+  $('#spine').hidden=loading||shown==='input'||shown==='cast'||(one&&shown==='result');
+  $('#spine1').textContent='정리 확인';
+  $$('#spine li').forEach(li=>{
+    const current=li.dataset.st===(screen==='result'?'expand':screen);
+    li.classList.toggle('now',current);
+    if(current) li.setAttribute('aria-current','step'); else li.removeAttribute('aria-current');
+  });
+  $('#buildGuide').hidden=true;
+  $('#s3Title').textContent='결과';
+  $('#studioResultPreset').textContent=P.name;
+  $('#btnDigestNext').textContent=activeMode()==='cast'?'캐스트 만들기 →':P.skipSeed?'결과 만들기 →':'후보 만들기 →';
+  $('#btnDigestNext').disabled=!p.digest;
+  const digestButton=$('#btnDigest');
+  if(!digestButton.querySelector('.busy')) digestButton.textContent=p.digest?'다시 정리하기':'재료 정리하기';
+  digestButton.classList.remove('primary'); digestButton.classList.add('ghost');
+  $('#btnSeeds').classList.remove('primary'); $('#btnSeeds').classList.add('ghost');
+  $('#btnSeedNext').disabled=p.sel.length!==1;
+  $('#btnSeedNext').textContent=p.sel.length===2?'후보 둘을 먼저 섞어 주세요':'이 후보로 만들기 →';
+  if(loading){
+    $('#studioLoadingTitle').textContent=ACTIVE_TASK.cancelled?'요청을 중지하는 중입니다':(ACTIVE_TASK.label||'만드는 중입니다');
+    $('#studioLoadingStep').textContent=ACTIVE_TASK.calls?`API 요청 ${ACTIVE_TASK.calls}회째 · 응답을 기다리고 있습니다`:'요청을 준비하고 있습니다';
+    const stop=$('#btnAbortCall');
+    if(stop.parentElement!==$('#studioStopSlot')) $('#studioStopSlot').append(stop);
+    stop.hidden=false; stop.classList.add('inline');
+  }
+}
+function showStudioScreen(screen){
+  S.project.screen=screen;
+  screen=currentStudioScreen(); S.project.screen=screen;
+  if(S.project.card) S.project.card.inputOpen=screen==='input';
+  renderStudioScreen(); renderConnectionAction(); touchDraft();
   clearTimeout(STAGE_SCROLL_TIMER);
-  STAGE_SCROLL_TIMER=setTimeout(()=>{
-    panel.classList.add('stage-arrive');
-    panel.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
-    setTimeout(()=>panel.classList.remove('stage-arrive'),700);
-  },80);
+  if(curTab!=='studio'||ACTIVE_TASK?.studio) return;
+  window.scrollTo({top:0,behavior:'instant'});
+  const focus=screen==='input'?$('#studioPreset'):screen==='result'?$('#resultHeading'):
+    screen==='cast'?$('#castPanel h2'):$('#'+STAGE_PANEL[screen]+' h2');
+  if(focus){ if(focus.tagName==='H2') focus.tabIndex=-1; focus.focus({preventScroll:true}); }
+}
+$('#btnBackToInput').addEventListener('click',()=>{
+  if(!canChangeWork()) return;
+  flushCardEdits(); showStudioScreen('input');
+});
+$('#btnViewResult').addEventListener('click',()=>{
+  if(!canChangeWork()) return;
+  const p=S.project;
+  showStudioScreen(p.card?'result':p.cast.length?'cast':p.seeds.length?'seed':p.digest?'digest':'input');
+});
+$('#btnBackToCast').addEventListener('click',()=>{ if(canChangeWork()) showStudioScreen('cast'); });
+$('#btnDigestNext').addEventListener('click',()=>{
+  $(activeMode()==='cast'?'#btnCast':activePreset().skipSeed?'#btnExpand':'#btnSeeds').click();
+});
+$('#btnSeedNext').addEventListener('click',()=>$('#btnExpand').click());
+function scrollToStage(stage, reopen){
+  setSpine();
+  showStudioScreen(stage==='expand'||stage==='check'?'result':stage);
+  if(stage==='check') $('#resultAdvanced').open=true;
 }
 function setSpine(){
   const p = S.project;
   const P = activePreset();
   const done = { digest: !!p.digest, seed: P.skipSeed || p.sel.length===1, expand: !!p.card, check: P.skipCheck || !!p.verdict };
   const order = ['digest','seed','expand','check'];
-  const visible=order.filter(k=>!((k==='seed'&&P.skipSeed)||(k==='check'&&P.skipCheck)));
+  const visible=order.filter(k=>k!=='check'&&!(k==='seed'&&P.skipSeed));
   if(CLOSED_DONE_STAGE && !done[CLOSED_DONE_STAGE]) CLOSED_DONE_STAGE=null;
   $$('#spine li').forEach(li=>{
     const k=li.dataset.st;
-    li.style.display = ((k==='seed'&&P.skipSeed)||(k==='check'&&P.skipCheck)) ? 'none' : '';
+    li.style.display = visible.includes(k) ? '' : 'none';
   });
   visible.forEach((k,i)=>{
     const number=String(i+1), li=$(`#spine li[data-st="${k}"]`), panel=$('#'+STAGE_PANEL[k]);
@@ -1994,30 +2069,24 @@ function setSpine(){
     const k = li.dataset.st;
     li.classList.toggle('done', done[k]);
     li.classList.toggle('now', k===cur);
-    const available=visible.includes(k)&&(done[k]||k===cur);
+    const available=visible.includes(k)&&({digest:!!p.digest,seed:!!p.seeds.length,expand:!!p.card,check:!!p.card})[k];
     li.setAttribute('role','button');
     li.classList.toggle('available',available);
     li.tabIndex=available?0:-1;
     li.setAttribute('aria-disabled',String(!available));
     if(k===cur) li.setAttribute('aria-current','step'); else li.removeAttribute('aria-current');
   });
-  // 점진 공개: 단계별 모드에서 아직 차례가 안 온 단계는 제목만 남기고 접는다. 지금 할 단계는 강조.
-  const staged = S.opts.buildMode!=='oneshot';
-  const curIdx = order.indexOf(cur);
-  order.forEach((k,i)=>{
+  // 화면은 현재 단계 하나만 표시한다. 완료 단계는 위 단계선에서 다시 연다.
+  order.forEach(k=>{
     const el = $('#'+STAGE_PANEL[k]); if(!el) return;
-    const collapsed=staged && done[k] && (CLOSED_DONE_STAGE===k || (k!==cur && OPEN_DONE_STAGE!==k));
-    el.classList.toggle('locked', staged && i>curIdx && !done[k]);
-    el.classList.toggle('now', staged && k===cur && !done[k]);
-    el.classList.toggle('stage-collapsed',collapsed);
+    el.classList.remove('locked','now','stage-collapsed');
     const title=el.querySelector('h2');
     if(title){
-      const toggle=staged && done[k];
-      title.classList.toggle('stage-toggle',toggle);
-      if(toggle){ title.setAttribute('role','button'); title.tabIndex=0; title.setAttribute('aria-expanded',String(!collapsed)); }
-      else { title.removeAttribute('role'); title.removeAttribute('tabindex'); title.removeAttribute('aria-expanded'); }
+      title.classList.remove('stage-toggle'); title.removeAttribute('role');
+      title.tabIndex=-1; title.removeAttribute('aria-expanded');
     }
   });
+  renderStudioScreen();
 }
 function openSpineStage(target){
   const item=target.closest('#spine li.available'); if(!item) return;
@@ -2129,11 +2198,11 @@ function renderSeeds(){
   }
   box.innerHTML = `<div class="seeds">${p.seeds.map((s,i)=>{
     const idx = p.sel.indexOf(s.id);
-    return `<div class="seed ${idx===0?'on':idx===1?'mate':''}" data-sid="${s.id}">
+    return `<button type="button" class="seed ${idx===0?'on':idx===1?'mate':''}" data-sid="${s.id}" aria-pressed="${idx>=0}">
       <span class="idx">${s.crossed?'✶ 합성':'✦ '+String(i+1).padStart(2,'0')}${idx>=0?' · 고름':''}</span>
-      <div class="line">${esc(s.line)}</div>
-      <div class="hook"><b>출발점</b> ${esc(s.hook||'-')}<br><b>역할</b> ${esc(s.angle||'-')}</div>
-    </div>`;
+      <span class="line">${esc(s.line)}</span>
+      <span class="hook"><b>출발점</b> ${esc(s.hook||'-')}<br><b>역할</b> ${esc(s.angle||'-')}</span>
+    </button>`;
   }).join('')}</div>`;
   setSpine();
 }
@@ -2152,6 +2221,7 @@ function renderContinue(){
   box.hidden=!card; if(!card) return;
   const count=Array.isArray(card.continuations)?card.continuations.length:0;
   box.classList.toggle('cut',!!card.truncated);
+  if(card.truncated) box.open=true;
   $('#continueTitle').textContent=card.truncated?'출력이 중간에 끊겼습니다':'이어서 만들기';
   $('#continueHint').textContent=card.truncated
     ? `${card.truncatedField?card.truncatedField+' 칸부터 ':''}복구한 결과입니다 · 이어서 만들면 남은 내용을 붙입니다`
@@ -2232,7 +2302,7 @@ function renderCard(){
   $('#cardBar').style.display = p.card ? 'flex' : 'none';
   if(!p.card){
     $('#btnToggleFields').textContent='모두 펼치기';
-    box.innerHTML = `<div class="empty"><b>아직 결과가 없습니다</b>${P.skipSeed?'첫 단계에서 정리하고 결과 만들기를 누르세요.':'씨앗을 하나 고르고 결과를 만드세요.'}</div>`;
+    box.innerHTML = `<div class="empty"><b>아직 결과가 없습니다</b>${S.opts.buildMode==='oneshot'?'위에 구상을 적고 만들기를 눌러 주세요.':P.skipSeed?'첫 단계에서 정리하고 결과 만들기를 누르세요.':'후보를 하나 고르고 결과를 만드세요.'}</div>`;
     renderContinue(); renderConvert(); setSpine(); return;
   }
   if(!Array.isArray(p.card.openFields)) p.card.openFields=P.schema[0]?[P.schema[0].key]:[];
@@ -2270,13 +2340,14 @@ $('#cardOut').addEventListener('click', async e=>{
   }
   if(e.target.closest('.f-lock')){ S.project.locked[k] = !S.project.locked[k]; renderCard(); touchDraft(); return; }
   if(e.target.closest('.f-one')){
+    if(!canChangeWork()) return;
     const keep = clone(S.project.locked);
-    activePreset().schema.forEach(f=>{ S.project.locked[f.key] = f.key!==k; });
     const btn = e.target.closest('.f-one');
-    busy(btn,true,'…');
-    try{ await doPatch(); renderCard(); toast(k+' 칸을 다시 썼습니다'); }
-    catch(err){ showErr(err); }
-    finally{ S.project.locked = keep; busy(btn,false); renderCard(); saveRecord(); }
+    await guard(btn,'다시 쓰는 중',async()=>{
+      activePreset().schema.forEach(f=>{ S.project.locked[f.key] = f.key!==k; });
+      try{ await doPatch(); toast(k+' 칸을 다시 썼습니다'); }
+      finally{ S.project.locked=keep; renderCard(); saveRecord(); }
+    });
   }
 });
 $('#btnToggleFields').addEventListener('click',()=>{
@@ -2292,7 +2363,7 @@ $('#cardOut').addEventListener('input', e=>{
   renderConvert();
   touchDraft();
   clearTimeout(window.__saveT);
-  window.__saveT = setTimeout(()=>{ saveRecord(); }, 1200);
+  window.__saveT = setTimeout(()=>{ window.__saveT=null; saveRecord(); }, 1200);
 });
 
 ['convertSourceLang','convertTargetLang'].forEach(id=>$('#'+id).addEventListener('input',()=>{
@@ -2347,6 +2418,7 @@ $('#btnConvertMeaningToggle').addEventListener('click',()=>{
 
 function renderCheck(){
   const p = S.project, box = $('#checkOut');
+  $('#checkSummary').textContent=p.verdict?'· '+({pass:'검증: 문제 없음',warn:'검증: 확인 필요',fail:'검증: 수정 필요'}[p.verdict]||'검증 완료'):'';
   $('#verdictBox').innerHTML = p.verdict
     ? `<span class="verdict ${p.verdict}">${{pass:'문제 없음',warn:'확인 필요',fail:'고쳐야 함'}[p.verdict]||p.verdict}</span>` : '';
   if(!p.violations){ box.innerHTML=''; setSpine(); return; }
@@ -2413,12 +2485,12 @@ function renderCast(){
 $('#castOut').addEventListener('click', e=>{
   const o = e.target.closest('.c-open'), d = e.target.closest('.c-del');
   if(o){ const c = S.project.cast[+o.dataset.i];
-    S.project.card = {fields:clone(c.fields), seed:c.seed, truncated:!!c.truncated,
-      truncatedField:c.truncatedField||'', continuations:clone(c.continuations||[])}; S.project.locked={};
+    flushCardEdits();
+    S.project.card = clone(c); S.project.locked={}; S.project.libId=null; S.project.qa=[];
     $('#continueNote').value='';
     S.project.violations=null; S.project.verdict=null;
-    renderCard(); renderCheck(); toast('작업대로 옮겼습니다');
-    $('#cardOut').scrollIntoView({behavior:'smooth',block:'center'}); }
+    renderCard(); renderCheck(); renderQA(); saveRecord(); toast('작업대로 옮겼습니다');
+    showStudioScreen('result'); }
   if(d){ const c=S.project.cast[+d.dataset.i]; if(!confirm(`“${c&&c.fields&&c.fields.name||'이 인물'}”을 캐스트에서 삭제할까요?`)) return; S.project.cast.splice(+d.dataset.i,1); S.project.relations=null; renderCast(); touchDraft(); }
 });
 
@@ -2463,11 +2535,13 @@ async function askNow(q, mode){
   if(!q.trim()) return;
   if(!S.project.card) return toast('먼저 무언가를 만들어 주세요',1);
   const btn = $('#btnAsk');
-  await guard(btn, '묻는 중', async()=>{ await doAsk(q.trim(), mode); renderQA(); });
+  return guard(btn, '묻는 중', async()=>{ await doAsk(q.trim(), mode); renderQA(); touchDraft(); });
 }
-$('#btnAsk').addEventListener('click', ()=>{
-  const q = $('#askIn').value; $('#askIn').value = '';
-  askNow(q, $('#askMode').value);
+$('#btnAsk').addEventListener('click', async()=>{
+  const q = $('#askIn').value;
+  if(await askNow(q, $('#askMode').value)){
+    if($('#askIn').value===q) $('#askIn').value='';
+  }
 });
 $('#askIn').addEventListener('keydown', e=>{
   if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); $('#btnAsk').click(); }
@@ -2512,11 +2586,20 @@ $('#btnRawView').addEventListener('click', ()=>{
   showRaw(LAST_RAW,'마지막 API 응답');
 });
 async function guard(btn, label, fn){
+  const task=beginTask(); if(!task) return false;
   if(btn && btn.closest) btn=btn.closest('button')||btn;
+  task.studio=!!btn?.closest('#v-studio'); task.label=label; task.calls=0;
   busy(btn, true, label);
-  try{ await fn(); }
-  catch(e){ showErr(e); }
-  finally{ busy(btn, false); }
+  if(task.studio){
+    renderStudioScreen();
+    if(curTab==='studio'){ window.scrollTo({top:0,behavior:'instant'}); $('#studioLoadingTitle').focus({preventScroll:true}); }
+  }
+  try{ await fn(); assertTask(task); return true; }
+  catch(e){ showErr(e); return false; }
+  finally{
+    busy(btn, false); endTask(task); renderConnectionAction();
+    if(task.studio) showStudioScreen(S.project.screen || (S.project.card&&!S.project.card.inputOpen?'result':'input'));
+  }
 }
 
 async function makeExpandedResult(seed){
@@ -2525,6 +2608,7 @@ async function makeExpandedResult(seed){
   S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
   S.project.libId = null;
   syncConvertSourceToOutput();
+  S.project.screen='result';
   OPEN_DONE_STAGE='expand';
   renderCard(); renderCheck(); saveRecord();
   if(S.opts.check && !activePreset().skipCheck && !S.project.card.truncated){
@@ -2534,18 +2618,12 @@ async function makeExpandedResult(seed){
   return S.project.card;
 }
 
-$('#btnDigest').addEventListener('click', e=> guard(e.target,activePreset().skipSeed?'정리하고 만드는 중':'정리 중', async()=>{
-  const P=activePreset();
+$('#btnDigest').addEventListener('click', e=> guard(e.target,'재료를 정리하고 있습니다', async()=>{
   await doDigest(); renderDigest(); touchDraft();
   const u=GROUP_UI[S.opts.group]||GROUP_UI.world;
-  if(P.skipSeed){
-    const card=await makeExpandedResult(null);
-    toast(card.truncated?'정리와 결과 생성을 마쳤고, 출력은 잘린 곳까지 복구했습니다':'재료를 정리하고 결과까지 만들었습니다');
-    scrollToStage('expand',true);
-  }else{
-    toast(u.readDone||'재료를 정리했습니다');
-    scrollToStage('digest',true);
-  }
+  S.project.seeds=[]; S.project.sel=[]; renderSeeds();
+  toast(u.readDone||'재료를 정리했습니다');
+  scrollToStage('digest',true);
 }));
 $('#btnDigestClear').addEventListener('click', ()=>{
   S.project.digest=null; S.project.digestMeta=null; stashDigest(S.opts.group); renderDigest(); touchDraft(); toast('정리한 내용을 지웠습니다');
@@ -2557,7 +2635,7 @@ $('#btnSeeds').addEventListener('click', e=> guard(e.target,'뽑는 중', async(
 $('#btnCross').addEventListener('click', e=> guard(e.target,'섞는 중', async()=>{
   const [a,b] = S.project.sel.map(id=>S.project.seeds.find(s=>s.id===id));
   await doCross(a,b); renderSeeds(); touchDraft(); toast('섞은 씨앗을 만들었습니다');
-  scrollToStage('expand');
+  scrollToStage('seed');
 }));
 $('#btnExpand').addEventListener('click', e=> guard(e.target,'만드는 중', async()=>{
   const P = activePreset();
@@ -2585,17 +2663,23 @@ $('#btnCheck').addEventListener('click', e=> guard(e.target,'대조 중', async(
 }));
 $('#btnCast').addEventListener('click', e=> guard(e.target,'뽑는 중', async()=>{
   const n = S.opts.castCount;
+  const previous=S.project.cast, previousRelations=S.project.relations;
   S.project.cast = []; S.project.relations = null; renderCast();
-  if(!S.project.digest){ await doDigest(); renderDigest(); }
+  try{
+  if(!S.project.digest||currentStudioScreen()==='input'||digestStale()){ await doDigest(); renderDigest(); }
   for(let i=0;i<n;i++){
     busy(e.target, true, `${i+1}/${n} 만드는 중`);
     await doSeeds();
     const seed = S.project.seeds[0];
     S.project.sel = [seed.id];
     const c = await doExpand(seed);
-    S.project.cast.push(c); renderCast(); renderSeeds();
+    S.project.cast.push(c); renderCast(); renderSeeds(); touchDraft();
   }
   touchDraft(); toast(n+'명 뽑았습니다');
+  }finally{
+    if(S.project.cast.length) showStudioScreen('cast');
+    else { S.project.cast=previous; S.project.relations=previousRelations; renderCast(); }
+  }
 }));
 $('#btnRelate').addEventListener('click', e=> guard(e.target,'짜는 중', async()=>{
   await doRelate(); renderCast(); touchDraft(); toast('관계를 짰습니다');
@@ -2607,8 +2691,10 @@ $('#btnCastSave').addEventListener('click', ()=>{
     name:guessName(c.fields), fields:clone(c.fields),
     presetId:P.id, presetName:P.name, group:P.group||'character',
     world:(S.project.digest&&S.project.digest.title)||'',
-    seedLine: c.seed?c.seed.line:'' }));
-  pruneLib(); save(); renderLib(); clearDraft(); toast(S.project.cast.length+'명을 기록에 넣었습니다');
+    seedLine: c.seed?c.seed.line:'', truncated:!!c.truncated,
+    truncatedField:c.truncatedField||'', continuations:clone(c.continuations||[]),
+    conversion:c.conversion?clone(c.conversion):null }));
+  pruneLib(); save(); renderLib(); touchDraft(); toast(S.project.cast.length+'명을 기록에 넣었습니다');
 });
 
 
@@ -2644,8 +2730,8 @@ async function doOneShot(){
     msgs.push({role:'user',content:'작업 방식 — 아래 방향을 반드시 적용할 것.\n'+modeInstruction});
   }
   const req = curExtra();
-  if(req && !st.blocks.some(b=>/\{\{extra(Rule)?\}\}/.test(b.content))){
-    msgs.push({role:'user', content:'추가 요청 — 아래를 반드시 지킬 것.\n'+req});
+  if(req && !msgs.some(m=>m.content.includes(req))){
+    msgs.push({role:'user', content:'사용자의 구상·요청 — 아래 조건을 지킬 것.\n'+req});
   }
   const opts = { temperature: st.temperature, maxTokens: Math.max(st.maxTokens||2400, 2400) };
   const raw = await callProvider(conn, msgs, opts);
@@ -2665,14 +2751,16 @@ async function doOneShot(){
   return { fields, seed:null, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:{text:parsedRaw,at:Date.now(),label:'한 번에 만들기 원문'} };
 }
 function renderOneshot(){
-  const P = activePreset(), el = $('#oneshotNote'); if(!el) return;
-  const stages = 1 + (P.skipSeed?0:1) + 1 + ((S.opts.check && !P.skipCheck)?1:0);
-  const selected = S.assets.filter(a=>a.use).length;
-  const brief=!!curBrief().trim();
-  const input=selected?(brief?`성운에서 고른 재료 ${selected}개와 구상`:`성운에서 고른 재료 ${selected}개`):'구상';
-  el.innerHTML = `${input}을 사용해 API 호출 <b>1회</b>로 끝냅니다. 단계별로 하면 ${stages}회.`
-    + ` 씨앗 고르기와 자동 검증은 건너뛰고${selected?', 재료를 정리 없이 통째로 보냅니다.':'.'}`;
   renderBuildMode();
+}
+function renderConnectionAction(){
+  const btn=$('#btnOneShot'); if(!btn || btn.querySelector('.busy')) return;
+  const conn=S.connections.find(c=>c.id===S.activeConn);
+  const provider=conn && PROV[conn.provider];
+  const ready=!!(provider && conn.model && (provider.noKey || conn.apiKey));
+  btn.textContent=ready?(S.project.card?'다시 만들기':'만들기'):'연결 설정하고 만들기';
+  const note=$('#connectionNote');
+  if(note) note.hidden=ready;
 }
 function renderBuildMode(){
   const mode = S.opts.buildMode==='oneshot' ? 'oneshot' : 'staged';
@@ -2681,11 +2769,18 @@ function renderBuildMode(){
     const on=b.dataset.build===mode;
     b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on));
   });
-  const stagedDesc=$('#buildModeBox [data-build="staged"] .bd');
-  if(stagedDesc) stagedDesc.textContent=P.skipSeed
-    ? '재료를 먼저 정리한 뒤 결과까지 이어서 만듭니다.'
-    : '재료를 정리하고 후보를 고른 뒤 확장·검증합니다.';
-  $('#oneshotBox').hidden = mode!=='oneshot';
+  const cast=activeMode()==='cast';
+  const stages=cast?1+2*S.opts.castCount:2+(P.skipSeed?0:1)+((S.opts.check&&!P.skipCheck)?1:0);
+  $('#buildModeBox [data-build="staged"] .bd').textContent=cast
+    ? '재료 정리 확인 후 여러 인물 생성'
+    : P.skipSeed?'재료 정리 확인 후 결과 완성':'재료 정리 확인 → 후보 선택 → 결과 완성';
+  $('#buildModeBox [data-build="oneshot"] .bd').textContent=cast
+    ? `재료 정리부터 인물 ${S.opts.castCount}명까지 자동 생성`
+    : '구상·재료로 바로 완성 · 후보 선택·자동 검증 생략';
+  const recovery=' · 응답 복구 시 추가 호출';
+  $('#stagedCost').textContent=`API 기본 ${stages}회${!cast&&S.opts.check&&!P.skipCheck?' · 결과 검증 포함':''}`+recovery;
+  $('#oneshotCost').textContent=`API 기본 ${cast?stages:1}회`+recovery;
+  $('#oneshotBox').hidden = false;
   const selected=S.assets.some(a=>a.use);
   $('#buildGuide').textContent = mode==='oneshot'
     ? selected?'한 번에 만들기 — 고른 재료로 단추 하나면 됩니다':'한 번에 만들기 — 구상을 적고 단추 하나로 끝냅니다'
@@ -2693,24 +2788,31 @@ function renderBuildMode(){
   // 한 번에 모드에서는 단계별 전용 요소(스파인·읽기·별씨앗·결과 만들기)를 숨긴다
   $('#v-studio').classList.toggle('os-mode', mode==='oneshot');
   const u = GROUP_UI[S.opts.group] || GROUP_UI.world;
-  $('#briefLabel').textContent = mode==='oneshot'&&selected?'구상 · 선택':u.brief;
+  $('#briefLabel').textContent = '구상';
   $('#s1Title').textContent = mode==='oneshot' ? '입력' : u.s1;
   $('#s1Hint').textContent = mode==='oneshot'
     ? selected?'고른 재료만으로 바로 만들 수 있습니다. 구상은 방향을 더 정하고 싶을 때만 적으세요.':'구상을 적고 아래 단추 하나로 끝냅니다.'
     : u.hint;
-  $('#briefNote').textContent = mode==='oneshot'&&selected?'선택 · 비워두면 고른 재료만 사용합니다':(u.briefNote||'');
-  $('#s3Hint').textContent = mode==='oneshot'
-    ? '만들어진 결과입니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.'
-    : P.skipSeed
-      ? '재료 정리를 마치면 결과까지 자동으로 만듭니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.'
-      : '고른 별씨앗으로 결과를 만듭니다. 마음에 드는 칸은 잠그고 나머지만 다시 쓸 수 있습니다.';
   setSpine(); // 단계 잠금(점진 공개)을 모드에 맞게 갱신
+  renderConnectionAction();
 }
 $('#buildModeBox').addEventListener('click', e=>{
   const b=e.target.closest('.build-mode'); if(!b) return;
   S.opts.buildMode=b.dataset.build; OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null; save(); renderBuildMode();
 });
-$('#btnOneShot').addEventListener('click', e=> guard(e.target,'만드는 중', async()=>{
+$('#btnOneShot').addEventListener('click', e=>{
+  const conn=S.connections.find(c=>c.id===S.activeConn), provider=conn&&PROV[conn.provider];
+  if(!provider || !conn.model || (!provider.noKey&&!conn.apiKey)){
+    tab('settings');
+    if(!S.connections.length) $('#btnConnNew').click();
+    else { CONN_OPEN.add(conn?.id||S.connections[0].id); renderConns(); }
+    const input=$('#connList .conn.open .c-key')||$('#connList .conn.open .c-model');
+    if(input) input.focus();
+    return;
+  }
+  if(S.opts.buildMode!=='oneshot'){ $('#btnDigest').click(); return; }
+  if(activeMode()==='cast'){ $('#btnCast').click(); return; }
+  return guard(e.target,'만드는 중', async()=>{
   S.project.card = await doOneShot();
   $('#continueNote').value='';
   S.project.locked={}; S.project.violations=null; S.project.verdict=null; S.project.qa=[];
@@ -2719,11 +2821,15 @@ $('#btnOneShot').addEventListener('click', e=> guard(e.target,'만드는 중', a
   renderCard(); renderCheck(); saveRecord();
   toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'한 번에 만들었습니다 — 마음에 안 드는 칸만 다시 쓰세요');
   scrollToStage('expand',true);
-}));
+  });
+});
+['continueNote','rerollNote'].forEach(id=>$('#'+id).addEventListener('input',touchDraft));
 
 $('#btnNewWork').addEventListener('click', ()=>{
+  if(!canChangeWork()) return;
+  flushCardEdits();
   const g=S.opts.group, label=GROUP_LABEL[g]||'현재';
-  if(!confirm(`${label} 작업대의 구상·추가 요청·정리한 내용·씨앗·결과를 비울까요?\n불러온 재료와 성도 기록은 남습니다.`)) return;
+  if(!confirm(`${label} 작업대의 구상·요청·정리한 내용·씨앗·결과를 비울까요?\n불러온 재료와 성도 기록은 남습니다.`)) return;
   OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
   if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
   if(!S.opts.extraBy) S.opts.extraBy={world:'',character:'',prompt:''};
@@ -2731,12 +2837,13 @@ $('#btnNewWork').addEventListener('click', ()=>{
   convertPrefs().extraBy[g]='';
   if(!S.project.digestBy) S.project.digestBy={};
   S.project.digestBy[g]=null;
+  if(S.project.workBy) delete S.project.workBy[g];
   Object.assign(S.project,{
     digest:null,digestSrc:'',digestMeta:null,seeds:[],sel:[],card:null,locked:{},
-    violations:null,verdict:null,cast:[],relations:null,qa:[],libId:null
+    violations:null,verdict:null,cast:[],relations:null,qa:[],libId:null,screen:'input'
   });
-  $('#optBrief').value=''; $('#optExtra').value=''; $('#continueNote').value='';
-  save(); touchDraft(); renderReq(); renderDigest(); renderSeeds(); renderCard();
+  $('#optBrief').value=''; $('#continueNote').value=''; $('#rerollNote').value='';
+  save(); touchDraft(); renderDigest(); renderSeeds(); renderCard();
   renderCheck(); renderCast(); renderQA(); renderMat(); renderOneshot();
   toast(`${label} 작업대를 비웠습니다`);
 });
@@ -2745,12 +2852,17 @@ $('#btnNewWork').addEventListener('click', ()=>{
 $('#modeBox').addEventListener('click', e=>{
   const m = e.target.closest('.mode'); if(!m) return;
   if(!S.opts.modeBy) S.opts.modeBy = {};
-  S.opts.modeBy[S.opts.group] = m.dataset.mode;
-  S.opts.mode = m.dataset.mode;
-  $$('.mode').forEach(x=>x.classList.toggle('on', x===m));
-  const nm = $('#modeCurName'); if(nm && m.querySelector('.mn')) nm.textContent = m.querySelector('.mn').textContent;
+  const mode=S.opts.group==='prompt'&&m.dataset.mode==='supplement'&&S.opts.promptEditMode==='adapt'?'adapt':m.dataset.mode;
+  S.opts.modeBy[S.opts.group] = mode;
+  S.opts.mode = mode;
   $('#castPanel').style.display = activeMode()==='cast' ? '' : 'none';
-  renderRefineChooser(); renderDigest(); renderOneshot(); save(); touchDraft();
+  renderModeChooser(); renderDigest(); renderOneshot(); save(); touchDraft();
+});
+$('#promptEditMode').addEventListener('change',e=>{
+  if(S.opts.group!=='prompt'||!['supplement','adapt'].includes(activeMode())) return;
+  const mode=e.target.value==='adapt'?'adapt':'supplement';
+  S.opts.promptEditMode=mode; S.opts.modeBy.prompt=mode; S.opts.mode=mode;
+  renderModeChooser(); renderDigest(); renderOneshot(); save(); touchDraft();
 });
 $('#refineBox').addEventListener('click',e=>{
   const choice=e.target.closest('.refine-mode'); if(!choice) return;
@@ -2764,18 +2876,6 @@ function bindOpt(sel, key, cast){
   const el = $(sel);
   el.addEventListener('change', ()=>{ S.opts[key] = cast ? cast(el.value) : el.value; save(); touchDraft(); });
 }
-$('#optExtra').addEventListener('input', e=>{
-  if(!S.opts.extraBy) S.opts.extraBy = {world:'',character:'',prompt:''};
-  S.opts.extraBy[S.opts.group] = e.target.value;
-  renderReq(); save(); touchDraft();
-});
-function renderReq(){
-  const n = (curExtra()||'').length;
-  const g = GROUP_LABEL[S.opts.group] || '';
-  $('#reqNote').textContent = n
-    ? `${g} 작업의 모든 단계에 전달됩니다 · ${n}자`
-    : `${g} 작업의 모든 단계에 전달됩니다 · 분류마다 따로 기억합니다`;
-}
 $('#optBrief').addEventListener('input', e=>{
   if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
   S.opts.briefBy[S.opts.group]=e.target.value;
@@ -2784,6 +2884,7 @@ $('#optBrief').addEventListener('input', e=>{
 bindOpt('#optLang','lang'); bindOpt('#optTone','tone');
 $('#optLang').addEventListener('change',()=>{ syncConvertSourceToOutput(); save(); renderConvert(); });
 bindOpt('#optSeedN','seedCount',Number); bindOpt('#optCastN','castCount',Number);
+$('#optCastN').addEventListener('change',renderOneshot);
 bindOpt('#optNsfw','nsfw',v=>v==='1'); bindOpt('#optCheck','check',v=>v==='1');
 $('#optCheck').addEventListener('change', ()=> renderOneshot());
 
@@ -2791,7 +2892,7 @@ $('#optCheck').addEventListener('change', ()=> renderOneshot());
 $('#btnSaveLib').addEventListener('click', ()=>{
   const rec = saveRecord();
   if(!rec) return;
-  rec.star = true; save(); renderLib(); clearDraft();
+  rec.star = true; save(); renderLib(); touchDraft();
   toast('고정했습니다 — 기록 탭에서 볼 수 있습니다');
 });
 $('#btnCopyText').addEventListener('click', ()=> copy(fieldsToText(S.project.card.fields)));
@@ -2844,11 +2945,12 @@ $('#btnMakePreset').addEventListener('click', ()=>{
 });
 
 $('#btnToAsset').addEventListener('click', ()=>{
+  if(!S.project.card||!canChangeWork()) return;
   const P = activePreset();
   S.assets.push({ id:uid(), kind:'text',
     name: guessName(S.project.card.fields) + ' (' + P.name + ')',
     body: fieldsToText(S.project.card.fields), purposes:[S.opts.group], tags:[], use:true });
-  renderAssets(); toast('재료에 넣었습니다 — 다른 양식에서 이어서 쓸 수 있습니다');
+  renderAssets(); materialChanged(); renderChat(true); toast('재료에 넣었습니다 — 다른 양식에서 이어서 쓸 수 있습니다');
 });
 $('#btnDlText').addEventListener('click', ()=>
   dl(guessName(S.project.card.fields).replace(/[\\/:*?"<>|]/g,'_')+'.md',
@@ -2888,14 +2990,17 @@ function toWorldInfo(entries){
   }; });
   return { entries: out };
 }
-$('#btnDlBook').addEventListener('click', e=> guard(e.target,'쪼개는 중', async()=>{
+$('#btnDlBook').addEventListener('click', e=>{
+  if(!S.project.card) return;
+  return guard(e.target,'쪼개는 중', async()=>{
   const entries = await doEntries();
   if(!entries.length) throw new Error('항목을 만들지 못했습니다.');
   const nm = (S.project.card.fields.title || '세계').replace(/[\\/:*?"<>|]/g,'_');
   dl(nm+'-lorebook.json', JSON.stringify(toWorldInfo(entries),null,2));
   S.assets.push({ id:uid(), kind:'lorebook', name:nm+' (여기서 만든 것)',
     entries: entries.map((x,i)=>({...x, id:'e'+i+uid(), enabled:true, use:true})), purposes:['world'], tags:[], use:true });
-  renderAssets();
+  renderAssets(); materialChanged(); renderChat(true);
   toast(entries.length+'개 항목 — 내려받고 재료에도 넣었습니다');
-}));
+  });
+});
 
