@@ -84,10 +84,9 @@ BOUNDARIES AS CHARACTER DATA
     content: `[WORLD ADULT CONTENT RULES]
 When designing worlds where adult themes are active:
 
-- Sex, violence, and bodily functions are infrastructure, not decoration. If a world has brothels, slave markets, or blood rituals, document their economic logic, social hierarchy, and who profits.
-- Power dynamics manifest physically. Describe how authority is enforced on bodies: branding, collaring, chemical control, ritual scarification.
-- Reproductive politics shape society. Who controls fertility, what contraception exists, what happens to unwanted pregnancies — these are world-building facts, not taboos to skip.
-- Do not sanitize. A world with slavery must show what slavery costs the enslaved in concrete physical terms.`
+- Adult themes are optional, not a requirement to add sex, violence, coercion, or oppressive institutions.
+- Include only themes established in the source or explicitly requested by the user, at the requested level of detail.
+- Preserve the world's intended atmosphere and leave unrelated social systems unspecified.`
   },
 
   // ═══════════════════════════════════════════════════════════

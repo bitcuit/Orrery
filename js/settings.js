@@ -247,31 +247,46 @@ $('#connBackupFile').addEventListener('change',async e=>{
 });
 function makeBackup(options){
   flushCardEdits();
-  const o=Object.assign({assets:true,project:true,chat:true,apiKeys:false},options||{});
+  syncActiveWorkspace();
+  const o=Object.assign({assets:true,project:true,chat:true,apiKeys:false,connections:true,presets:true,settings:true,library:true},options||{});
   const out={
     app:'Orrery', backupVersion:2, exportedAt:new Date().toISOString(),
-    includes:{assets:!!o.assets,project:!!o.project,chat:!!o.chat,apiKeys:!!o.apiKeys,logs:false},
-    connections:backupConnections(o.apiKeys), activeConn:S.activeConn,
-    presets:clone(S.presets), activePreset:S.activePreset, opts:clone(S.opts), library:clone(S.library)
+    includes:{...o,logs:false}
   };
+  if(o.connections||o.apiKeys){out.connections=backupConnections(o.apiKeys);out.activeConn=S.activeConn;}
+  if(o.presets){out.presets=clone(S.presets);out.activePreset=S.activePreset;out.commonPrompts=clone(builtinCommon());}
+  if(o.settings){out.opts=clone(S.opts);out.customTalkPrompts=clone(S.customTalkPrompts||{});}
+  if(o.library)out.library=clone(S.library);
   if(o.assets){
     out.assets=S.assets.map(a=>clone(normalizeAssetMetadata(a)));
     out.assetFolders=clone(S.assetFolders||[]);
   }
   if(o.project){
     out.project=clone(S.project);
+    out.workspaces=clone(S.workspaces);out.activeWorkspaceId=S.activeWorkspaceId;
+    for(const w of out.workspaces){
+      if(!o.chat)delete w.snapshot.chat;
+      if(!o.assets)delete w.snapshot.materials;
+      if(!o.presets)delete w.snapshot.presets;
+    }
+    // Work options are required to restore its inputs and generation mode.
+    if(!out.opts)out.workOpts=clone(S.opts);
     out.continueNote=$('#continueNote').value; out.rerollNote=$('#rerollNote').value;
   }
-  if(o.chat){ out.chat=clone(S.chat); out.customTalkPrompts=clone(S.customTalkPrompts||{}); }
+  if(o.chat)out.chat=clone(S.chat);
   return out;
 }
 $('#btnDataExport').addEventListener('click', ()=>{ $('#backupModal').hidden=false; });
+$('#btnBackup').addEventListener('click',()=>$('#backupModal').hidden=false);
+$('#backupImport').addEventListener('click',()=>{ $('#backupModal').hidden=true;$('#dataFile').click(); });
 $('#backupClose').addEventListener('click', ()=>{ $('#backupModal').hidden=true; });
 $('#backupModal').addEventListener('click', e=>{ if(e.target.id==='backupModal') $('#backupModal').hidden=true; });
 $('#backupDownload').addEventListener('click', ()=>{
   const data=makeBackup({
     assets:$('#backupAssets').checked, project:$('#backupProject').checked,
-    chat:$('#backupChat').checked, apiKeys:$('#backupKeys').checked
+    chat:$('#backupChat').checked, apiKeys:$('#backupKeys').checked,
+    connections:$('#backupConnections').checked,presets:$('#backupPresets').checked,
+    settings:$('#backupSettings').checked,library:$('#backupLibrary').checked
   });
   const day=new Date().toISOString().slice(0,10);
   dl(`orrery-backup-${day}.json`,JSON.stringify(data,null,2));
@@ -288,19 +303,22 @@ $('#dataFile').addEventListener('change', async e=>{
     if(!canChangeWork()) return;
     if(d?.type==='connections'){ importConnectionBackup(d); return; }
     flushCardEdits();
-    if(!d || typeof d!=='object' || !(d.connections || d.presets || d.library || d.assets || d.favoriteAssets || d.project || d.chat))
+    if(!d || typeof d!=='object' || !(d.connections || d.presets || d.library || d.assets || d.favoriteAssets || d.project || d.chat || (d.app==='Orrery'&&(d.opts||d.customTalkPrompts))))
       throw new Error('Orrery 백업 파일이 아닙니다.');
-    for(const key of ['connections','presets','library','assets','favoriteAssets','assetFolders']){
+    for(const key of ['connections','presets','library','assets','favoriteAssets','assetFolders','workspaces']){
       if(d[key]!=null && (!Array.isArray(d[key]) || d[key].some(v=>!v || typeof v!=='object' || Array.isArray(v))))
         throw new Error('백업의 목록 형식이 올바르지 않습니다.');
     }
-    for(const key of ['opts','project','chat','customTalkPrompts']){
+    for(const key of ['opts','workOpts','project','chat','customTalkPrompts']){
       if(d[key]!=null && (typeof d[key]!=='object' || Array.isArray(d[key])))
         throw new Error('백업의 설정 형식이 올바르지 않습니다.');
     }
     if(d.connections?.length) d.connections=readConnectionBackup({app:'Orrery',connections:d.connections});
+    if(d.commonPrompts!=null&&(!Array.isArray(d.commonPrompts)||d.commonPrompts.some(p=>!p||typeof p.content!=='string')))throw new Error('공통 지시문 형식이 올바르지 않습니다.');
+    if(d.workspaces?.some(w=>typeof w.id!=='string'||!w.snapshot?.project||!w.snapshot?.opts||!w.snapshot?.activePreset)) throw new Error('저장 작업의 형식이 올바르지 않습니다.');
+    if(WORKSPACE_JOBS.size) throw new Error('생성 중인 작업을 마치거나 중지한 뒤 백업을 불러와 주세요.');
     if(!confirm('백업에 포함된 항목을 현재 데이터에 덮어쓸까요?\n백업에서 제외된 항목은 현재 상태를 유지합니다.')) return;
-    previous={state:clone(S),continueNote:$('#continueNote').value,rerollNote:$('#rerollNote').value};
+    previous={state:clone(S),continueNote:$('#continueNote').value,rerollNote:$('#rerollNote').value,common:localStorage.getItem(COMMON_EXTRA_KEY)};
     const currentKeys=new Map(S.connections.map(c=>[c.id,c.apiKey||'']));
     const backupHasKeys=d.includes
       ? !!d.includes.apiKeys
@@ -318,6 +336,7 @@ $('#dataFile').addEventListener('change', async e=>{
       S.presets=clone(d.presets).filter(p=>!protectedPresetIds.has(p.id)).concat(protectedPresets);
     }
     if(d.opts && !preserveWork) Object.assign(S.opts, d.opts);
+    if(d.project&&d.workOpts)Object.assign(S.opts,d.workOpts);
     convertPrefs();
     if(S.opts.mode==='c2p') S.opts.mode='foil';
     if(!S.opts.modeBy) S.opts.modeBy = {world:'new',character:S.opts.mode||'w2c',prompt:'new'};
@@ -338,12 +357,24 @@ $('#dataFile').addEventListener('change', async e=>{
     },clone(d.project));
       $('#continueNote').value=typeof d.continueNote==='string'?d.continueNote:'';
       $('#rerollNote').value=typeof d.rerollNote==='string'?d.rerollNote:'';
+      if(d.workspaces){
+        const imported=clone(d.workspaces);S.activeWorkspaceId=null;
+        for(const w of imported){
+          const wasActive=w.id===d.activeWorkspaceId;w.id=uid();delete w.pendingApply;
+          if(w.status==='running')w.status='interrupted';
+          if(wasActive)S.activeWorkspaceId=w.id;
+          holdNewWorkspace(w);
+        }
+        S.workspaces.push(...imported);
+      }
+      else S.activeWorkspaceId=null;
     }
     if(d.chat){
       S.chat=Object.assign({role:'world',msgs:[],ctx:{assets:true,digest:true,card:false}},clone(d.chat));
       S.chat.ctx=Object.assign({assets:true,digest:true,card:false},S.chat.ctx||{});
     }
     if(d.customTalkPrompts) S.customTalkPrompts=clone(d.customTalkPrompts);
+    if(d.commonPrompts)localStorage.setItem(COMMON_EXTRA_KEY,JSON.stringify(normCommon(d.commonPrompts)));
     if(S.connections.some(c=>c.id===d.activeConn)) S.activeConn=d.activeConn;
     else if(!S.connections.some(c=>c.id===S.activeConn)) S.activeConn=S.connections[0]?.id||null;
     if(!preserveWork) S.activePreset = d.activePreset || S.presets[0].id;
@@ -354,6 +385,7 @@ $('#dataFile').addEventListener('change', async e=>{
   }catch(err){
     if(previous){
       S=previous.state;
+      if(previous.common===null)localStorage.removeItem(COMMON_EXTRA_KEY);else localStorage.setItem(COMMON_EXTRA_KEY,previous.common);
       $('#continueNote').value=previous.continueNote; $('#rerollNote').value=previous.rerollNote;
       bootUI(); save(); touchDraft();
     }

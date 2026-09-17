@@ -255,7 +255,7 @@ main:has(#v-studio.on #studioInput:not([hidden])){padding-bottom:24px}
 /* ---------- 패널 ---------- */
 .panel{position:relative;padding:0;margin-bottom:30px;scroll-margin-top:150px}
 .bare{margin-bottom:30px}
-.studio-head{display:flex;align-items:center;gap:10px}
+.studio-head{position:relative;display:flex;align-items:center;gap:10px}
 .studio-head>h2{margin:0}
 .bare>h2{font-size:19px;margin-bottom:4px;letter-spacing:-0.04em;font-weight:580;color:#f1f5fb}
 .bare .hint{color:#94a5bd;font-size:13px;letter-spacing:-0.01em}
@@ -571,13 +571,16 @@ button.refine-mode.on .rn{color:#f1b94f}
   transition:background-color .2s,box-shadow .2s,transform .2s var(--ease)}
 .seed:hover{background:var(--s2h);transform:translateY(-2px)}
 .seed.on{box-shadow:0 0 0 1px rgba(233,182,84,0.55), 0 8px 30px rgba(233,182,84,0.14);background:rgba(233,182,84,0.08)}
-.seed.mate{box-shadow:0 0 0 1px rgba(135,168,223,0.5), 0 8px 30px rgba(135,168,223,0.12);background:rgba(135,168,223,0.08)}
 .seed .idx{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#72869f;
   display:block;margin-bottom:8px}
 .seed.on .idx{color:#eeb650}
 .seed .line{font-family:var(--body);font-size:15px;font-weight:480;line-height:1.55;margin-bottom:10px;letter-spacing:-0.015em;color:#e2eaf5}
 .seed .hook{font-size:12px;color:#788ba4;border-top:1px solid rgba(138,182,225,0.1);padding-top:8px}
 .seed .hook b{color:#9baac0;font-weight:500}
+.seed.locked{border-left:3px solid rgba(233,182,84,0.7)}
+.seed .seed-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.seed .seed-act{padding:3px 9px;min-height:26px;font-size:11px;letter-spacing:0}
+.seed .seed-act.on{color:var(--brass);background:rgba(233,182,84,0.1);border-color:rgba(233,182,84,0.35)}
 
 /* ---------- 카드 필드 ---------- */
 .fld{border-radius:12px;margin-bottom:10px;
@@ -1033,7 +1036,26 @@ button.build-mode.on .bn{color:#f1b94f}
 #studioStopSlot{margin-top:20px}
 #studioLoading[hidden],#digestPanel[hidden],#seedPanel[hidden],#castPanel[hidden],#spine[hidden],#buildGuide[hidden],#btnBackToCast[hidden]{display:none!important}
 #btnExpand{display:none}
-.studio-result-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px}
+.studio-result-nav{display:contents}
+#btnBackToInput{order:-1;flex-shrink:0;width:36px;height:36px;padding:0;font-size:21px}
+#studioResultPreset{min-width:0;max-width:35vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#seedNote{min-height:64px;height:64px;resize:vertical}
+.seed-keywords{display:flex;flex-wrap:wrap;gap:10px;padding:8px 0}
+.seed-keyword{max-width:100%;white-space:normal;overflow-wrap:anywhere;border-radius:999px;padding:10px 16px;text-align:left}
+.seed-keyword.on{border-color:var(--brass);background:rgba(233,182,84,.12);color:var(--text)}
+#btnCross[hidden]{display:none}
+.workspace-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--line2)}
+.workspace-row>div:first-child{min-width:0;overflow-wrap:anywhere}
+.workspace-row .note{display:block;margin-top:5px}
+.workspace-row .bar{flex-shrink:0;margin:0}
+#btnStopWorkspace[hidden]{display:none}
+@media(max-width:600px){.workspace-row{align-items:flex-start;flex-direction:column}}
+@media(min-width:1200px){
+  #btnBackToInput{position:absolute;left:-44px;top:50%;transform:translateY(-50%)}
+}
+@media(max-width:600px){
+  .studio-head{flex-wrap:wrap;gap:8px}
+}
 #studioInput[hidden],#studioResults[hidden],#studioResultNav[hidden],#btnViewResult[hidden]{display:none}
 /* 한 번에 만든 결과에는 단계 번호를 표시하지 않는다. */
 #v-studio.os-mode #studioResults .stepno{display:none}

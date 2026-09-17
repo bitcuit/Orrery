@@ -14,13 +14,15 @@ const KEY = 'orrery.v1';
 const DRAFT_KEY = 'orrery.draft.v1';
 const RECOVERY_KEY = 'orrery.recovery.v1';
 const OLDKEYS = ['vivarium.v1','terrarium.v1','casting.v1'];
+const WORKER_WINDOW=window.parent!==window && location.hash==='#orrery-worker';
 let S = {
   connections: [], activeConn: null,
   assets: [], assetFolders: [],
   presets: [], activePreset: null,
   opts: { mode:'w2c', modeBy:{world:'new',character:'w2c',prompt:'new'}, refineBy:{world:'balanced',character:'balanced',prompt:'balanced'}, buildMode:'oneshot', lang:'한국어', tone:'', seedCount:5, castCount:3, nsfw:false, easy:false, extra:'', extraBy:{world:'',character:'',prompt:''}, check:true, brief:'', briefBy:{world:'',character:'',prompt:''}, group:'world', convert:{translate:true,optimize:true,yaml:false,summarize:false,maxChars:1200,meaning:true,sourceLang:'한국어',targetLang:'English',extraBy:{world:'',character:'',prompt:''}} },
-  project: { digest:null, digestSrc:'', seeds:[], sel:[], card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null, workBy:{}, screen:null },
+  project: { digest:null, digestSrc:'', seeds:[], sel:[], seedNote:'', card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null, workBy:{}, screen:null },
   library: [],
+  workspaces: [], activeWorkspaceId:null,
   chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
   customTalkPrompts: {},
   logVerbose: false
@@ -164,10 +166,11 @@ function hasDraftWork(){
   return !!(briefs || extras || digests || otherWork || p.digest || (p.seeds&&p.seeds.length) || p.card || (p.cast&&p.cast.length));
 }
 function saveDraftNow(){
+  if(WORKER_WINDOW) return;
   clearTimeout(DRAFT_TIMER); DRAFT_TIMER=null;
   if(!DRAFT_DIRTY) return;
   if(!hasDraftWork()){ clearDraft(); return; }
-  const base = {version:1, at:Date.now(), activePreset:S.activePreset, opts:clone(S.opts), project:clone(S.project),
+  const base = {version:1, at:Date.now(), activeWorkspaceId:S.activeWorkspaceId, activePreset:S.activePreset, opts:clone(S.opts), project:clone(S.project),
     continueNote:$('#continueNote').value, rerollNote:$('#rerollNote').value};
   try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(base)); }
   catch(e){
@@ -176,8 +179,10 @@ function saveDraftNow(){
     if(!SAVE_FAILED) toast('마지막 작업을 저장하지 못했습니다. 전체 백업을 만들어 주세요.',1);
     SAVE_FAILED=true;
   }
+  if(S.activeWorkspaceId) save();
 }
 function touchDraft(){
+  if(WORKER_WINDOW) return;
   if(BOOTING) return;
   if(!hasDraftWork()){ clearDraft(); return; }
   DRAFT_DIRTY=true; clearTimeout(DRAFT_TIMER);
@@ -196,6 +201,7 @@ function offerDraftRestore(){
   if(d.opts) Object.assign(S.opts,d.opts);
   convertPrefs();
   if(d.activePreset) S.activePreset=d.activePreset;
+  S.activeWorkspaceId=S.workspaces.some(w=>w.id===d.activeWorkspaceId)?d.activeWorkspaceId:null;
   S.project=Object.assign(S.project,d.project||{});
   $('#continueNote').value=d.continueNote||'';
   $('#rerollNote').value=d.rerollNote||'';
@@ -212,11 +218,16 @@ function setSaveState(msg, kind, persist){
   if(msg&&!persist) SAVE_STATE_TIMER=setTimeout(()=>{ el.hidden=true; },1400);
 }
 function save(){
+  if(WORKER_WINDOW) return true;
+  if(typeof syncActiveWorkspace==='function') syncActiveWorkspace();
   normalizeAssetFolders();
-  try{ localStorage.setItem(KEY, JSON.stringify({
+  try{ if(typeof persistOwnedWorkspaces==='function') persistOwnedWorkspaces();
+    if(typeof persistSharedRecords==='function') persistSharedRecords();
+    localStorage.setItem(KEY, JSON.stringify({
     connections:S.connections, activeConn:S.activeConn,
     presets:S.presets, activePreset:S.activePreset,
     opts:S.opts, library:S.library, chat:S.chat, customTalkPrompts:S.customTalkPrompts, logVerbose:S.logVerbose,
+    workspaces:S.workspaces, activeWorkspaceId:S.activeWorkspaceId,
     assetFolders:S.assetFolders,
     assets:S.assets.map(a=>clone(normalizeAssetMetadata(a)))
   }));
@@ -240,11 +251,15 @@ function load(){
     if(d.presets && d.presets.length) S.presets = d.presets;
     if(d.activePreset) S.activePreset = d.activePreset;
     if(d.opts) Object.assign(S.opts, d.opts);
+    if(Array.isArray(d.workspaces)) S.workspaces=d.workspaces.filter(w=>w&&typeof w.id==='string'&&w.snapshot?.project&&w.snapshot?.opts);
+    if(typeof loadSharedWorkspaces==='function') loadSharedWorkspaces();
+    if(S.workspaces.some(w=>w.id===d.activeWorkspaceId)) S.activeWorkspaceId=d.activeWorkspaceId;
     convertPrefs();
     if(S.opts.mode==='c2p') S.opts.mode='foil';
     if(!S.opts.modeBy) S.opts.modeBy = {world:'new',character:S.opts.mode||'w2c',prompt:'new'};
     if(d.library) S.library = d.library.map(r=>Object.assign({
       star:false, group:'character', presetName:'', updated:r.at||Date.now() }, r));
+    if(typeof loadSharedRecords==='function')loadSharedRecords();
     if(d.chat) S.chat = Object.assign(S.chat, d.chat);
     if(d.customTalkPrompts) S.customTalkPrompts = d.customTalkPrompts;
     if(d.logVerbose) S.logVerbose = d.logVerbose;
@@ -329,13 +344,16 @@ function busy(btn, on, label){
   if(on&&ACTIVE_TASK?.studio){ ACTIVE_TASK.label=label||'만드는 중입니다'; renderStudioScreen(); }
 }
 function workIsBusy(){ return !!(ACTIVE_TASK || ABORT); }
-function canChangeWork(){
+function canChangeWork(allowBackground=false){
+  if(!allowBackground && typeof currentWorkspaceJob==='function' && currentWorkspaceJob()){
+    toast('이 작업은 생성 중입니다. 작업 목록에서 다른 작업을 열 수 있습니다.',1); return false;
+  }
   if(!workIsBusy()) return true;
   toast('요청이 끝난 뒤 변경할 수 있습니다. 먼저 요청 중지를 눌러 주세요.',1);
   return false;
 }
 function beginTask(){
-  if(!canChangeWork()) return null;
+  if(!canChangeWork(true)) return null;
   const task={project:S.project, group:S.opts.group, preset:S.activePreset, cancelled:false};
   ACTIVE_TASK=task;
   document.body.classList.add('working');
@@ -344,6 +362,7 @@ function beginTask(){
 function endTask(task){
   if(ACTIVE_TASK!==task) return;
   ACTIVE_TASK=null;
+  if(typeof applyCompletedWorkspace==='function') applyCompletedWorkspace();
   document.body.classList.remove('working');
   if(task.studio){
     const stop=$('#btnAbortCall'); stop.hidden=true; document.body.append(stop); stop.classList.remove('inline');

@@ -31,7 +31,7 @@
     <select id="connSel"></select>
     <button id="btnTest" class="mini" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="9.4"/><path d="m11.4 16.4 3.2 3.3 6.6-7.2" stroke="#e9b654"/></svg><span class="btxt">확인</span></button>
     <span class="tsep"></span>
-    <button class="mini" id="btnEasy" title="쉬운 모드 — 복잡한 기능을 감추고 만들기·결과만 남깁니다" aria-pressed="false"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.5c.9 4.2 1.9 5.2 6.1 6.1-4.2.9-5.2 1.9-6.1 6.1-.9-4.2-1.9-5.2-6.1-6.1 4.2-.9 5.2-1.9 6.1-6.1Z" fill="#e9b654" stroke="none"/><circle cx="23.5" cy="22" r="1" fill="#e9b654" stroke="none" opacity=".7"/></svg><span class="btxt">쉬운 모드</span></button>
+    <button class="mini" id="btnBackup" aria-label="백업">백업</button>
     <span class="tsep"></span>
     <button class="mini" id="btnMore" title="메뉴" aria-label="메뉴" aria-expanded="false"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6.5 10h19M6.5 16h19M6.5 22h13"/></svg></button>
     <div class="topmore" id="topMore">
@@ -102,7 +102,7 @@
         <span>로어북</span><span>월드인포</span><span>TXT · MD</span>
       </div>
     </div>
-    <input type="file" id="fileIn" multiple accept=".png,.json,.charx,.txt,.md" style="display:none">
+    <input type="file" id="fileIn" multiple accept=".png,.json,.charx,.zip,.marinara,.preset,.jpg,.jpeg,.txt,.md" style="display:none">
     <div class="pastebox" id="pasteBox" hidden>
       <div class="field">
         <label class="fl" for="pasteName">재료 이름</label>
@@ -141,20 +141,22 @@
 <section class="view" id="v-studio">
   <div class="bare studio-head" style="margin-bottom:14px">
     <h2 id="studioTitle">작업대</h2>
+    <div class="studio-result-nav" id="studioResultNav" hidden>
+      <button class="mini ghost" id="btnBackToInput" aria-label="입력으로 돌아가기" title="입력으로 돌아가기">←</button>
+      <span class="note" id="studioResultPreset"></span>
+      <button class="mini ghost" id="btnBackToCast" hidden>캐스트로 돌아가기</button>
+    </div>
     <span class="sp"></span>
+    <button class="mini ghost" id="btnWorkspaces">작업 목록</button>
     <button class="mini ghost" id="btnViewResult" hidden>결과 다시 보기</button>
     <button class="mini ghost" id="btnNewWork" title="현재 분류의 작업만 비웁니다. 재료와 기록은 남습니다.">새 작업</button>
-  </div>
-  <div class="studio-result-nav" id="studioResultNav" hidden>
-    <button class="mini ghost" id="btnBackToInput">← 입력으로 돌아가기</button>
-    <button class="mini ghost" id="btnBackToCast" hidden>캐스트로 돌아가기</button>
-    <span class="note" id="studioResultPreset"></span>
   </div>
   <div class="studio-loading" id="studioLoading" hidden role="status" aria-live="polite">
     <div class="loading-orbit" aria-hidden="true"></div>
     <h2 id="studioLoadingTitle" tabindex="-1">만드는 중입니다</h2>
     <p class="note" id="studioLoadingStep"></p>
     <div id="studioStopSlot"></div>
+    <button class="ghost" id="btnStopWorkspace" hidden>이 작업 중지</button>
   </div>
   <div id="studioInput">
   <div class="formrow">
@@ -211,6 +213,13 @@
     <details class="adv" id="optAdv">
       <summary>추가 설정</summary>
       <div>
+        <div id="worldSettings">
+          <div class="row">
+            <div class="field"><label class="fl" for="worldMood">세계 분위기</label><select id="worldMood"><option value="light">가볍게</option><option value="balanced">균형 있게</option><option value="heavy">무겁게</option></select></div>
+            <div class="field"><label class="fl" for="worldDensity">설정 밀도</label><select id="worldDensity"><option value="concise">간결</option><option value="normal" selected>보통</option><option value="detailed">상세</option></select></div>
+          </div>
+          <details class="adv"><summary>분량 직접 조정</summary><div class="field"><label class="fl" for="worldChars">목표 글자 수 · 공백 포함</label><input id="worldChars" type="number" min="400" max="12000" step="100" placeholder="지정 안 함"><span class="hint">본문 전체 기준 · 실제 분량은 달라질 수 있음</span></div></details>
+        </div>
         <div class="field" id="promptEditField" hidden>
           <label class="fl" for="promptEditMode">수정 목적</label>
           <select id="promptEditMode"><option value="supplement">같은 용도로 다듬기</option><option value="adapt">다른 용도로 바꾸기</option></select>
@@ -221,7 +230,7 @@
         </div>
         <div class="row">
           <div class="field"><label class="fl">출력 언어</label><input id="optLang" value="한국어"></div>
-          <div class="field"><label class="fl">전체 톤 <button type="button" class="qhelp" aria-label="전체 톤이란" data-tip="결과물 전체의 문체와 분위기입니다. 비워 두면 따로 지정하지 않고 재료의 분위기를 따라갑니다.">?</button></label><input id="optTone" placeholder="예: 냉소적, 축축한, 담백한"></div>
+          <div class="field"><label class="fl">전체 톤 <button type="button" class="qhelp" aria-label="전체 톤이란" data-tip="결과물 전체의 문체와 분위기입니다. 비워 두면 따로 지정하지 않고 재료의 분위기를 따라갑니다.">?</button></label><input id="optTone" placeholder="예: 담백한, 경쾌한, 서정적인"></div>
         </div>
         <div class="row">
           <div class="field"><label class="fl">별씨앗 개수 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 완성하기 전의 한 줄짜리 후보입니다. 이 개수만큼 뽑은 뒤, 마음에 드는 것 하나를 골라 결과로 만듭니다.">?</button></label><input id="optSeedN" type="number" min="2" max="10" value="5"></div>
@@ -262,9 +271,12 @@
 
   <!-- 2 -->
   <div class="panel" id="seedPanel">
-    <h2><span class="stepno">2 · </span>별씨앗 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 완성하기 전의 한 줄짜리 후보입니다. 여기서 하나를 고르거나, 두 개를 골라 섞을 수 있습니다.">?</button></h2>    <div class="bar">
+    <h2><span class="stepno">2 · </span>별씨앗 <button type="button" class="qhelp" aria-label="별씨앗이란" data-tip="별씨앗은 완성하기 전의 한 줄짜리 후보입니다. 여기서 하나를 고르거나, 여러 개를 골라 섞을 수 있습니다.">?</button></h2>
+    <div class="field"><label class="fl" for="seedFormat">다음 제안 방식</label><select id="seedFormat"><option value="concept">한 줄 후보</option><option value="keywords">키워드 조합</option></select></div>
+    <div class="field"><label class="fl" for="seedNote">후보 조정</label><textarea id="seedNote" rows="2" placeholder="예: 고른 요소를 섞고 새 소재 추가 / 이 방향을 더 가볍게"></textarea></div>
+    <div class="bar">
       <button class="primary" id="btnSeeds"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 6.8c.95 4.7 2.05 5.8 6.75 6.75-4.7.95-5.8 2.05-6.75 6.75-.95-4.7-2.05-5.8-6.75-6.75 4.7-.95 5.8-2.05 6.75-6.75Z" fill="#e9b654" stroke="none"/><circle cx="24.6" cy="22.4" r="1.1" fill="#e9b654" stroke="none" opacity=".7"/></svg>씨앗 뽑기</button>
-      <button class="ghost" id="btnCross" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="12.4" cy="16" r="6.8"/><circle cx="19.6" cy="16" r="6.8" stroke="#e9b654"/></svg>고른 둘 섞기</button>
+      <button class="ghost" id="btnCross" disabled><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="12.4" cy="16" r="6.8"/><circle cx="19.6" cy="16" r="6.8" stroke="#e9b654"/></svg>고른 후보 섞기</button>
       <span class="sp"></span>
       <span class="note" id="seedHint"></span>
     </div>
@@ -519,7 +531,7 @@
           <button class="iconbtn" id="btnPresetRename" title="이름 바꾸기" aria-label="이름 바꾸기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m18.2 7.3 6.5 6.5L11 27.5H4.5V21Z"/><path d="m15.6 10 6.5 6.5" stroke="#e9b654"/></svg></button>
           <button class="iconbtn" id="btnPresetOff" title="작업대에서 숨기기" aria-label="작업대에서 숨기기"><svg class="ic ic-eye" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3.5 16S8 8.5 16 8.5 28.5 16 28.5 16 24 23.5 16 23.5 3.5 16 3.5 16Z"/><circle cx="16" cy="16" r="3.4" stroke="#e9b654"/></svg><svg class="ic ic-eyeoff" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6.5 11.5S4.5 14 3.5 16c0 0 4.5 7.5 12.5 7.5 1.9 0 3.6-.4 5.1-1M12.2 9c1.2-.3 2.5-.5 3.8-.5 8 0 12.5 7.5 12.5 7.5-.8 1.3-1.8 2.7-3 3.9"/><path d="M13.6 13.6a3.4 3.4 0 0 0 4.8 4.8" stroke="#e9b654"/><path d="M5 5l22 22" stroke="#e9b654"/></svg></button>
           <button class="iconbtn" id="btnPresetExport" title="내보내기" aria-label="내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn" id="btnPresetImport" title="가져오기 (ST 프리셋 포함)" aria-label="가져오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg></button>
+          <button class="iconbtn" id="btnPresetImport" title="Orrery 양식 가져오기" aria-label="가져오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg></button>
           <button class="iconbtn" id="btnPresetRestore" title="기본 양식 불러오기 (지운 기본 양식 다시 추가)" aria-label="기본 양식 불러오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 7.5v6.4h-6.4"/><path d="M25.6 13.9A10 10 0 1 0 26 18.6"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/></svg></button>
           <button class="iconbtn danger" id="btnPresetDel" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
         </div>
@@ -536,7 +548,7 @@
       <button class="ghost mini" id="btnLoadCommon" title="앱 기본 공통 지시문 불러오기">불러오기</button>
       <button class="iconbtn" id="btnAddCommon" title="구획 추가" aria-label="구획 추가"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
     </div>
-    <p class="hint">모든 공정 앞에 순서대로 들어갑니다. ST 프리셋을 가져오면 여기로 들어옵니다.</p>
+    <p class="hint">아래 <b>기본</b> 항목은 prompts.js(또는 편집기 반영)에서 이 양식에 자동으로 들어갑니다. 여기 목록엔 안 보여도 생성에는 늘 반영됩니다.</p>
     <div id="commonBox" class="stlist"></div>
   </div>
 
@@ -685,7 +697,6 @@
         <button class="welcome-card" data-group="character"><b>인물</b><span>캐릭터 한 명(또는 여러 명)을 만들어요</span></button>
         <button class="welcome-card" data-group="prompt"><b>프롬프트</b><span>AI에게 줄 지시문을 만들어요</span></button>
       </div>
-      <label class="welcome-easy"><input type="checkbox" id="welcomeEasy" checked><span>쉬운 모드로 시작 — 복잡한 기능은 감춰 둡니다 (헤더에서 언제든 끌 수 있어요)</span></label>
       <p class="note" id="welcomeConnNote" hidden style="margin-top:12px;color:var(--brass)">처음 한 번은 API 연결이 필요합니다. 작업대의 <b>연결 설정하고 만들기</b>에서 시작할 수 있습니다.</p>
     </div>
   </div>
@@ -712,14 +723,17 @@
   <div class="modal-in">
     <div class="modal-h"><h2>전체 백업</h2><button class="mini" id="backupClose" aria-label="닫기">닫기</button></div>
     <div class="modal-b">
-      <div class="backup-always"><b>항상 포함</b>연결 주소·모델, 양식, 옵션, 성도 기록 전체 · 실행 로그는 포함하지 않습니다.</div>
       <div class="backup-list">
+        <label class="backup-opt"><input type="checkbox" id="backupLibrary" checked><span><b>결과·성도 기록</b>저장한 결과, 고정한 기록, 변환 결과</span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupPresets" checked><span><b>양식·지시문</b>기본·사용자 양식과 공통 지시문</span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupSettings" checked><span><b>앱 설정</b>제작 옵션과 대화 역할 지시문</span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupConnections" checked><span><b>API 연결 설정</b>업체·주소·모델 · 키는 아래에서 별도 선택</span></label>
         <label class="backup-opt"><input type="checkbox" id="backupAssets" checked><span><b>불러온 재료</b>성운의 캐릭터·로어북·텍스트, 즐겨찾기와 폴더 구조</span></label>
-        <label class="backup-opt"><input type="checkbox" id="backupProject" checked><span><b>현재 작업과 중간 결과</b>정리한 내용, 별씨앗, 만든 결과, 검증·캐스트 결과</span></label>
+        <label class="backup-opt"><input type="checkbox" id="backupProject" checked><span><b>저장한 작업과 중간 결과</b>작업 목록 전체, 구상·재료 선택·별씨앗·결과·진행 단계</span></label>
         <label class="backup-opt"><input type="checkbox" id="backupChat" checked><span><b>대화 기록</b>교신에서 주고받은 내용과 역할 설정</span></label>
         <label class="backup-opt"><input type="checkbox" id="backupKeys"><span><b>API 키·액세스 토큰</b><span class="backup-warn">기본으로 제외합니다. 본인만 보관할 백업에만 켜세요.</span></span></label>
       </div>
-      <div class="bar"><span class="sp"></span><button class="primary" id="backupDownload">백업 파일 만들기</button></div>
+      <div class="bar"><button class="ghost" id="backupImport">백업 불러오기</button><span class="sp"></span><button class="primary" id="backupDownload">백업 파일 만들기</button></div>
     </div>
   </div>
 </div>
@@ -752,6 +766,17 @@
 
 <!-- 기본 공통 지시문 데이터는 prompts.js (window.BUILTIN_COMMON) 에 있습니다.
      로컬 실험용 반영은 prompt-editor.html + localStorage 를 씁니다. -->
+<div class="modal" id="workspaceModal" hidden>
+  <div class="modal-in">
+    <div class="modal-h"><h2>작업 목록</h2><button class="mini" id="workspaceClose" aria-label="닫기">닫기</button></div>
+    <div class="modal-b">
+      <div class="field"><label class="fl" for="workspaceName">현재 작업 이름</label><input id="workspaceName" maxlength="100" placeholder="예: 항구 도시 설정"></div>
+      <div class="bar"><button id="workspaceSave" class="primary">현재 작업 저장</button><button id="workspaceNew" class="ghost">새 작업</button></div>
+      <div id="workspaceList"></div>
+      <p class="note">작업 과정은 이 브라우저에 저장됩니다. 생성은 페이지를 열어둔 동안 진행됩니다.</p>
+    </div>
+  </div>
+</div>
 <script src="prompts.js"></script>
 <!-- 일반 스크립트를 아래 순서대로 읽어 파일을 직접 열어도 작동합니다. -->
 <script src="js/core.js"></script>
@@ -760,6 +785,7 @@
 <script src="js/chat.js"></script>
 <script src="js/library.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/workspaces.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

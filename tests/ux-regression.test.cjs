@@ -30,6 +30,123 @@ function boot(t, storage = {}) {
   return { w, run, $: selector => w.document.querySelector(selector) };
 }
 const plain = value => JSON.parse(JSON.stringify(value));
+for(const group of ['world','character','prompt']) test(group+' keyword brainstorming supports multiple selections and direct final generation',async t=>{
+  const a=boot(t);connection(a);
+  a.run(`applyGroup('${group}');S.opts.buildMode='staged';S.opts.check=false;S.project.digest={title:'Source'};renderSeeds();tab('studio');showStudioScreen('seed')`);
+  a.$('#seedFormat').value='keywords';a.$('#seedFormat').dispatchEvent(new a.w.Event('change'));
+  const key=a.run('activePreset().schema[0].key');
+  const requests=replyQueue(a,[[{id:'a',line:'Seaside'},{id:'b',line:'Festival'},{id:'c',line:'Curiosity'}],{[key]:'Finished'}]);
+  a.$('#btnSeeds').click();await nextTurn();
+  assert.match(requests[0].messages.at(-1).content,/키워드 브레인스토밍/);
+  assert.equal(a.$('#seedOut').querySelectorAll('.seed-keyword').length,3);
+  assert.equal(a.$('#btnCross').hidden,true);
+  for(const id of ['a','b','c']) a.$(`[data-sid="${id}"]`).click();
+  assert.equal(a.run('S.project.sel.length'),3);assert.equal(a.$('#btnSeedNext').disabled,false);
+  a.$('#btnSeedNext').click();await nextTurn();screenIs(a,'result');
+  assert.equal(requests.length,2,'Combining keywords itself needs no extra API call');
+  const prompt=requests[1].messages.map(m=>m.content).join('\n');
+  for(const word of ['Seaside','Festival','Curiosity']) assert.ok(prompt.includes(word));
+  assert.equal(a.run('S.project.card.seed.keywords.length'),3);
+  a.run('save();saveDraftNow()');
+  const b=boot(t,Object.fromEntries(Object.keys(a.w.localStorage).map(key=>[key,a.w.localStorage.getItem(key)])));
+  assert.equal(b.$('#seedFormat').value,'keywords');assert.equal(b.run('S.project.sel.length'),3);
+});
+test('candidate adjustment follows selected seeds into mixing, final generation and draft restore',async t=>{
+  const a=boot(t);connection(a);
+  a.run("applyGroup('world');S.opts.buildMode='staged';S.project.digest={title:'Town'};S.project.seeds=[{id:'a',line:'Harbor'},{id:'b',line:'Market'},{id:'c',line:'Mountain'}];S.project.sel=['a','b'];renderSeeds();tab('studio');showStudioScreen('seed')");
+  a.$('#seedNote').value='Combine them and add a ferry';a.$('#seedNote').dispatchEvent(new a.w.Event('input'));
+  const requests=replyQueue(a,[{line:'Harbor market',hook:'Trade'}, {title:'Final town'}]);
+  a.$('#btnCross').click();await nextTurn();screenIs(a,'seed');
+  assert.match(requests[0].messages.at(-1).content,/Combine them and add a ferry/);
+  assert.doesNotMatch(requests[0].messages.at(-1).content,/Mountain/);
+  assert.equal(a.run('S.project.seeds.length'),4);
+  await a.run('doExpand(S.project.seeds.at(-1))');
+  assert.ok(requests[1].messages.some(m=>m.content.includes('Combine them and add a ferry')));
+  a.run("applyGroup('character')");assert.equal(a.$('#seedNote').value,'');
+  a.run("applyGroup('world');save();saveDraftNow()");
+  assert.equal(a.$('#seedNote').value,'Combine them and add a ferry');
+  const b=boot(t,Object.fromEntries(Object.keys(a.w.localStorage).map(key=>[key,a.w.localStorage.getItem(key)])));
+  assert.equal(b.$('#seedNote').value,'Combine them and add a ferry');
+});
+test('candidate re-request uses all unselected candidates and preserves previous choices on failure',async t=>{
+  const a=boot(t);connection(a);
+  a.run("applyGroup('world');S.opts.buildMode='staged';S.project.digest={title:'Town'};S.project.seeds=[{id:'a',line:'Harbor'},{id:'b',line:'Market'}];S.project.seedNote='Make it quieter';renderSeeds();tab('studio');showStudioScreen('seed')");
+  const requests=replyQueue(a,[[],[{id:'c',line:'Quiet harbor'}]]);
+  a.$('#btnSeeds').click();await nextTurn();screenIs(a,'seed');
+  assert.equal(a.run('S.project.seeds.length'),2);
+  assert.equal(a.$('#seedNote').value,'Make it quieter');
+  assert.match(requests[0].messages.at(-1).content,/Harbor/);assert.match(requests[0].messages.at(-1).content,/Market/);
+  a.run("S.project.sel=['a'];renderSeeds()");a.$('#btnSeeds').click();await nextTurn();
+  assert.doesNotMatch(requests[1].messages.at(-1).content,/Market/);
+  assert.equal(a.run('S.project.seeds[0].line'),'Quiet harbor');
+  assert.equal(a.run('S.project.sel.length'),0);
+});
+test('world candidate generation and mixing use world instructions, including restored legacy presets',async t=>{
+  const a=boot(t);connection(a);a.run("applyGroup('world');S.opts.briefBy.world='A seaside town';const wp=activePreset();wp.stages.seed.blocks[0].content=defaultPreset().stages.seed.blocks[0].content;wp.stages.cross=defaultPreset().stages.cross;bootUI()");
+  const requests=replyQueue(a,[[{id:'s1',line:'Town',hook:'Sea',angle:'Life'}],{id:'sx',line:'Town',hook:'Sea',angle:'Life'}]);
+  await a.run("runStage('seed',{})");await a.run("runStage('cross',{})");
+  for(const request of requests){
+    const text=request.messages.map(m=>m.content).join('\n');
+    assert.match(text,/세계관 설계자/);
+    assert.doesNotMatch(text,/캐릭터 설계자|하나의 인물로 합쳐라|인물이 활동할 여백|인물이 참여할 만한/);
+    assert.match(text,/주인공이나 플레이어를 전제하지 말고/);
+  }
+  assert.doesNotMatch(a.run('JSON.stringify(presetWorldAudit())'),/인물을 놓을 자리|인물이 들어갈 자리/);
+  assert.match(a.run("defaultPreset().stages.cross.blocks[1].content"),/하나의 인물로 합쳐라/);
+});
+test('world controls default light and normal, persist independently, and hide in other studios',t=>{
+  const a=boot(t);a.run("applyGroup('world')");
+  assert.equal(a.$('#worldMood').value,'light');assert.equal(a.$('#worldDensity').value,'normal');
+  for(const [id,value] of [['worldMood','heavy'],['worldDensity','detailed'],['worldChars','1800']]){
+    a.$('#'+id).value=value;a.$('#'+id).dispatchEvent(new a.w.Event('change'));
+  }
+  const saved=a.w.localStorage.getItem('orrery.v1');
+  const b=boot(t,{'orrery.v1':saved});
+  assert.deepEqual(plain(b.run('worldPrefs()')),{mood:'heavy',density:'detailed',chars:1800});
+  a.run("applyGroup('character')");assert.equal(a.$('#worldSettings').hidden,true);
+  assert.equal(a.run("worldDirection('expand')"),'');
+  a.run("applyGroup('world')");assert.equal(a.$('#worldMood').value,'heavy');
+});
+test('world settings reach both one-shot and staged API requests without forced adult directives',async t=>{
+  const a=boot(t);connection(a);a.run("applyGroup('world');S.opts.briefBy.world='A cozy village';S.opts.world={mood:'light',density:'concise',chars:1500}");
+  const requests=replyQueue(a,[{title:'Village'},{given:['Village']},{title:'Village'}]);
+  await a.run('doOneShot()');await a.run("runStage('digest',{})");await a.run("runStage('expand',{})");
+  for(const request of requests){
+    const text=request.messages.map(m=>m.content).join('\n');
+    assert.match(text,/세계관 작성 설정/);assert.match(text,/가볍게:/);
+    assert.doesNotMatch(text,/SANCTUARY PROTOCOL|WORLD ADULT CONTENT RULES|무엇이 희소한가/);
+  }
+  assert.match(requests[0].messages.at(-1).content,/1500자/);
+  assert.match(requests[2].messages.at(-1).content,/1500자/);
+  assert.doesNotMatch(requests[1].messages.at(-1).content,/1500자/);
+});
+test('world preset migration preserves custom blocks, fields, and edits',t=>{
+  const a=boot(t);
+  a.run(`const p=S.presets.find(p=>p.id==='world');p.stages.seed.blocks[1].content='Custom direction';p.schema.push({key:'custom',label:'Custom',hint:'Keep this'});p.stages.expand.blocks.push({role:'user',content:'My own rule'});bootUI();`);
+  assert.equal(a.run("S.presets.find(p=>p.id==='world').stages.seed.blocks[1].content"),'Custom direction');
+  assert.equal(a.run("S.presets.find(p=>p.id==='world').schema.at(-1).hint"),'Keep this');
+  assert.equal(a.run("S.presets.find(p=>p.id==='world').stages.expand.blocks.at(-1).content"),'My own rule');
+  assert.doesNotMatch(a.run('JSON.stringify(presetWorld())'),/무엇이 희소한가|상황 5~7개/);
+  a.run("S.opts.world={mood:'invalid',density:'invalid',chars:999999}");
+  assert.deepEqual(plain(a.run('worldPrefs()')),{mood:'light',density:'normal',chars:12000});
+});
+test('world density does not impose a character budget and clearing a custom target removes it',async t=>{
+  const a=boot(t);connection(a);a.run("applyGroup('world');S.opts.briefBy.world='Write a village setting in about 800 characters'");
+  const requests=replyQueue(a,Array.from({length:6},()=>({title:'Village'})));
+  for(const density of ['concise','normal','detailed']){
+    a.$('#worldDensity').value=density;a.$('#worldDensity').dispatchEvent(new a.w.Event('change'));
+    a.$('#worldChars').value='1800';a.$('#worldChars').dispatchEvent(new a.w.Event('change'));
+    a.$('#worldChars').value='';a.$('#worldChars').dispatchEvent(new a.w.Event('change'));
+    await a.run('doOneShot()');await a.run("runStage('expand',{})");
+  }
+  for(const request of requests){
+    const rule=request.messages.at(-1).content;
+    assert.match(rule,/별도의 글자 수 목표는 없다/);
+    assert.doesNotMatch(rule,/\d+자|\d+~\d+개/);
+    assert.ok(request.messages.some(m=>m.content.includes('800 characters')),'User length request is retained');
+  }
+  assert.equal(a.run('worldPrefs().chars'),null);
+});
 const nextTurn = () => new Promise(resolve => setImmediate(resolve));
 function screenIs(a, name) {
   const ids={input:'studioInput',loading:'studioLoading',digest:'digestPanel',seed:'seedPanel',result:'studioResults',cast:'castPanel'};
@@ -561,7 +678,7 @@ test('current continuation and reroll instructions survive reload', t => {
   assert.equal(b.$('#rerollNote').value, 'rerollNote text');
 });
 
-test('easy mode keeps per-field retry and truncated-output recovery available', t => {
+test('legacy easy mode no longer hides editing or continuation tools', t => {
   const a = boot(t);
   const style = a.w.document.createElement('style');
   style.textContent = fs.readFileSync(path.join(root,'styles.css'),'utf8');
@@ -571,7 +688,8 @@ test('easy mode keeps per-field retry and truncated-output recovery available', 
   assert.notEqual(a.w.getComputedStyle(a.$('#continueBox')).display, 'none');
   assert.equal(a.w.getComputedStyle(a.$('.f-lock')).display, 'none');
   a.run('S.project.card.truncated=false;renderContinue()');
-  assert.equal(a.w.getComputedStyle(a.$('#continueBox')).display, 'none');
+  assert.notEqual(a.w.getComputedStyle(a.$('#continueBox')).display, 'none');
+  assert.equal(a.$('#btnEasy'),null);assert.equal(a.$('#welcomeEasy'),null);
 });
 
 test('modal receives focus, isolates the page and returns focus on Escape', async t => {
@@ -589,4 +707,40 @@ test('modal receives focus, isolates the page and returns focus on Escape', asyn
   assert.equal(modal.hidden, true);
   assert.equal(a.w.document.activeElement, trigger);
   assert.ok(!a.$('main').inert);
+});
+
+test('locked candidates survive a re-roll and are handed to the model as kept', async t => {
+  const a=boot(t);connection(a);
+  a.run("applyGroup('world');S.opts.buildMode='staged';S.project.digest={title:'Town'};S.project.seeds=[{id:'a',line:'Harbor'},{id:'b',line:'Market'}];S.project.sel=['a'];renderSeeds();tab('studio');showStudioScreen('seed')");
+  a.$('[data-act="lock"][data-sid="a"]').click();
+  assert.equal(a.run('S.project.seeds[0].locked'),true);
+  assert.ok(a.$('.seed[data-sid="a"]').classList.contains('locked'));
+  const requests=replyQueue(a,[[{id:'a',line:'Quiet cove'},{id:'s2',line:'Lighthouse'}]]);
+  a.$('#btnSeeds').click();await nextTurn();screenIs(a,'seed');
+  assert.match(requests[0].messages.map(m=>m.content).join('\n'),/잠근 후보[\s\S]*Harbor/);
+  assert.deepEqual(plain(a.run('S.project.seeds.map(s=>s.line)')),['Harbor','Quiet cove','Lighthouse']);
+  assert.equal(a.run('S.project.seeds[0].id'),'a');
+  assert.notEqual(a.run('S.project.seeds[1].id'),'a');
+  assert.deepEqual(plain(a.run('S.project.sel')),['a']);
+  assert.ok(a.$('.seed[data-sid="a"]').classList.contains('on'));
+});
+
+test('a candidate can be saved as a material once and opened in talk with materials enabled', async t => {
+  const a=boot(t);connection(a);
+  a.run("applyGroup('character');S.opts.buildMode='staged';S.project.digest={title:'Town'};S.project.seeds=[{id:'a',line:'Retired lighthouse keeper',hook:'Storm',angle:'Guide'}];renderSeeds();tab('studio');showStudioScreen('seed')");
+  a.$('[data-act="asset"][data-sid="a"]').click();
+  assert.equal(a.run('S.assets.length'),1);
+  assert.match(a.run('S.assets[0].body'),/Retired lighthouse keeper[\s\S]*출발점: Storm[\s\S]*역할: Guide/);
+  assert.deepEqual(plain(a.run('S.assets[0].purposes')),['character']);
+  assert.equal(a.run('S.assets[0].use'),true);
+  a.$('[data-act="asset"][data-sid="a"]').click();
+  assert.equal(a.run('S.assets.length'),1);
+  a.run('S.assets[0].use=false;S.chat.ctx.assets=false');
+  a.$('[data-act="talk"][data-sid="a"]').click();
+  assert.equal(a.run('S.assets.length'),1);
+  assert.equal(a.run('S.assets[0].use'),true);
+  assert.equal(a.run('S.chat.ctx.assets'),true);
+  assert.equal(a.run('curTab'),'talk');
+  assert.equal(a.$('#talkRole').value,'char');
+  assert.match(a.run('talkContext()'),/Retired lighthouse keeper/);
 });

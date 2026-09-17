@@ -36,20 +36,15 @@ $('#talkRole').addEventListener('change',syncTalkSettingsLabel);
 
 /* 쉬운 모드 */
 function applyEasy(){
-  const on = !!S.opts.easy;
-  document.body.classList.toggle('easy', on);
-  const btn = $('#btnEasy');
-  if(btn){ btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on); }
+  S.opts.easy=false;
+  document.body.classList.remove('easy');
 }
 function setEasy(on){
-  S.opts.easy = !!on;
   applyEasy();
   if(typeof renderBuildMode==='function') renderBuildMode();
   if(typeof renderOneshot==='function') renderOneshot();
   save();
-  toast(on ? '쉬운 모드 — 복잡한 기능을 감췄어요' : '쉬운 모드를 껐어요');
 }
-$('#btnEasy').addEventListener('click', ()=> setEasy(!S.opts.easy));
 
 /* 첫 진입 온보딩 */
 function openWelcome(){ $('#welcomeConnNote').hidden = !!S.connections.length; $('#welcomeModal').hidden = false; }
@@ -59,9 +54,7 @@ $('#welcomeModal').addEventListener('click', e=>{ if(e.target.id==='welcomeModal
 $('#welcomeModal').addEventListener('click', e=>{
   const c = e.target.closest('.welcome-card'); if(!c) return;
   const g = c.dataset.group;
-  if($('#welcomeEasy').checked){ S.opts.easy = true; }
-  else { S.opts.easy = false; }
-  S.opts.buildMode = S.opts.easy ? 'oneshot' : S.opts.buildMode;
+  S.opts.easy=false;
   applyEasy();
   closeWelcome();
   if(g && g!==S.opts.group) applyGroup(g); else renderBuildMode();
@@ -71,6 +64,7 @@ $('#welcomeModal').addEventListener('click', e=>{
 });
 
 function bootUI(){
+  migrateWorldPreset();
   convertPrefs();
   if(mergeLegacyRequests()){ save(); touchDraft(); }
   $('#optLang').value = S.opts.lang;
@@ -97,6 +91,7 @@ function bootUI(){
 }
 
 (function init(){
+  if(WORKER_WINDOW) return;
   const had = load();
   if(!S.presets.length){ S.presets = builtinPresets(); S.activePreset = 'default'; }
   else {
@@ -117,6 +112,7 @@ function bootUI(){
     });
   }
   S.presets.forEach(p=>{ if(!p.common) p.common = []; });
+  restoreActiveWorkspace();
   const restoredDraft = offerDraftRestore();
   if(!S.presets.find(p=>p.id===S.activePreset)) S.activePreset = S.presets[0].id;
   // 저장된 양식과 분류가 어긋나면 양식 쪽을 기준으로 맞춘다
@@ -139,6 +135,7 @@ function bootUI(){
   if(S.connections.length && !S.connections.find(c=>c.id===S.activeConn)) S.activeConn = S.connections[0].id;
   bootUI();
   BOOTING=false;
+  claimInitialWorkspace();
   if(restoredDraft) touchDraft();
   if(restoredDraft) setTimeout(()=>toast('이전 작업물을 불러왔습니다'),250);
   if(LOAD_ERROR){

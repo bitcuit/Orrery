@@ -567,6 +567,7 @@ function presetWorld(){
 - 문서에 없는 내용을 보태지 말 것
 
 [{"keys":["말"],"content":"내용","comment":"제목","constant":false}]`}]};
+  migrateWorldPreset(P);
   return P;
 }
 
@@ -1008,6 +1009,7 @@ function presetWorldAudit(){
 - 세계가 너무 완결되어 인물이 들어갈 자리가 없는 곳
 {{extraRule}}
 {"칸이름":"내용"} 형태로만 출력.`;
+  migrateWorldPreset(P);
   return P;
 }
 function presetCharAudit(){
@@ -1322,6 +1324,7 @@ function normCommon(arr){
   return out;
 }
 function builtinCommon(){
+  if(WORKER_WINDOW&&Array.isArray(S.runtimeCommons))return normCommon(S.runtimeCommons);
   // (1) 편집기 반영본이 있으면 그것만 사용 (키가 존재하면 우선 — 빈 배열이면 '아무것도 없음'을 뜻함)
   try{
     const raw = localStorage.getItem(COMMON_EXTRA_KEY);
@@ -1331,11 +1334,64 @@ function builtinCommon(){
   try{ return normCommon(typeof window!=='undefined' ? window.BUILTIN_COMMON : []); }catch(_){ return []; }
 }
 // 지금 분류에 해당하는 기본 공통 지시문 — 모든 생성 앞에 자동으로 붙는다(딸깍 반영의 실제 적용부)
+function worldPrefs(){
+  const raw=S.opts.world;
+  const o=raw && typeof raw==='object' && !Array.isArray(raw) ? raw : {};
+  const chars=Number(o.chars);
+  return S.opts.world={
+    mood:['light','balanced','heavy'].includes(o.mood)?o.mood:'light',
+    density:['concise','normal','detailed'].includes(o.density)?o.density:'normal',
+    chars:Number.isFinite(chars)&&chars>0?Math.round(Math.min(12000,Math.max(400,chars))):null
+  };
+}
+function renderWorldSettings(){
+  const o=worldPrefs();
+  $('#worldSettings').hidden=S.opts.group!=='world';
+  $('#worldMood').value=o.mood; $('#worldDensity').value=o.density;
+  $('#worldChars').value=o.chars??'';
+}
+function worldDirection(stage){
+  if(S.opts.group!=='world') return '';
+  const o=worldPrefs();
+  const mood={light:'가볍게: 편안한 일상, 호기심, 작은 모험과 협력을 중심으로. 갈등이 필요하면 해결 가능한 작은 불편이나 사건으로.',balanced:'균형 있게: 일상과 도전을 함께 다루되 비극이나 낙관을 강제하지 말 것.',heavy:'무겁게: 선택의 무게와 긴장감을 살리되 디스토피아·잔혹함·억압을 자동으로 추가하지 말 것.'}[o.mood];
+  const density={concise:'간결: 핵심 전제와 바로 쓸 설정만 짧게 정리한다.',normal:'보통: 세계를 이해하고 이야기를 시작하는 데 필요한 만큼 구체화한다. 부연이나 예외 규칙을 과하게 늘리지 않는다.',detailed:'상세: 중요한 설정의 작동 방식과 관계, 활용 예시까지 구체화한다. 관련 없는 설정은 늘리지 않는다.'}[o.density];
+  const length=o.chars
+    ? `완성 본문 전체는 공백 포함 약 ${o.chars}자 목표. JSON 키·구문은 제외. 칸별 목표가 아니며 전체 칸에 나눠 배분한다. 양식의 개수·길이 예시보다 이 분량 설정을 우선하되 명시적 사용자 요청과 원본 핵심 사실은 보존한다.`
+    : '별도의 글자 수 목표는 없다. 구상에 분량 지시가 있으면 따르고, 없으면 구상의 범위와 필요한 설명에 맞춰 자연스러운 분량으로 작성한다. 정해진 분량을 채우려고 늘리거나 임의의 글자 수에 맞춰 줄이지 말 것.';
+  return `세계관 작성 설정\n${mood}\n사용자의 명시적인 구상·전체 톤과 원본의 확정 사실을 우선한다. 이 설정은 요청하지 않은 새 설정을 덧붙일 때의 기본값이다. 기존 어두운 세계를 임의로 밝게 바꾸지 말 것.\n희소성·권력 다툼·억압·파국·신체 통제는 필수 요소가 아니다. 성인 요소 허용도 해당 요소를 넣으라는 요청이 아니다. 양식의 갈등·대가 칸은 작은 사건이나 한계로도 채울 수 있다. 필요 없는 용어·조직·연표·예외 규칙은 만들지 말 것.\n설정 밀도: ${density} 필요하지 않은 세부 사항까지 모두 확정하지 말 것. 세계 자체의 전제·환경·장소·생활·규칙·집단 관계를 설계하는 작업이다. 주인공이나 플레이어를 전제하지 말고, 그 인물의 배경·목표·역할·성장 서사를 자동으로 만들지 말 것. 특정 인물은 원본에 이미 있거나 사용자가 명시적으로 요청한 경우에만 필요한 범위에서 다룬다.\n${['expand','patch','reroll'].includes(stage)?length+' 반복 설명을 피하고 문장과 JSON을 완결하라.':'요약·후보·검증·변환에서는 각 단계의 출력 형식을 지키고, 원본에 없는 내용을 보태거나 가벼운 분위기에 맞추려고 사실을 바꾸지 말 것. 설정이 간결하다는 이유만으로 결함으로 지적하지 말 것.'}`;
+}
+// Only exact legacy defaults are updated; custom wording and additional blocks remain intact.
+function migrateWorldPreset(p){
+  if(!p){
+    S.presets.filter(p=>['world','world-brief','world-guide','world-audit'].includes(p.id)).forEach(migrateWorldPreset);
+    return;
+  }
+  const pairs=[
+    ['당신은 {{lang}}로 작업하는 캐릭터 설계자다.','당신은 {{lang}}로 작업하는 세계관 설계자다.'],
+    ['이 둘을 하나의 인물로 합쳐라. 단순히 이어붙이지 말고, 두 조건을 동시에 짊어진 사람이 어떤 모순에 놓이는지를 중심에 둘 것.','두 방향을 하나의 세계관으로 통합하라. 전제·생활·규칙·장소가 서로 어울리도록 구성하고 특정 주인공이나 개인 서사를 만들지 말 것.'],
+    ['- 세계를 완결시키지 말 것. 비어 있어야 인물이 들어갈 자리가 생긴다','- 구상에 필요한 범위만 설계하고, 정하지 않아도 되는 세부 사항은 열어둘 것'],
+    ['이야기 걸이','주요 풍경·활동'],
+    ['인물이 참여할 만한 상황. 설정 밀도에 맞춰 개수 조절','세계에서 볼 수 있는 풍경과 일상적·사회적 활동. 특정 인물의 줄거리 없이 설정 밀도에 맞춰 구성'],
+    ['인물을 놓을 자리가 있는가. 다 정해져서 들어갈 틈이 없는 곳도 문제다','세계 자체를 이해하는 데 필요한 설명이 빠졌는가. 의도적으로 열어둔 세부 사항은 결함이 아니다'],
+    ['- 세계가 너무 완결되어 인물이 들어갈 자리가 없는 곳','- 세계 자체를 이해하는 데 필요한 설명의 누락. 주인공이나 개인 서사의 부재는 결함이 아니다'],
+    ['- 각 방향은 "무엇이 희소한가"와 "그래서 누가 힘을 갖는가"가 드러날 것','- 각 방향은 사람들이 무엇을 즐기고 바라며 어떤 일을 겪는지가 드러날 것. 희소성과 권력 다툼을 필수로 넣지 말 것'],
+    ['- 규칙을 정했으면 그 규칙이 만들어내는 불편과 편법까지 적을 것','- 규칙은 생활에 드러나는 모습으로 설명하되 불편과 편법을 억지로 만들지 말 것'],
+    ['- 세력은 선악으로 나누지 말 것. 각자 무엇을 지키려다 부딪히는지로 쓸 것','- 집단은 각자의 역할과 관계로 쓸 것. 협력과 공존도 가능하며 충돌은 필수가 아니다'],
+    ['반드시 성립하는 규칙과 금기. 어겼을 때 무슨 일이 벌어지는지까지. 한 줄에 하나씩','이 세계를 이해하는 데 필요한 핵심 규칙. 생활 속 모습과 함께 짧게'],
+    ['지금의 갈등','지금의 사건'],
+    ['현재 진행 중인 문제. 누가 누구와 무엇 때문에','지금 관심을 끄는 일이나 작은 변화. 갈등은 필요한 경우만'],
+    ['인물을 놓으면 바로 굴러가는 상황 5~7개. 한 줄에 하나씩','세계에서 볼 수 있는 풍경과 일상적·사회적 활동. 특정 인물의 줄거리 없이 설정 밀도에 맞춰 구성']
+  ];
+  const replace=s=>pairs.reduce((v,[old,next])=>v.replaceAll(old,next),s);
+  for(const st of Object.values(p.stages||{})) for(const b of st.blocks||[]) if(typeof b.content==='string') b.content=replace(b.content);
+  for(const f of p.schema||[]) for(const k of ['label','hint']) if(typeof f[k]==='string') f[k]=replace(f[k]);
+}
 function activeBuiltinCommons(v){
   const g = S.opts.group || 'character';
   try{
     return builtinCommonItems()
       .filter(it => it.groups.includes(g))
+      .filter(it => g!=='world' || (it.name!=='NSFW Override' && (S.opts.nsfw || it.name!=='World NSFW Integration')))
       .map(it => ({ role: it.role, content: render(it.content, v) }));
   }catch(_){ return []; }
 }
@@ -1558,6 +1614,12 @@ async function runStage(stageName, vars, retryOnce){
     msgs.push({role:'user', content:'사용자의 구상·요청 — 아래 조건을 지킬 것.\n'+req});
   }
   const opts = {temperature:st.temperature, maxTokens:st.maxTokens};
+  const worldRule=worldDirection(stageName);
+  if(worldRule) msgs.push({role:'user',content:worldRule});
+  if(['seed','cross'].includes(stageName) && vars?.seedRevision){
+    msgs.push({role:'user',content:vars.seedRevision});
+  }
+  if(stageName==='seed' && vars?.seedFormatRule) msgs.push({role:'user',content:vars.seedFormatRule});
   if(ACTIVE_TASK?.studio){
     ACTIVE_TASK.label=({digest:'재료를 정리하고 있습니다',seed:'후보를 만들고 있습니다',cross:'후보를 섞고 있습니다',expand:'결과를 만들고 있습니다',check:'결과를 검증하고 있습니다',relate:'관계를 만들고 있습니다'})[stageName]||'결과를 다듬고 있습니다';
   }
@@ -1591,32 +1653,58 @@ async function doDigest(){
 }
 function digestStr(){ return JSON.stringify(S.project.digest, null, 1); }
 
-async function doSeeds(){
+function activeSeedFormat(){ return S.opts.seedFormatBy?.[S.opts.group]==='keywords'?'keywords':'concept'; }
+function keywordSeeds(){ return S.project.seeds.length>0 && S.project.seeds.every(s=>s.keyword===true); }
+function selectedSeed(){
+  const seeds=S.project.sel.map(id=>S.project.seeds.find(s=>s.id===id)).filter(Boolean);
+  if(!keywordSeeds()) return seeds.length===1?seeds[0]:null;
+  if(!seeds.length) return null;
+  return {id:'k'+uid(),line:seeds.map(s=>s.line).join(' · '),hook:'사용자가 고른 키워드 조합',
+    angle:'선택한 키워드를 함께 반영하되 자연스러운 관계로 구성',
+    revision:[...new Set(seeds.map(s=>s.revision).filter(Boolean))].join('\n'),keywords:seeds.map(s=>s.line)};
+}
+function seedRevision(instruction, candidates, mixing=false){
+  const note=String(instruction||'').trim();
+  if(!note) return '';
+  return `이번 후보 조정\n참고 후보:\n${JSON.stringify(candidates)}\n추가 지시:\n${note}\n`+
+    (mixing?'고른 후보를 합친 후보 하나를 반환하라.':'참고 후보를 바탕으로 추가 지시를 반영한 후보를 지정된 개수만큼 다시 제안하라.')+
+    ' 원본의 확정 사실과 이 단계의 JSON 형식을 지키고, 완성 본문은 아직 만들지 말 것. 추가 지시의 중요한 조건은 후보의 line·hook·angle에 담아 다음 생성 단계에도 이어지게 할 것.';
+}
+async function doSeeds(instruction='', candidates=[]){
   if(!S.project.digest) await doDigest();
+  const locked=S.project.seeds.filter(s=>s.locked&&!s.keyword);
+  const lockNote=locked.length?'\n잠근 후보(그대로 유지되니 다시 만들지 말고, 이들과 겹치지 않는 새 후보만 제안할 것):\n'+locked.map(s=>'- '+s.line).join('\n')+'\n':'';
   const castNote = S.project.cast.length
     ? `\n이미 만들어진 인물 (겹치지 않게):\n${S.project.cast.map(c=>'- '+(c.fields.name||'?')+': '+(c.seed?c.seed.line:'')).join('\n')}\n` : '';
-  const j = await runStage('seed', { digest: digestStr(), castNote, modeNote: modeNote('seed') });
+  const keywords=activeSeedFormat()==='keywords';
+  const seedFormatRule=keywords?'이번 단계는 키워드 브레인스토밍이다. 완성된 컨셉 문장이나 카드가 아니라 서로 조합할 수 있는 짧은 소재·특성·분위기 키워드를 제안하라. 각 항목의 line에는 독립적인 키워드 하나만 넣고 hook과 angle은 빈 문자열로 둔다. 기존 지시문의 한 문장 요약·서사 조건 대신 이 형식을 우선한다. 서로 다른 축을 섞되 사용자가 요청하지 않은 구체적인 인물이나 줄거리를 완성하지 말 것. JSON 배열 [{"id":"s1","line":"짧은 키워드","hook":"","angle":""}] 형식.':'';
+  const j = await runStage('seed', { digest: digestStr(), castNote, modeNote: modeNote('seed'), seedRevision:(seedRevision(instruction,candidates)+lockNote).trim(),seedFormatRule });
   const arr = Array.isArray(j) ? j : (j.seeds || j.items || []);
   if(!Array.isArray(arr)) throw new Error('후보 목록을 읽지 못했습니다. 다시 뽑아 주세요.');
-  const seeds=arr.filter(s=>s&&typeof s==='object').map((s,i)=>({ id:s.id||('s'+i), line:s.line||s.concept||'', hook:s.hook||'', angle:s.angle||'' })).filter(s=>s.line);
+  const seeds=arr.filter(s=>s&&typeof s==='object').map((s,i)=>({ id:s.id||('s'+i), line:s.line||s.concept||'', hook:keywords?'':s.hook||'', angle:keywords?'':s.angle||'', revision:String(instruction||'').trim(),keyword:keywords })).filter(s=>s.line);
   if(!seeds.length) throw new Error('만들어진 후보가 없습니다. 다시 뽑아 주세요.');
-  S.project.seeds=seeds;
-  S.project.sel = [];
+  const keep=keywords?[]:locked;
+  const taken=new Set(keep.map(s=>s.id));
+  seeds.forEach(s=>{ if(taken.has(s.id)) s.id='s'+uid(); taken.add(s.id); });
+  S.project.seeds=[...keep,...seeds];
+  S.project.sel = S.project.sel.filter(id=>taken.has(id)&&keep.some(s=>s.id===id));
   return S.project.seeds;
 }
-async function doCross(a,b){
+async function doCross(a,b,instruction='',additional=[]){
+  if(!a || !b) throw new Error('섞을 후보 둘을 골라 주세요.');
+  const selected=[a,b,...additional];
   const j = await runStage('cross', {
-    digest: digestStr(),
-    seed: `A) ${a.line}\n   (${a.angle||''})\nB) ${b.line}\n   (${b.angle||''})`
+    digest: digestStr(), seedRevision:seedRevision(instruction,selected,true)+'\n고른 후보 '+selected.length+'개 전체를 참고해 하나로 조합하라. 기존 양식에 둘이라고 적혀 있어도 전달된 후보 전체가 대상이다. 합성 후보 하나를 기존 JSON 형식으로 반환하라.',
+    seed:selected.map((s,i)=>`${i+1}) ${seedStr(s)}`).join('\n')
   });
   const s = Array.isArray(j)?j[0]:j;
-  const ns = { id:'x'+uid(), line:s.line||'', hook:s.hook||'', angle:s.angle||'', crossed:true };
+  const ns = { id:'x'+uid(), line:s.line||'', hook:s.hook||'', angle:s.angle||'', crossed:true, revision:String(instruction||'').trim() };
   if(!ns.line) throw new Error('섞은 결과가 비었습니다.');
   S.project.seeds.push(ns);
   S.project.sel = [ns.id];
   return ns;
 }
-function seedStr(s){ if(!s) return '(따로 고른 방향 없음 — 자료 전체에서 판단할 것)'; return `${s.line}\n(출발점: ${s.hook||'-'} / 역할: ${s.angle||'-'})`; }
+function seedStr(s){ if(!s) return '(따로 고른 방향 없음 — 자료 전체에서 판단할 것)'; return `${s.line}\n(출발점: ${s.hook||'-'} / 역할: ${s.angle||'-'})${s.revision?'\n이 후보에 반영한 사용자 지시: '+s.revision:''}`; }
 
 async function doExpand(seed){
   const P=activePreset(); let j, recovered=null;
@@ -1977,7 +2065,9 @@ function currentStudioScreen(){
 }
 function renderStudioScreen(){
   const p=S.project, P=activePreset(), one=S.opts.buildMode==='oneshot', screen=currentStudioScreen();
-  const loading=!!(ACTIVE_TASK&&ACTIVE_TASK.studio), shown=loading?'loading':screen;
+  const background=typeof currentWorkspaceJob==='function'?currentWorkspaceJob():null;
+  const running=ACTIVE_TASK?.studio?ACTIVE_TASK:background;
+  const loading=!!running, shown=loading?'loading':screen;
   $('#studioInput').hidden=shown!=='input';
   $('#studioResults').hidden=shown!=='result';
   $('#digestPanel').hidden=shown!=='digest';
@@ -2007,15 +2097,19 @@ function renderStudioScreen(){
   if(!digestButton.querySelector('.busy')) digestButton.textContent=p.digest?'다시 정리하기':'재료 정리하기';
   digestButton.classList.remove('primary'); digestButton.classList.add('ghost');
   $('#btnSeeds').classList.remove('primary'); $('#btnSeeds').classList.add('ghost');
-  $('#btnSeedNext').disabled=p.sel.length!==1;
-  $('#btnSeedNext').textContent=p.sel.length===2?'후보 둘을 먼저 섞어 주세요':'이 후보로 만들기 →';
+  $('#btnSeedNext').disabled=keywordSeeds()?p.sel.length===0:p.sel.length!==1;
+  $('#btnSeedNext').textContent=keywordSeeds()?'고른 키워드로 만들기 →':p.sel.length>=2?'고른 후보를 먼저 섞어 주세요':'이 후보로 만들기 →';
   if(loading){
-    $('#studioLoadingTitle').textContent=ACTIVE_TASK.cancelled?'요청을 중지하는 중입니다':(ACTIVE_TASK.label||'만드는 중입니다');
-    $('#studioLoadingStep').textContent=ACTIVE_TASK.calls?`API 요청 ${ACTIVE_TASK.calls}회째 · 응답을 기다리고 있습니다`:'요청을 준비하고 있습니다';
-    const stop=$('#btnAbortCall');
-    if(stop.parentElement!==$('#studioStopSlot')) $('#studioStopSlot').append(stop);
-    stop.hidden=false; stop.classList.add('inline');
+    $('#studioLoadingTitle').textContent=running.cancelled?'요청을 중지하는 중입니다':(running.label||'만드는 중입니다');
+    $('#studioLoadingStep').textContent=running.calls?`API 요청 ${running.calls}회째 · 응답을 기다리고 있습니다`:'요청을 준비하고 있습니다';
+    if(!background){
+      const stop=$('#btnAbortCall');
+      if(stop.parentElement!==$('#studioStopSlot')) $('#studioStopSlot').append(stop);
+      stop.hidden=false; stop.classList.add('inline');
+    }
   }
+  $('#btnStopWorkspace').hidden=!background;
+  if(typeof reportWorkspaceProgress==='function') reportWorkspaceProgress();
 }
 function showStudioScreen(screen){
   S.project.screen=screen;
@@ -2051,7 +2145,7 @@ function scrollToStage(stage, reopen){
 function setSpine(){
   const p = S.project;
   const P = activePreset();
-  const done = { digest: !!p.digest, seed: P.skipSeed || p.sel.length===1, expand: !!p.card, check: P.skipCheck || !!p.verdict };
+  const done = { digest: !!p.digest, seed: P.skipSeed || (keywordSeeds()?p.sel.length>0:p.sel.length===1), expand: !!p.card, check: P.skipCheck || !!p.verdict };
   const order = ['digest','seed','expand','check'];
   const visible=order.filter(k=>k!=='check'&&!(k==='seed'&&P.skipSeed));
   if(CLOSED_DONE_STAGE && !done[CLOSED_DONE_STAGE]) CLOSED_DONE_STAGE=null;
@@ -2175,6 +2269,10 @@ function renderDigest(){
 }
 function renderSeeds(){
   const p = S.project, box = $('#seedOut'), P = activePreset();
+  if(document.activeElement!==$('#seedNote')) $('#seedNote').value=p.seedNote||'';
+  $('#seedFormat').value=activeSeedFormat();
+  const seedButtonText=Array.from($('#btnSeeds').childNodes).find(n=>n.nodeType===3 && n.textContent.trim());
+  if(seedButtonText) seedButtonText.textContent=activeSeedFormat()==='keywords'?'키워드 제안':p.seeds.length?'후보 다시 제안':'씨앗 뽑기';
   const skip = !!P.skipSeed;
   $('#seedPanel').style.display = skip ? 'none' : '';
   $('#modePanel').style.display = P.kind==='schema' ? 'none' : '';
@@ -2187,33 +2285,83 @@ function renderSeeds(){
   $('#btnDlPng').style.display = cardExport ? '' : 'none';
   $('#btnMakePreset').style.display = P.kind==='schema' ? '' : 'none';
   if(skip){ $('#btnExpand').disabled = !p.digest; box.innerHTML=''; setSpine(); return; }
-  $('#btnCross').disabled = p.sel.length!==2;
-  $('#btnExpand').disabled = p.sel.length!==1;
-  $('#seedHint').textContent = !p.seeds.length ? '' :
+  $('#btnCross').disabled = p.sel.length<2;
+  $('#btnCross').hidden=keywordSeeds();
+  $('#btnExpand').disabled = keywordSeeds()?p.sel.length===0:p.sel.length!==1;
+  $('#seedHint').textContent = keywordSeeds()?`여러 개 선택해 바로 조합 · ${p.sel.length}개 선택`:!p.seeds.length ? '' :
     p.sel.length===1 ? '하나 골랐습니다 — 다음 단계에서 결과를 만드세요' :
-    p.sel.length===2 ? '둘 골랐습니다 — 섞을 수 있습니다' : '하나를 고르면 결과를 만들고, 둘을 고르면 섞습니다';
+    p.sel.length>=2 ? `${p.sel.length}개 선택 · 함께 섞을 수 있음` : '하나로 만들거나 여러 개를 골라 섞기';
   if(!p.seeds.length){
     box.innerHTML = '<div class="empty"><b>아직 별씨앗이 없습니다</b>먼저 재료 정리를 마치고 씨앗을 뽑으세요.</div>';
     setSpine(); return;
   }
+  if(keywordSeeds()){
+    box.innerHTML=`<div class="seed-keywords">${p.seeds.map(s=>`<button type="button" class="seed-keyword ${p.sel.includes(s.id)?'on':''}" data-sid="${esc(s.id)}" aria-pressed="${p.sel.includes(s.id)}">${esc(s.line)}</button>`).join('')}</div>`;
+    setSpine();return;
+  }
   box.innerHTML = `<div class="seeds">${p.seeds.map((s,i)=>{
-    const idx = p.sel.indexOf(s.id);
-    return `<button type="button" class="seed ${idx===0?'on':idx===1?'mate':''}" data-sid="${s.id}" aria-pressed="${idx>=0}">
-      <span class="idx">${s.crossed?'✶ 합성':'✦ '+String(i+1).padStart(2,'0')}${idx>=0?' · 고름':''}</span>
+    const idx = p.sel.indexOf(s.id), saved=!!(s.assetId&&assetById(s.assetId));
+    return `<div role="button" tabindex="0" class="seed ${idx>=0?'on':''} ${s.locked?'locked':''}" data-sid="${esc(s.id)}" aria-pressed="${idx>=0}">
+      <span class="idx">${s.crossed?'✶ 합성':'✦ '+String(i+1).padStart(2,'0')}${idx>=0?' · 고름':''}${s.locked?' · 잠금':''}</span>
       <span class="line">${esc(s.line)}</span>
       <span class="hook"><b>출발점</b> ${esc(s.hook||'-')}<br><b>역할</b> ${esc(s.angle||'-')}</span>
-    </button>`;
+      <span class="seed-acts">
+        <button type="button" class="mini ghost seed-act ${s.locked?'on':''}" data-act="lock" data-sid="${esc(s.id)}" aria-pressed="${!!s.locked}" title="다시 뽑아도 이 후보는 남깁니다">${s.locked?'잠금 풀기':'잠그기'}</button>
+        <button type="button" class="mini ghost seed-act ${saved?'on':''}" data-act="asset" data-sid="${esc(s.id)}" title="이 후보를 재료 탭에 저장합니다">${saved?'재료에 있음':'재료로 저장'}</button>
+        <button type="button" class="mini ghost seed-act" data-act="talk" data-sid="${esc(s.id)}" title="이 후보를 재료로 저장하고 대화 탭으로 갑니다">이걸로 대화</button>
+      </span>
+    </div>`;
   }).join('')}</div>`;
   setSpine();
 }
-$('#seedOut').addEventListener('click', e=>{
-  const el = e.target.closest('.seed'); if(!el) return;
-  const id = el.dataset.sid, sel = S.project.sel;
-  const i = sel.indexOf(id);
+function seedById(id){ return S.project.seeds.find(s=>s.id===id); }
+function toggleSeedSel(id){
+  const sel = S.project.sel, i = sel.indexOf(id);
   if(i>=0) sel.splice(i,1);
-  else { if(sel.length>=2) sel.shift(); sel.push(id); }
+  else sel.push(id);
   OPEN_DONE_STAGE = sel.length===1 ? 'seed' : null;
   renderSeeds(); touchDraft();
+}
+// 후보 하나를 재료(성운)로 저장한다. 이미 저장했으면 그 재료를 다시 켜기만 한다.
+function seedToAsset(s){
+  let a = s.assetId && assetById(s.assetId);
+  if(a){ a.use=true; }
+  else{
+    const body = s.line + '\n\n출발점: ' + (s.hook||'-') + '\n역할: ' + (s.angle||'-') + (s.revision?'\n반영한 지시: '+s.revision:'');
+    a = { id:uid(), kind:'text', name:s.line.slice(0,40)+(s.line.length>40?'…':'')+' (후보)', body, purposes:[S.opts.group], tags:[], use:true };
+    S.assets.push(a); s.assetId=a.id;
+  }
+  renderAssets(); materialChanged(); renderChat(true);
+  return a;
+}
+$('#seedOut').addEventListener('click', e=>{
+  const act = e.target.closest('.seed-act');
+  if(act){
+    e.stopPropagation();
+    const s = seedById(act.dataset.sid); if(!s) return;
+    if(act.dataset.act==='lock'){ s.locked=!s.locked; renderSeeds(); touchDraft(); toast(s.locked?'잠갔습니다 — 다시 뽑아도 남습니다':'잠금을 풀었습니다'); return; }
+    if(!canChangeWork()) return;
+    const had = !!(s.assetId&&assetById(s.assetId));
+    seedToAsset(s); renderSeeds();
+    if(act.dataset.act==='asset'){ toast(had?'이미 재료에 있어서 다시 켰습니다':'재료에 넣었습니다'); return; }
+    S.chat.ctx.assets=true; $('#ctxAssets').checked=true;
+    const role={world:'world',character:'char',prompt:'prompt'}[S.opts.group];
+    if(role && $('#talkRole').querySelector(`option[value="${role}"]`)){ S.chat.role=role; $('#talkRole').value=role; updateTalkRoleUI(); }
+    save(); tab('talk'); toast('이 후보를 재료로 넣고 대화 탭으로 왔습니다');
+    return;
+  }
+  const el = e.target.closest('[data-sid]'); if(!el) return;
+  toggleSeedSel(el.dataset.sid);
+});
+$('#seedOut').addEventListener('keydown', e=>{
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const el = e.target.closest('.seed[data-sid]'); if(!el || e.target!==el) return;
+  e.preventDefault(); toggleSeedSel(el.dataset.sid);
+});
+$('#seedNote').addEventListener('input',e=>{ S.project.seedNote=e.target.value; touchDraft(); });
+$('#seedFormat').addEventListener('change',e=>{
+  S.opts.seedFormatBy={...(S.opts.seedFormatBy||{}),[S.opts.group]:e.target.value};
+  renderSeeds();save();touchDraft();
 });
 
 function renderContinue(){
@@ -2586,8 +2734,10 @@ $('#btnRawView').addEventListener('click', ()=>{
   showRaw(LAST_RAW,'마지막 API 응답');
 });
 async function guard(btn, label, fn){
-  const task=beginTask(); if(!task) return false;
   if(btn && btn.closest) btn=btn.closest('button')||btn;
+  if(typeof canRunInBackground==='function' && canRunInBackground(btn)) return startWorkspaceJob(btn,label);
+  const task=beginTask(); if(!task) return false;
+  if(WORKER_WINDOW) task.initialRecords=new Map(S.library.map(r=>[r.id,JSON.stringify(r)]));
   task.studio=!!btn?.closest('#v-studio'); task.label=label; task.calls=0;
   busy(btn, true, label);
   if(task.studio){
@@ -2595,10 +2745,11 @@ async function guard(btn, label, fn){
     if(curTab==='studio'){ window.scrollTo({top:0,behavior:'instant'}); $('#studioLoadingTitle').focus({preventScroll:true}); }
   }
   try{ await fn(); assertTask(task); return true; }
-  catch(e){ showErr(e); return false; }
+  catch(e){ task.error=e.message||String(e);showErr(e); return false; }
   finally{
     busy(btn, false); endTask(task); renderConnectionAction();
     if(task.studio) showStudioScreen(S.project.screen || (S.project.card&&!S.project.card.inputOpen?'result':'input'));
+    if(WORKER_WINDOW) reportWorkspaceResult(task);
   }
 }
 
@@ -2629,17 +2780,19 @@ $('#btnDigestClear').addEventListener('click', ()=>{
   S.project.digest=null; S.project.digestMeta=null; stashDigest(S.opts.group); renderDigest(); touchDraft(); toast('정리한 내용을 지웠습니다');
 });
 $('#btnSeeds').addEventListener('click', e=> guard(e.target,'뽑는 중', async()=>{
-  await doSeeds(); renderDigest(); renderSeeds(); touchDraft(); toast(S.project.seeds.length+'개 뽑았습니다');
+  const p=S.project, selected=p.seeds.filter(s=>p.sel.includes(s.id));
+  await doSeeds(p.seedNote,selected.length?selected:p.seeds); renderDigest(); renderSeeds(); touchDraft(); toast(S.project.seeds.length+'개 뽑았습니다');
   scrollToStage('seed');
 }));
 $('#btnCross').addEventListener('click', e=> guard(e.target,'섞는 중', async()=>{
-  const [a,b] = S.project.sel.map(id=>S.project.seeds.find(s=>s.id===id));
-  await doCross(a,b); renderSeeds(); touchDraft(); toast('섞은 씨앗을 만들었습니다');
+  const [a,b,...rest] = S.project.sel.map(id=>S.project.seeds.find(s=>s.id===id));
+  await doCross(a,b,S.project.seedNote,rest); renderSeeds(); touchDraft(); toast('섞은 씨앗을 만들었습니다');
   scrollToStage('seed');
 }));
 $('#btnExpand').addEventListener('click', e=> guard(e.target,'만드는 중', async()=>{
   const P = activePreset();
-  const seed = P.skipSeed ? null : S.project.seeds.find(s=>s.id===S.project.sel[0]);
+  const seed = P.skipSeed ? null : selectedSeed();
+  if(!P.skipSeed && !seed) throw new Error('사용할 후보나 키워드를 골라 주세요.');
   await makeExpandedResult(seed);
   toast(S.project.card.truncated?'출력이 잘린 곳까지 복구했습니다 · 이어서 만들기를 눌러주세요':'결과를 만들었습니다');
   scrollToStage('expand',true);
@@ -2734,6 +2887,8 @@ async function doOneShot(){
     msgs.push({role:'user', content:'사용자의 구상·요청 — 아래 조건을 지킬 것.\n'+req});
   }
   const opts = { temperature: st.temperature, maxTokens: Math.max(st.maxTokens||2400, 2400) };
+  const worldRule=worldDirection('expand');
+  if(worldRule) msgs.push({role:'user',content:worldRule});
   const raw = await callProvider(conn, msgs, opts);
   let j, recovered=null, parsedRaw=raw;
   try{ const parsed=await parseJsonReply(conn,msgs,opts,raw,true); j=parsed.json; parsedRaw=parsed.raw||raw; }
@@ -2825,28 +2980,7 @@ $('#btnOneShot').addEventListener('click', e=>{
 });
 ['continueNote','rerollNote'].forEach(id=>$('#'+id).addEventListener('input',touchDraft));
 
-$('#btnNewWork').addEventListener('click', ()=>{
-  if(!canChangeWork()) return;
-  flushCardEdits();
-  const g=S.opts.group, label=GROUP_LABEL[g]||'현재';
-  if(!confirm(`${label} 작업대의 구상·요청·정리한 내용·씨앗·결과를 비울까요?\n불러온 재료와 성도 기록은 남습니다.`)) return;
-  OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
-  if(!S.opts.briefBy) S.opts.briefBy={world:'',character:'',prompt:''};
-  if(!S.opts.extraBy) S.opts.extraBy={world:'',character:'',prompt:''};
-  S.opts.briefBy[g]=''; S.opts.extraBy[g]='';
-  convertPrefs().extraBy[g]='';
-  if(!S.project.digestBy) S.project.digestBy={};
-  S.project.digestBy[g]=null;
-  if(S.project.workBy) delete S.project.workBy[g];
-  Object.assign(S.project,{
-    digest:null,digestSrc:'',digestMeta:null,seeds:[],sel:[],card:null,locked:{},
-    violations:null,verdict:null,cast:[],relations:null,qa:[],libId:null,screen:'input'
-  });
-  $('#optBrief').value=''; $('#continueNote').value=''; $('#rerollNote').value='';
-  save(); touchDraft(); renderDigest(); renderSeeds(); renderCard();
-  renderCheck(); renderCast(); renderQA(); renderMat(); renderOneshot();
-  toast(`${label} 작업대를 비웠습니다`);
-});
+$('#btnNewWork').addEventListener('click', ()=>createWorkspace());
 
 /* 모드 · 옵션 */
 $('#modeBox').addEventListener('click', e=>{
@@ -2882,6 +3016,12 @@ $('#optBrief').addEventListener('input', e=>{
   renderMat(); renderOneshot(); save(); touchDraft();
 });
 bindOpt('#optLang','lang'); bindOpt('#optTone','tone');
+for(const [id,key] of [['worldMood','mood'],['worldDensity','density'],['worldChars','chars']]){
+  $('#'+id).addEventListener('change',e=>{
+    const o=worldPrefs(); o[key]=e.target.value;
+    renderWorldSettings(); save(); touchDraft();
+  });
+}
 $('#optLang').addEventListener('change',()=>{ syncConvertSourceToOutput(); save(); renderConvert(); });
 bindOpt('#optSeedN','seedCount',Number); bindOpt('#optCastN','castCount',Number);
 $('#optCastN').addEventListener('change',renderOneshot);
