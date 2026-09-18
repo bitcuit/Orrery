@@ -920,7 +920,7 @@ button.asset-tag:not(:disabled):hover{color:var(--c178);background:var(--c13)}
   transition:background-color .2s,box-shadow .2s,transform .2s var(--ease)}
 .mode:hover{background:var(--s2h);transform:translateY(-2px)}
 .mode.on{background:var(--c36);
-  box-shadow:0 0 0 1px var(--c15), 0 8px 30px var(--c13)}
+  box-shadow:0 0 0 1px var(--c15), 0 4px 14px var(--c13)}
 .mode .mn{font-family:var(--body);font-size:15px;font-weight:560;margin-bottom:4px;letter-spacing:-0.02em;color:var(--c173)}
 .mode .md{font-size:12px;color:var(--c176);line-height:1.55}
 button.mode,button.seed{display:block;width:100%;text-align:left;white-space:normal;line-height:1.5}
@@ -977,7 +977,7 @@ button.refine-mode.on .rn{color:var(--c152)}
   box-shadow:0 0 0 1px var(--c80)}
 .spine li.done .t{color:var(--c145)}
 .spine li.now .n{color:var(--c183);background:var(--c153);font-weight:600;
-  box-shadow:0 0 0 4px var(--c81), 0 0 14px var(--c82)}
+  box-shadow:0 0 0 4px var(--c81), 0 0 8px var(--c82)}
 .spine li.now .t{color:var(--c152)}
 .spine li.available{cursor:pointer}
 .spine li.available:hover .n,.spine li.available:focus-visible .n{box-shadow:0 0 0 3px var(--c83)}
@@ -1009,7 +1009,7 @@ button.refine-mode.on .rn{color:var(--c152)}
   box-shadow:inset 0 1px 0 var(--c24);
   transition:background-color .2s,box-shadow .2s,transform .2s var(--ease)}
 .seed:hover{background:var(--s2h);transform:translateY(-2px)}
-.seed.on{box-shadow:0 0 0 1px var(--c39), 0 8px 30px var(--c31);background:var(--c36)}
+.seed.on{box-shadow:0 0 0 1px var(--c39), 0 4px 14px var(--c31);background:var(--c36)}
 .seed .idx{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--c174);
   display:block;margin-bottom:8px}
 .seed.on .idx{color:var(--c156)}
@@ -1455,7 +1455,7 @@ button.build-mode{min-width:0;min-height:78px;padding:14px 16px;text-align:left;
 button.build-mode .bn{font-family:var(--body);font-size:15px;font-weight:560;color:var(--c173)}
 button.build-mode .bd{font-size:12px;line-height:1.5;color:var(--c176);font-weight:400}
 button.build-mode.on{background:var(--c36);border-color:var(--c15);
-  box-shadow:0 8px 30px var(--c36)}
+  box-shadow:0 4px 14px var(--c36)}
 button.build-mode.on .bn{color:var(--c152)}
 .oneshot{display:flex;flex-direction:column;align-items:flex-start;gap:9px;margin-bottom:18px;padding:14px 16px;
   border-radius:11px;background:var(--c68)}
@@ -1647,3 +1647,9 @@ html[data-theme="light"] body::after{
 }
 html[data-theme="light"] svg [stroke="#e9b654"]{stroke:var(--brass)}
 html[data-theme="light"] svg [fill="#e9b654"]{fill:var(--brass)}
+/* 밝은 화면: 바깥 글로우 없이 테두리만 */
+html[data-theme="light"] .mode.on{box-shadow:0 0 0 1px var(--c15)}
+html[data-theme="light"] .seed.on{box-shadow:0 0 0 1px var(--c39)}
+html[data-theme="light"] button.build-mode.on{box-shadow:none}
+html[data-theme="light"] .spine li.now .n{box-shadow:0 0 0 3px var(--c81)}
+html[data-theme="light"] .groups button.on .gico{filter:none}
