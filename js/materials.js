@@ -138,13 +138,13 @@ function cardAsset(data, fallbackName){
   if(Array.isArray(d.alternate_greetings) && d.alternate_greetings.length)
     fields.alternate_greetings = d.alternate_greetings.join('\n\n');
   out.push({ id:uid(), kind:'character', name: d.name || fallbackName || '이름 없는 카드',
-             fields, use:true });
+             fields, use:false });
   const book = d.character_book || d.characterBook;
   if(book && (book.entries)){
     const en = normEntries(book.entries);
     if(en.length) out.push({ id:uid(), kind:'lorebook',
       name:(d.name||fallbackName||'카드')+' 내장 로어북', from:'embedded',
-      entries: en.map(e=>({...e, use: !suspectEntry(e)})), use:true });
+      entries: en.map(e=>({...e, use: !suspectEntry(e)})), use:false });
   }
   return out;
 }
@@ -165,17 +165,17 @@ function fromJson(j, fname){
   if(j && j.entries && looksLikeEntries(j.entries)){
     const en = normEntries(j.entries);
     return [{ id:uid(), kind:'lorebook', name: j.name || fname || '로어북',
-      entries: en.map(e=>({...e, use: !suspectEntry(e)})), use:true }];
+      entries: en.map(e=>({...e, use: !suspectEntry(e)})), use:false }];
   }
   if(looksLikeEntries(j)){
     const en = normEntries(j);
     return [{ id:uid(), kind:'lorebook', name: fname || '로어북',
-      entries: en.map(e=>({...e, use: !suspectEntry(e)})), use:true }];
+      entries: en.map(e=>({...e, use: !suspectEntry(e)})), use:false }];
   }
   if(Array.isArray(j) && j.some(isCard)) {
     let out=[]; j.filter(isCard).forEach(c=>{ out = out.concat(cardAsset(c, fname)); }); return out;
   }
-  return [{ id:uid(), kind:'text', name: fname||'텍스트', body: JSON.stringify(j,null,2), use:true }];
+  return [{ id:uid(), kind:'text', name: fname||'텍스트', body: JSON.stringify(j,null,2), use:false }];
 }
 function externalPromptMaterial(j,fname){
   if(!j||typeof j!=='object')return null;
@@ -196,7 +196,7 @@ function externalPromptMaterial(j,fname){
   }else return null;
   const body=parts.filter(p=>typeof p.text==='string'&&p.text.trim()).map(p=>`## ${p.name||'구획'}${p.role?' · '+p.role:''}${p.enabled===false?' · 비활성 구획':''}\n${p.text}`).join('\n\n');
   if(!body)throw new Error('이 프리셋에는 읽을 수 있는 지문이 없습니다.');
-  return {id:uid(),kind:'text',name:name||'가져온 프롬프트',body,purposes:['prompt'],use:true};
+  return {id:uid(),kind:'text',name:name||'가져온 프롬프트',body,purposes:['prompt'],use:false};
 }
 
 async function sniff(file){
@@ -223,7 +223,7 @@ async function sniff(file){
   try{json=JSON.parse(text);}catch(e){
     if(/\.(json|marinara|preset)$/i.test(file.name))throw new Error('JSON 형식이 올바르지 않습니다.');
     if(text.includes('\u0000')||(text.match(/\ufffd/g)||[]).length>3)throw new Error('읽을 수 없는 바이너리 파일입니다.');
-    return [{ id:uid(), kind:'text', name:file.name, body:text, use:true }];
+    return [{ id:uid(), kind:'text', name:file.name, body:text, use:false }];
   }
   return fromJson(json,base);
 }
@@ -726,7 +726,7 @@ $('#btnPasteAdd').addEventListener('click', ()=>{
   const purposes=$$('#pastePurposes input').filter(x=>x.checked).map(x=>x.value);
   const tags=cleanAssetTags($('#pasteTags').value);
   S.assets.push({ id:uid(), kind:'text',
-    name: typedName || (first ? first + (t.length>24?'…':'') : '붙여넣은 텍스트'), body:t, purposes, tags, use:true });
+    name: typedName || (first ? first + (t.length>24?'…':'') : '붙여넣은 텍스트'), body:t, purposes, tags, use:false });
   resetPasteForm(); $('#pasteBox').hidden = true;
   renderAssets(); materialChanged(); toast('재료에 넣었습니다');
 });

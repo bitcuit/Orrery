@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<script>try{if(localStorage.getItem('orrery.theme')==='light')document.documentElement.dataset.theme='light';}catch(e){}</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
@@ -39,6 +40,7 @@
     <button class="mini" data-tab="log"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="7.5" y="6.5" width="17" height="19" rx="3"/><circle cx="12.1" cy="12.2" r="1.1" fill="#e9b654" stroke="none"/><circle cx="12.1" cy="16" r="1.1" fill="#e9b654" stroke="none"/><circle cx="12.1" cy="19.8" r="1.1" fill="#e9b654" stroke="none"/><path d="M15.5 12.2h5.1M15.5 16h5.1M15.5 19.8h5.1"/></svg><span class="btxt">로그</span></button>
     <button class="mini" data-tab="prompts"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="5.4"/><circle cx="16" cy="16" r="1.7" fill="#e9b654" stroke="none"/><path d="M16 4.6v2.5M16 24.9v2.5M4.6 16h2.5M24.9 16h2.5M8 8l1.8 1.8M22.2 22.2 24 24M24 8l-1.8 1.8M9.8 22.2 8 24"/></svg><span class="btxt">양식</span></button>
     <button class="mini" id="btnConnHelp"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="9.4"/><path d="M13.2 13.1a2.9 2.9 0 1 1 4.05 2.68c-.86.37-1.25.98-1.25 1.92" stroke="#e9b654"/><circle cx="16" cy="21.5" r="1.1" fill="#e9b654" stroke="none"/></svg><span class="btxt">도움말</span></button>
+    <button class="mini" id="btnTheme" aria-label="화면 밝기 전환"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="5.2"/><path d="M16 4.8v3M16 24.2v3M4.8 16h3M24.2 16h3M8.1 8.1l2.1 2.1M21.8 21.8l2.1 2.1M23.9 8.1l-2.1 2.1M10.2 21.8l-2.1 2.1" stroke="#e9b654"/></svg><span class="btxt" id="btnThemeText">밝게</span></button>
     </div>
   </div>
 </header>
@@ -234,6 +236,10 @@
         <div class="field" id="promptEditField" hidden>
           <label class="fl" for="promptEditMode">수정 목적</label>
           <select id="promptEditMode"><option value="supplement">같은 용도로 다듬기</option><option value="adapt">다른 용도로 바꾸기</option></select>
+        </div>
+        <div class="field" id="fieldToggleBox" hidden>
+          <label class="fl">출력 칸 <span class="note" id="fieldToggleCount"></span></label>
+          <div class="field-toggles" id="fieldToggles"></div>
         </div>
         <div class="refine-panel" id="refinePanel" hidden>
           <div class="refine-head"><span class="fl">다듬는 방향</span></div>

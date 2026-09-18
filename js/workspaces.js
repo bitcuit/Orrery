@@ -154,6 +154,7 @@ function createWorkspace(){
   S.opts.briefBy[g]='';S.opts.extraBy[g]='';convertPrefs().extraBy[g]='';
   S.project.digestBy[g]=null;delete S.project.workBy[g];
   Object.assign(S.project,emptyWork(),{screen:'input'});
+  S.assets.forEach(a=>{ a.use=false; });
   $('#optBrief').value='';$('#continueNote').value='';$('#rerollNote').value='';
   // Each work owns its conversation. Other group work is retained in the saved prior session.
   S.chat={role:g==='character'?'char':g,msgs:[],ctx:{assets:true,digest:true,card:false}};
