@@ -63,7 +63,21 @@ $('#welcomeModal').addEventListener('click', e=>{
   setTimeout(()=>{ const bf=$('#optBrief'); if(bf) bf.focus(); }, 200);
 });
 
+const THEME_KEY='orrery.theme';
+function applyTheme(theme){
+  const light=theme==='light';
+  document.documentElement.dataset.theme=light?'light':'dark';
+  const t=$('#btnThemeText'); if(t) t.textContent=light?'어둡게':'밝게';
+  const b=$('#btnTheme'); if(b) b.title=light?'어두운 화면으로':'밝은 화면으로';
+}
+function currentTheme(){ try{ return localStorage.getItem(THEME_KEY)==='light'?'light':'dark'; }catch(_){ return 'dark'; } }
+$('#btnTheme').addEventListener('click',()=>{
+  const next=currentTheme()==='light'?'dark':'light';
+  try{ localStorage.setItem(THEME_KEY,next); }catch(_){ }
+  applyTheme(next);
+});
 function bootUI(){
+  applyTheme(currentTheme());
   migrateWorldPreset();
   convertPrefs();
   if(mergeLegacyRequests()){ save(); touchDraft(); }

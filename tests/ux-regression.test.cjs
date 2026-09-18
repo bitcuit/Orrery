@@ -632,7 +632,7 @@ test('material manager preserves the tab, form and focus while supporting nested
   assert.equal(a.run('curTab'),'studio');assert.equal(source.parentElement,a.$('#materialsManagerMount'));
   assert.equal(a.$('main').inert,true);
   a.$('#btnPaste').click();a.$('#pasteName').value='Material';a.$('#pasteIn').value='Source text';a.$('#btnPasteAdd').click();
-  assert.equal(a.run('S.assets[0].body'),'Source text');assert.equal(a.$('.n-use').checked,true);
+  assert.equal(a.run('S.assets[0].body'),'Source text');assert.equal(a.$('.n-use').checked,false); // 새로 넣은 재료는 자동 선택되지 않는다
   a.run('openAssetFolderModal()');await nextTurn();
   a.$('#assetFolderModal').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await nextTurn();
   assert.equal(a.$('#assetFolderModal').hidden,true);assert.equal(a.$('#materialsManagerModal').hidden,false);
@@ -801,4 +801,56 @@ test('OOC preset without formats asks the model to pick one and stays out of oth
   await nextTurn();
   prompt=requests[0].messages.map(m=>m.content).join('\n');
   assert.doesNotMatch(prompt, /OOC 작성 설정/);
+});
+
+test('new materials start unselected and selections clear on group switch and new work', t => {
+  const a = boot(t);
+  a.run("$('#pasteIn').value='Source text';$('#btnPasteAdd').click()");
+  assert.equal(a.run('S.assets[0].use'), false);
+  a.run("S.assets[0].use=true;S.assets.push({id:'m2',kind:'text',name:'B',body:'b',use:true,purposes:[],tags:[]});applyGroup('character')");
+  assert.deepEqual(plain(a.run('S.assets.map(a=>a.use)')), [false,false]);
+  a.run("S.assets[0].use=true;createWorkspace()");
+  assert.deepEqual(plain(a.run('S.assets.map(a=>a.use)')), [false,false]);
+  a.run("S.project.card={fields:{name:'Hero'},seed:null,continuations:[]};$('#btnToAsset').click()");
+  assert.equal(a.run('S.assets.at(-1).use'), true);
+});
+
+test('field toggles narrow generation, display and rerolls, and are stored per preset', async t => {
+  const a = boot(t); connection(a);
+  a.run("applyGroup('character');switchPreset('default');tab('studio')");
+  assert.equal(a.$('#fieldToggleBox').hidden, false);
+  const secret=a.$('#fieldToggles input[value="secret"]'); secret.checked=false; secret.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  assert.deepEqual(plain(a.run('fieldOffFor()')), ['secret']);
+  assert.doesNotMatch(a.run('schemaSpec()'), /secret/);
+  assert.match(a.run('schemaSpec()'), /first_mes/);
+  a.run("S.opts.briefBy.character='A guard';S.opts.buildMode='oneshot'");
+  let requests=replyQueue(a,[{name:'Guard',secret:'leaked',first_mes:'Hi'}]);
+  a.$('#btnOneShot').click(); await nextTurn();
+  assert.doesNotMatch(requests[0].messages.map(m=>m.content).join('\n'), /- secret \(비밀\)/);
+  assert.match(requests[0].messages.map(m=>m.content).join('\n'), /결함·비밀 작성 설정/);
+  assert.equal(a.$('#cardOut .fld[data-k="secret"]'), null);
+  assert.ok(a.$('#cardOut .fld[data-k="name"]'));
+  // per-field redo with an inline instruction
+  a.$('#cardOut .fld[data-k="first_mes"] .f-one').click();
+  const note=a.$('#cardOut .fld[data-k="first_mes"] .f-redo-note');
+  assert.equal(a.w.document.activeElement, note);
+  note.value='더 짧게'; note.dispatchEvent(new a.w.Event('input',{bubbles:true}));
+  requests=replyQueue(a,[{first_mes:'Hey'}]);
+  a.$('#cardOut .fld[data-k="first_mes"] .f-redo-go').click(); await nextTurn();
+  const patch=requests[0].messages.map(m=>m.content).join('\n');
+  assert.match(patch, /추가 지시: 더 짧게/);
+  assert.match(patch, /다시 쓸 것: first_mes\n/);
+  assert.doesNotMatch(patch, /다시 쓸 것: [^\n]*secret/);
+  assert.equal(a.run("S.project.card.fields.first_mes"), 'Hey');
+  assert.equal(a.$('#cardOut .fld-redo:not([hidden])'), null);
+  // stored per preset and survives reload; ooc hides the toggle; last field cannot be turned off
+  a.run("switchPreset('char-engine')");
+  assert.deepEqual(plain(a.run('fieldOffFor()')), []);
+  const b = boot(t, {'orrery.v1': a.run("localStorage.getItem('orrery.v1')")});
+  assert.deepEqual(plain(b.run("fieldOffFor(S.presets.find(p=>p.id==='default'))")), ['secret']);
+  b.run("applyGroup('prompt');switchPreset('ooc')");
+  assert.equal(b.$('#fieldToggleBox').hidden, true);
+  b.run("applyGroup('prompt');switchPreset('prompt-forge');S.opts.briefBy.prompt='x';S.opts.buildMode='oneshot'");
+  const req2=replyQueue(b,[{title:'t'}]); b.$('#btnOneShot').click(); await nextTurn();
+  assert.doesNotMatch(req2[0].messages.map(m=>m.content).join('\n'), /결함·비밀 작성 설정/);
 });

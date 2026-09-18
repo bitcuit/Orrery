@@ -970,6 +970,40 @@ function presetPromptForge(){
 }
 
 
+/* --- 출력 칸 끄기 · 양식별 저장 --- */
+function fieldOffFor(P){
+  const by=S.opts.fieldOff&&typeof S.opts.fieldOff==='object'?S.opts.fieldOff:(S.opts.fieldOff={});
+  const P0=P||activePreset();
+  const keys=new Set(P0.schema.map(f=>f.key));
+  const list=(Array.isArray(by[P0.id])?by[P0.id]:[]).filter(k=>keys.has(k));
+  if(list.length>=keys.size) return [];
+  return list;
+}
+// 생성·표시·다시 쓰기에 실제로 쓰는 칸. 양식 편집기는 activePreset().schema를 그대로 쓴다
+function activeSchema(){
+  const P=activePreset(); const off=new Set(fieldOffFor(P));
+  return P.schema.filter(f=>!off.has(f.key));
+}
+function renderFieldToggles(){
+  const box=$('#fieldToggleBox'); if(!box) return;
+  const P=activePreset();
+  const hide=P.id==='ooc'||P.schema.length<2;
+  box.hidden=hide; if(hide) return;
+  const off=new Set(fieldOffFor(P));
+  $('#fieldToggles').innerHTML=P.schema.map(f=>`<label class="purpose-choice field-choice"><input type="checkbox" value="${esc(f.key)}" ${off.has(f.key)?'':'checked'}><span>${esc(f.label)}</span></label>`).join('');
+  $('#fieldToggleCount').textContent=off.size?`${off.size}칸 끔`:'';
+}
+/* --- 결함·비밀의 선 · 인물·세계 공정에 붙는 고정 규칙 --- */
+function sensitivityDirection(stage){
+  if(!['character','world'].includes(S.opts.group)) return '';
+  if(!['seed','cross','expand','patch'].includes(stage)) return '';
+  return `결함·비밀 작성 설정
+- 결함과 비밀은 선택·관계·책임에서 만든다. 숨긴 결정, 배신, 빚, 실패, 거짓말, 어긴 약속, 출신·신분, 누군가의 죽음에 얽힌 책임은 쓸 수 있다.
+- 다음은 사용자의 구상이나 재료에 명시된 경우에만 쓴다: 성병·감염병의 전파, 성적 학대·성폭력의 가해와 피해, 근친, 자해·자살 시도, 유산·불임, 아동 대상 가해. 성인 요소 허용은 이 항목의 허용이 아니다.
+- 비밀 하나에 비극을 겹쳐 쌓지 말 것. 죽은 연인·남긴 유품·병처럼 여러 상실을 한 인물에 몰지 말고, 사건 하나와 그 결과로 충분하다.
+- 어둡고 무거울수록 깊은 인물이 되는 것이 아니다. 작고 구체적인 비밀이 큰 비극보다 잘 굴러간다.`;
+}
+
 /* --- 내장 양식 · OOC 지시문 (프롬프트) --- */
 const OOC_FORMATS=[
   {key:'scene',    label:'장면형',        note:'행동·대사·심리가 시간 순으로 이어지는 사건',
@@ -1687,7 +1721,7 @@ function render(tpl, vars){
   return String(tpl).replace(/\{\{(\w+)\}\}/g, (m,k)=> (k in vars) ? String(vars[k]??'') : '');
 }
 function schemaSpec(){
-  return activePreset().schema.map(f=>`- ${f.key} (${f.label})${f.hint?': '+f.hint:''}`).join('\n');
+  return activeSchema().map(f=>`- ${f.key} (${f.label})${f.hint?': '+f.hint:''}`).join('\n');
 }
 function baseVars(extra){
   const o = S.opts;
@@ -1834,10 +1868,12 @@ async function runStage(stageName, vars, retryOnce){
     msgs.push({role:'user', content:'사용자의 구상·요청 — 아래 조건을 지킬 것.\n'+req});
   }
   const opts = {temperature:st.temperature, maxTokens:st.maxTokens};
-  const worldRule=worldDirection(stageName);
-  if(worldRule) msgs.push({role:'user',content:worldRule});
   const oocRule=oocDirection(stageName);
   if(oocRule) msgs.push({role:'user',content:oocRule});
+  const senseRule=sensitivityDirection(stageName);
+  if(senseRule) msgs.push({role:'user',content:senseRule});
+  const worldRule=worldDirection(stageName);
+  if(worldRule) msgs.push({role:'user',content:worldRule});
   if(['seed','cross'].includes(stageName) && vars?.seedRevision){
     msgs.push({role:'user',content:vars.seedRevision});
   }
@@ -1929,7 +1965,7 @@ async function doCross(a,b,instruction='',additional=[]){
 function seedStr(s){ if(!s) return '(따로 고른 방향 없음 — 자료 전체에서 판단할 것)'; return `${s.line}\n(출발점: ${s.hook||'-'} / 역할: ${s.angle||'-'})${s.revision?'\n이 후보에 반영한 사용자 지시: '+s.revision:''}`; }
 
 async function doExpand(seed){
-  const P=activePreset(); let j, recovered=null;
+  const P={schema:activeSchema()}; let j, recovered=null;
   try{
     j = await runStage('expand', { digest: digestStr(), seed: seedStr(seed),
       modeNote: modeNote('expand') });
@@ -1945,17 +1981,17 @@ async function doExpand(seed){
   if(!Object.keys(fields).length) throw new Error('결과에서 칸을 찾지 못했습니다. 다시 만들어 주세요.');
   return { fields, seed, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:STAGE_RAW.expand?clone(Object.assign({},STAGE_RAW.expand,{label:'결과 만들기 원문'})):null };
 }
-async function doPatch(){
-  const P = activePreset();
-  const locked   = P.schema.filter(f=>S.project.locked[f.key]).map(f=>f.key);
-  const unlocked = P.schema.filter(f=>!S.project.locked[f.key]).map(f=>f.key);
+async function doPatch(instruction){
+  const schema = activeSchema();
+  const locked   = schema.filter(f=>S.project.locked[f.key]).map(f=>f.key);
+  const unlocked = schema.filter(f=>!S.project.locked[f.key]).map(f=>f.key);
   if(!unlocked.length) throw new Error('전부 잠겨 있습니다. 다시 쓸 칸을 열어 주세요.');
   const j = await runStage('patch', {
     digest: digestStr(),
     card: JSON.stringify(S.project.card.fields, null, 1),
     locked: locked.join(', ') || '(없음)',
     unlocked: unlocked.join(', '),
-    instruction: ($('#rerollNote').value || '(없음)')
+    instruction: ((instruction!=null?instruction:$('#rerollNote').value) || '(없음)')
   });
   unlocked.forEach(k=>{ if(j[k]!=null) S.project.card.fields[k] = String(j[k]); });
   if(STAGE_RAW.patch) S.project.card.raw=clone(Object.assign({},STAGE_RAW.patch,{label:'다시 쓰기 원문'}));
@@ -2127,9 +2163,9 @@ async function doChatToCard(){
   if(!convo.trim()) throw new Error('반영할 대화가 없습니다.');
   const conn=S.connections.find(c=>c.id===S.activeConn);
   if(!conn) throw new Error('먼저 연결을 만들어 주세요.');
-  const P=activePreset();
-  const locked = P.schema.filter(f=>S.project.locked[f.key]).map(f=>f.key);
-  const editable = P.schema.filter(f=>!S.project.locked[f.key]).map(f=>f.key);
+  const P=activePreset(), schema=activeSchema();
+  const locked = schema.filter(f=>S.project.locked[f.key]).map(f=>f.key);
+  const editable = schema.filter(f=>!S.project.locked[f.key]).map(f=>f.key);
   if(!editable.length) throw new Error('모든 칸이 잠겨 있습니다. 반영할 칸을 열어 주세요.');
   const messages=[
     {role:'system',content:`당신은 이미 작성된 결과를, 아래 대화에서 정해진 내용대로 고치는 편집자다. 대화에서 실제로 합의되거나 결정된 것만 반영하고, 언급되지 않은 칸은 절대 바꾸지 마라. 새 내용을 멋대로 지어내지 마라. ${(S.opts.lang||'한국어')} 로 쓴다.`},
@@ -2664,8 +2700,9 @@ function renderConvert(){
     $('#btnConvertMeaningToggle').textContent=c.meaningCollapsed?'보기':'숨기기';
   }
 }
+let REDO_FIELD=null, REDO_TEXT='';
 function renderCard(){
-  const p = S.project, box = $('#cardOut'), P = activePreset();
+  const p = S.project, box = $('#cardOut'), P = {schema:activeSchema()};
   $('#btnReroll').disabled = !p.card;
   $('#btnCheck').disabled = !p.card || !!p.card.truncated;
   $('#btnToggleFields').disabled = !p.card;
@@ -2696,6 +2733,7 @@ function renderCard(){
         <button class="lockbtn f-one">이 칸만 다시</button>
       </div>
       <div class="fld-body" ${open?'':'hidden'}><textarea rows="${Math.min(14, Math.max(3, Math.ceil(v.length/62)))}">${esc(v)}</textarea></div>
+      <div class="fld-redo" ${REDO_FIELD===f.key?'':'hidden'}><input class="f-redo-note" placeholder="예: 더 짧게 · 결말은 열어 두기" value="${REDO_FIELD===f.key?esc(REDO_TEXT):''}"><button type="button" class="mini primary f-redo-go">다시 쓰기</button><button type="button" class="mini ghost f-redo-cancel">취소</button></div>
     </div>`;
   }).join('');
   renderContinue(); renderConvert(); setSpine(); renderQA();
@@ -2710,18 +2748,31 @@ $('#cardOut').addEventListener('click', async e=>{
   }
   if(e.target.closest('.f-lock')){ S.project.locked[k] = !S.project.locked[k]; renderCard(); touchDraft(); return; }
   if(e.target.closest('.f-one')){
+    if(REDO_FIELD===k){ REDO_FIELD=null; REDO_TEXT=''; renderCard(); return; }
+    REDO_FIELD=k; REDO_TEXT=''; renderCard();
+    const input=$("#cardOut").querySelector(`.fld[data-k="${k}"] .f-redo-note`); if(input) input.focus();
+    return;
+  }
+  if(e.target.closest('.f-redo-cancel')){ REDO_FIELD=null; REDO_TEXT=''; renderCard(); return; }
+  if(e.target.closest('.f-redo-go')){
     if(!canChangeWork()) return;
     const keep = clone(S.project.locked);
-    const btn = e.target.closest('.f-one');
+    const btn = e.target.closest('.f-redo-go');
+    const note = (fld.querySelector('.f-redo-note')||{}).value||'';
     await guard(btn,'다시 쓰는 중',async()=>{
-      activePreset().schema.forEach(f=>{ S.project.locked[f.key] = f.key!==k; });
-      try{ await doPatch(); toast(k+' 칸을 다시 썼습니다'); }
+      activeSchema().forEach(f=>{ S.project.locked[f.key] = f.key!==k; });
+      try{ await doPatch(note.trim()); REDO_FIELD=null; REDO_TEXT=''; toast(k+' 칸을 다시 썼습니다'); }
       finally{ S.project.locked=keep; renderCard(); saveRecord(); }
     });
   }
 });
+$('#cardOut').addEventListener('input', e=>{ if(e.target.classList.contains('f-redo-note')) REDO_TEXT=e.target.value; });
+$('#cardOut').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.classList.contains('f-redo-note')){ e.preventDefault(); const go=e.target.closest('.fld-redo').querySelector('.f-redo-go'); if(go) go.click(); }
+  if(e.key==='Escape' && e.target.classList.contains('f-redo-note')){ REDO_FIELD=null; REDO_TEXT=''; renderCard(); }
+});
 $('#btnToggleFields').addEventListener('click',()=>{
-  const card=S.project.card, P=activePreset(); if(!card) return;
+  const card=S.project.card, P={schema:activeSchema()}; if(!card) return;
   const open=new Set(card.openFields||[]), allOpen=P.schema.length>0&&P.schema.every(f=>open.has(f.key));
   card.openFields=allOpen?[]:P.schema.map(f=>f.key);
   renderCard(); touchDraft();
@@ -3031,7 +3082,7 @@ $('#btnContinue').addEventListener('click', e=> guard(e.currentTarget,'잇는 �
 $('#continueNote').addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); $('#btnContinue').click(); }
 });
-$('#btnLockAll').addEventListener('click', ()=>{ activePreset().schema.forEach(f=>S.project.locked[f.key]=true); renderCard(); touchDraft(); });
+$('#btnLockAll').addEventListener('click', ()=>{ activeSchema().forEach(f=>S.project.locked[f.key]=true); renderCard(); touchDraft(); });
 $('#btnUnlockAll').addEventListener('click', ()=>{ S.project.locked={}; renderCard(); touchDraft(); });
 $('#btnCheck').addEventListener('click', e=> guard(e.target,'대조 중', async()=>{
   await doCheck(); renderCheck(); touchDraft(); scrollToStage('check');
@@ -3109,22 +3160,24 @@ async function doOneShot(){
     msgs.push({role:'user', content:'사용자의 구상·요청 — 아래 조건을 지킬 것.\n'+req});
   }
   const opts = { temperature: st.temperature, maxTokens: Math.max(st.maxTokens||2400, 2400) };
-  const worldRule=worldDirection('expand');
-  if(worldRule) msgs.push({role:'user',content:worldRule});
   const oocRule=oocDirection('expand');
   if(oocRule) msgs.push({role:'user',content:oocRule});
+  const senseRule=sensitivityDirection('expand');
+  if(senseRule) msgs.push({role:'user',content:senseRule});
+  const worldRule=worldDirection('expand');
+  if(worldRule) msgs.push({role:'user',content:worldRule});
   const raw = await callProvider(conn, msgs, opts);
   let j, recovered=null, parsedRaw=raw;
   try{ const parsed=await parseJsonReply(conn,msgs,opts,raw,true); j=parsed.json; parsedRaw=parsed.raw||raw; }
   catch(err){
     parsedRaw=err.raw||raw;
-    recovered=err.raw && recoverPartialCard(err.raw,P.schema);
+    recovered=err.raw && recoverPartialCard(err.raw,activeSchema());
     if(!recovered) throw err;
     j=recovered.fields;
     log(`끊긴 한 번에 만들기 결과에서 ${Object.keys(j).length}개 칸을 먼저 복구했습니다.`,'err');
   }
   const fields = {};
-  P.schema.forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
+  activeSchema().forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
   Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string') fields[k]=j[k]; });
   if(!Object.keys(fields).length) throw new Error('결과에서 칸을 찾지 못했습니다. 단계별로 해보세요.');
   return { fields, seed:null, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:{text:parsedRaw,at:Date.now(),label:'한 번에 만들기 원문'} };
@@ -3247,6 +3300,13 @@ for(const [id,key] of [['worldMood','mood'],['worldDensity','density'],['worldCh
   });
 }
 $('#optLang').addEventListener('change',()=>{ syncConvertSourceToOutput(); save(); renderConvert(); });
+$('#fieldToggles').addEventListener('change',e=>{
+  const cb=e.target.closest('input[type="checkbox"]'); if(!cb) return;
+  const P=activePreset(); const by=S.opts.fieldOff||(S.opts.fieldOff={});
+  const off=new Set(fieldOffFor(P)); if(cb.checked) off.delete(cb.value); else off.add(cb.value);
+  if(off.size>=P.schema.length){ cb.checked=true; toast('칸은 최소 하나 남겨야 합니다',1); return; }
+  by[P.id]=[...off]; renderFieldToggles(); if(S.project.card) renderCard(); save(); touchDraft();
+});
 $('#oocFormats').addEventListener('change',e=>{
   const cb=e.target.closest('input[type="checkbox"]'); if(!cb) return;
   const o=oocPrefs();

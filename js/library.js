@@ -336,6 +336,7 @@ function applyGroupUi(){
   const castField=$('#castCountField'); if(castField) castField.hidden=S.opts.group!=='character';
   renderModeChooser(); renderNebulaPicker();
   if(typeof renderOocPanel==='function') renderOocPanel();
+  if(typeof renderFieldToggles==='function') renderFieldToggles();
 }
 
 const GROUP_LABEL = { world:'세계', character:'인물', prompt:'프롬프트' };
@@ -418,6 +419,7 @@ function applyGroup(g){
   OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
   stashWork();
   S.opts.group = g;
+  S.assets.forEach(a=>{ a.use=false; }); // 재료 선택은 한 작업에서만 유효
   $('#optBrief').value=curBrief();
   const list = presetsInGroup(g);
   const saved=(S.project.workBy||{})[g];
@@ -522,6 +524,7 @@ function renderSchema(){
       if(el.open) openSet.add(i); else openSet.delete(i);
     });
   });
+  if(typeof renderFieldToggles==='function') renderFieldToggles();
 }
 $('#schemaBox').addEventListener('input', e=>{
   const row = e.target.closest('[data-i]'); if(!row) return;
