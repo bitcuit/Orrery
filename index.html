@@ -184,6 +184,17 @@
       </div>
     </div>
   </div>
+  <div class="panel ooc-panel" id="oocPanel" hidden>
+    <div class="ooc-head">
+      <p class="input-heading" id="oocHeading">OOC 형식 <span class="note" id="oocCount"></span></p>
+      <button type="button" class="mini ghost" id="btnOocAll">전체 선택</button>
+    </div>
+    <div class="ooc-formats" id="oocFormats" role="group" aria-labelledby="oocHeading"></div>
+    <div class="row ooc-extra">
+      <div class="field"><label class="fl" for="oocNaming">호칭 표기</label><select id="oocNaming"><option value="pcnpc">PC / NPC</option><option value="curly">{{user}} / {{char}}</option><option value="names">재료의 이름 그대로</option></select></div>
+      <label class="ooc-format ooc-reverse"><input type="checkbox" id="oocReverse"><span><b>역할 반전 버전 함께</b><small>형식마다 주체를 바꾼 OOC를 하나 더</small></span></label>
+    </div>
+  </div>
   <div class="panel brief-panel" id="briefPanel">
     <div class="field">
       <label class="fl" id="briefLabel" for="optBrief">구상</label>

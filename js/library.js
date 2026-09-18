@@ -184,6 +184,7 @@ $('#btnLibClear').addEventListener('click', ()=>{
 const PRESET_NOTE = {
   'prompt-forge': '만들고 싶은 프롬프트를 설명하면 완성된 프롬프트를 짜줍니다. 역할·작동 원칙·출력 형식·자기 검증·금지 사항까지.',
   'promptcraft':  '인물 하나로 굴릴 롤플레이 프롬프트 묶음. 인물 지시문·문체 규칙·첫 장면·상황 변주·물꼬.',
+  'ooc':          '보고 싶은 장면을 적으면 롤플레잉 AI에 바로 붙일 OOC 지시문을 씁니다. 형식을 고르면 형식마다 하나씩, 안 고르면 맞는 형식 하나로.',
   'world':        '키워드 몇 개나 반쯤 만든 설정에서 세계를 설계합니다. 다 만든 뒤 로어북으로 뽑아 재료에 되돌리면 그 세계에서 바로 인물을 뽑을 수 있습니다.',
   'world-brief':  '이미 있는 설정을 처음 읽는 사람에게 소개하는 압축본. 이모지 구획과 정보 행. 확인된 사실과 소문·추론을 구분해 적습니다.',
   'world-guide':  '설정집 형태의 상세 안내서. 작동 원리·대가·한계·실패까지 다루고, 요소 개수에 따라 깊이를 자동으로 배분합니다.',
@@ -328,10 +329,13 @@ function applyGroupUi(){
     if(txt) txt.textContent = label; else bd.append(label);
   }
   const setPh=(sel,v)=>{ const el=$(sel); if(el) el.placeholder=v||''; };
-  setPh('#optBrief',u.ph); setPh('#rerollNote',u.rerollPh);
+  const ooc=activePreset().id==='ooc';
+  setPh('#optBrief',ooc?'예: 주말 아침, PC가 먼저 깨서 자는 NPC를 한참 본다 · 키워드: 장난, 들킴':u.ph);
+  setPh('#rerollNote',ooc?'예: 장면형은 더 짧게, NPC가 이미 깨어 있는 쪽으로':u.rerollPh);
   setPh('#continueNote',u.continuePh); setPh('#askIn',u.askPh);
   const castField=$('#castCountField'); if(castField) castField.hidden=S.opts.group!=='character';
   renderModeChooser(); renderNebulaPicker();
+  if(typeof renderOocPanel==='function') renderOocPanel();
 }
 
 const GROUP_LABEL = { world:'세계', character:'인물', prompt:'프롬프트' };
