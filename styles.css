@@ -1463,7 +1463,7 @@ button.build-mode.on .bn{color:var(--c152)}
 .oneshot[hidden]{display:none}
 .oneshot button{font-size:14px}
 .oneshot .note{flex:none;margin:0;max-width:560px}
-.studio-start{display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin:20px 0 0}
+.studio-start{display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin:8px 0 0}
 .studio-start .note{text-align:right;max-width:460px}
 .studio-start .primary{min-width:148px;min-height:46px;font-size:15px}
 .build-cost{display:block;margin-top:6px;color:var(--brass);font-size:12px;font-weight:500;white-space:normal}
