@@ -744,3 +744,61 @@ test('a candidate can be saved as a material once and opened in talk with materi
   assert.equal(a.$('#talkRole').value,'char');
   assert.match(a.run('talkContext()'),/Retired lighthouse keeper/);
 });
+
+test('OOC preset turns chosen formats into result fields and hands the settings to the model', async t => {
+  const a = boot(t); connection(a);
+  a.run("applyGroup('prompt');switchPreset('ooc');tab('studio')");
+  assert.equal(a.$('#oocPanel').hidden, false);
+  assert.deepEqual(plain(a.run('activePreset().schema.map(f=>f.key)')), ['ooc','note']);
+  assert.equal(a.$('#oocPanel').closest('#studioInput') !== null, true);
+  a.run("switchPreset('prompt-forge')");
+  assert.equal(a.$('#oocPanel').hidden, true);
+  a.run("switchPreset('ooc')");
+  const check=(value,on)=>{ const cb=a.$(`#oocFormats input[value="${value}"]`); cb.checked=on; cb.dispatchEvent(new a.w.Event('change',{bubbles:true})); };
+  check('scene',true); check('record',true);
+  assert.deepEqual(plain(a.run('activePreset().schema.map(f=>f.key)')), ['scene','record']);
+  assert.equal(a.$('#oocCount').textContent, 'OOC 2개');
+  a.$('#oocReverse').checked=true; a.$('#oocReverse').dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  assert.deepEqual(plain(a.run('activePreset().schema.map(f=>f.key)')), ['scene','scene_rev','record','record_rev']);
+  assert.equal(a.$('#oocCount').textContent, 'OOC 4개');
+  a.$('#btnOocAll').click();
+  assert.equal(a.run('oocPrefs().formats.length'), 7);
+  assert.equal(a.$('#btnOocAll').textContent, '전체 해제');
+  a.$('#btnOocAll').click();
+  assert.deepEqual(plain(a.run('activePreset().schema.map(f=>f.key)')), ['ooc','note']);
+  check('choice',true);
+  a.$('#oocNaming').value='curly'; a.$('#oocNaming').dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  a.run("S.opts.briefBy.prompt='PC가 NPC에게 도시락을 싸 준다';S.opts.buildMode='oneshot'");
+  const requests=replyQueue(a,[{choice:'[OOC: 이전 롤플레잉 잠시 중단. 도시락]',choice_rev:'[OOC: 반전]'}]);
+  a.$('#btnOneShot').click();
+  await nextTurn();
+  const prompt=requests[0].messages.map(m=>m.content).join('\n');
+  assert.match(prompt, /choice \(선택·비교형\)/);
+  assert.match(prompt, /\{\{user\}\}, 상대 캐릭터는 \{\{char\}\}/);
+  assert.match(prompt, /역할 반전: _rev 칸/);
+  assert.doesNotMatch(prompt, /형식: 사용자가 고르지 않았다/);
+  assert.equal(a.run("S.project.card.fields.choice_rev"), '[OOC: 반전]');
+  assert.equal(a.run("S.library[0].group"), 'prompt');
+  // reload keeps the selection and the matching schema
+  const b = boot(t, {'orrery.v1': a.run("localStorage.getItem('orrery.v1')")});
+  assert.deepEqual(plain(b.run('oocPrefs()')), {formats:['choice'],naming:'curly',reverse:true});
+  assert.deepEqual(plain(b.run("S.presets.find(p=>p.id==='ooc').schema.map(f=>f.key)")), ['choice','choice_rev']);
+});
+
+test('OOC preset without formats asks the model to pick one and stays out of other prompts', async t => {
+  const a = boot(t); connection(a);
+  a.run("applyGroup('prompt');switchPreset('ooc');S.opts.briefBy.prompt='아침 장면';S.opts.buildMode='oneshot';tab('studio')");
+  let requests=replyQueue(a,[{ooc:'[OOC: 이전 롤플레잉 잠시 중단. 아침]',note:'장면형'}]);
+  a.$('#btnOneShot').click();
+  await nextTurn();
+  let prompt=requests[0].messages.map(m=>m.content).join('\n');
+  assert.match(prompt, /형식: 사용자가 고르지 않았다/);
+  assert.match(prompt, /PC와 NPC로 쓴다/);
+  assert.equal(a.run("S.project.card.fields.note"), '장면형');
+  a.run("switchPreset('prompt-forge');S.opts.briefBy.prompt='다른 프롬프트'");
+  requests=replyQueue(a,[{title:'x'}]);
+  a.$('#btnOneShot').click();
+  await nextTurn();
+  prompt=requests[0].messages.map(m=>m.content).join('\n');
+  assert.doesNotMatch(prompt, /OOC 작성 설정/);
+});

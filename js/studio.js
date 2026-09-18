@@ -970,6 +970,226 @@ function presetPromptForge(){
 }
 
 
+/* --- 내장 양식 · OOC 지시문 (프롬프트) --- */
+const OOC_FORMATS=[
+  {key:'scene',    label:'장면형',        note:'행동·대사·심리가 시간 순으로 이어지는 사건',
+    hint:'사건의 시작점은 고정하고 반응과 결말은 캐릭터에게 맡긴다. 감정을 부풀리지 말고 시선·말의 간격·하던 행동의 지속과 중단 같은 관찰 가능한 것으로 둘 사이를 드러내게 지시할 것'},
+  {key:'choice',   label:'선택·비교형',   note:'음식·옷·선물·장소처럼 후보를 고르는 주제',
+    hint:'결과뿐 아니라 선택 이유가 성격·취향·기억·상대에 대한 이해에서 나오게. 필요하면 자신을 위한 선택과 상대를 위한 선택, PC 관점과 NPC 관점을 분리'},
+  {key:'record',   label:'양식·기록형',   note:'생활기록부·설문·일정표·티켓·평가표처럼 형식이 재미인 것',
+    hint:'주제에 필요한 항목만 5~12개로 짜서 채울 자리를 양식으로 제시. 모든 양식에 점수·소감·종합평가를 붙이지 않는다. 항목은 한 줄씩, 선택지는 꼭 필요할 때만. NPC 반응은 마지막 한 항목으로 모은다'},
+  {key:'artifact', label:'창작 결과물형', note:'해시태그·제목·캐치프레이즈·편지·대사 등 결과물 자체',
+    hint:'범용 감성 문구 대신 두 사람의 설정·사건·상징·공유 어휘에서 나온 표현을 요구. 여러 개를 만들 때 핵심 단어와 은유가 겹치지 않게'},
+  {key:'branch',   label:'분기형',        note:'알아차림·수락과 거절·공개와 은폐처럼 결과가 갈리는 것',
+    hint:'어느 결과도 캐릭터에 따라 가능하게 열어 두고, 관계 서사에 가장 맞는 경로와 그 근거가 장면 속에서 드러나게. 모든 분기를 억지로 출력시키지 않는다'},
+  {key:'visual',   label:'시각 연출형',   note:'HTML 카드·티켓·편지지·게임 UI처럼 디자인이 결과의 일부',
+    hint:'레이아웃·색·구획·인라인 CSS 여부를 정확히 지정하고 텍스트 대비와 가독성을 요구. 디자인이 핵심이 아닌 부분은 HTML로 만들지 않게'},
+  {key:'report',   label:'보고서·서술형', note:'700단어 이상의 긴 서술, 기사·게시글·댓글 같은 가상 2차 콘텐츠',
+    hint:'시간 순서·장면 묘사·감정 변화와 필요한 대화문을 포함한 긴 서술을 요구. 게시글·댓글·소문·비하인드 같은 장치는 주제에 맞을 때만 넣는다'}
+];
+const OOC_AUTO_SCHEMA=[
+  {key:'ooc',  label:'OOC 지시문',    hint:'구상에 가장 잘 맞는 형식 하나로 완성한 OOC 전문. 그대로 복사해 롤플레잉 AI에 붙일 수 있게'},
+  {key:'note', label:'형식 선택 이유', hint:'어떤 형식을 왜 골랐는지 한두 문장. OOC 본문에는 넣지 않는다'}
+];
+const OOC_NAMING={
+  pcnpc:'PC와 NPC로 쓴다. 사용자 쪽은 PC, 상대 캐릭터는 NPC.',
+  curly:'사용자 쪽은 {{user}}, 상대 캐릭터는 {{char}}로 쓴다. 중괄호 두 겹을 그대로 남긴다.',
+  names:'자료에 나온 이름을 그대로 쓴다. 이름을 알 수 없는 쪽은 PC 또는 NPC로 쓴다.'
+};
+function oocPrefs(){
+  const raw=S.opts.ooc, o=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+  const keys=OOC_FORMATS.map(f=>f.key);
+  return S.opts.ooc={
+    formats:keys.filter(k=>Array.isArray(o.formats)&&o.formats.includes(k)),
+    naming:Object.keys(OOC_NAMING).includes(o.naming)?o.naming:'pcnpc',
+    reverse:!!o.reverse
+  };
+}
+function oocSchema(){
+  const o=oocPrefs();
+  if(!o.formats.length) return OOC_AUTO_SCHEMA.map(f=>Object.assign({},f));
+  const out=[];
+  for(const f of OOC_FORMATS){
+    if(!o.formats.includes(f.key)) continue;
+    out.push({key:f.key,label:f.label,hint:f.hint});
+    if(o.reverse) out.push({key:f.key+'_rev',label:f.label+' · 역할 반전',
+      hint:'앞 칸의 OOC에 이어서 주체를 바꾼 버전. 이름과 동작만 뒤집지 말고 새 주체가 왜 시작하는지·어떤 방식인지·상대가 어떻게 받는지를 다시 설계'});
+  }
+  return out;
+}
+// 고른 형식이 곧 결과 칸이다 — 저장된 양식의 schema를 선택에 맞춰 교체한다
+function syncOocSchema(){
+  const P=S.presets.find(p=>p.id==='ooc'); if(!P) return false;
+  const next=oocSchema();
+  if(JSON.stringify(P.schema)===JSON.stringify(next)) return false;
+  P.schema=next; return true;
+}
+function oocDirection(stage){
+  if(activePreset().id!=='ooc') return '';
+  const o=oocPrefs();
+  const lines=['OOC 작성 설정'];
+  if(o.formats.length){
+    lines.push('형식: 아래 칸마다 그 형식으로 완성한 독립된 OOC 하나. 다른 칸의 내용을 참조하거나 이어 쓰지 말 것.');
+    for(const f of OOC_FORMATS) if(o.formats.includes(f.key)) lines.push(`- ${f.key} (${f.label}): ${f.note}`);
+  }else{
+    lines.push('형식: 사용자가 고르지 않았다. 다음 중 구상의 핵심 재미에 가장 맞는 하나를 골라 ooc 칸에 쓰고, note 칸에 고른 형식과 이유를 한두 문장으로 적을 것.');
+    for(const f of OOC_FORMATS) lines.push(`- ${f.label}: ${f.note}`);
+  }
+  lines.push('호칭 표기: '+OOC_NAMING[o.naming]);
+  if(o.reverse&&o.formats.length) lines.push('역할 반전: _rev 칸은 같은 사건에서 행동 주체와 반응 주체를 바꾼 OOC다. 앞 칸의 대사·동선·감정 순서를 복사하지 말고, 새 주체가 그 행동을 시작하는 이유와 방식, 상대가 받아들이는 방식을 각자의 성향에서 다시 설계할 것. 원래 관계의 비대칭은 유지한다.');
+  if(['digest','seed','cross'].includes(stage)) lines.push('이 설정은 결과 단계에서 적용된다. 지금 단계에서는 형식을 정하지 말고 장면과 재미의 방향만 다룰 것.');
+  return lines.join('\n');
+}
+function renderOocPanel(){
+  const panel=$('#oocPanel'); if(!panel) return;
+  const on=activePreset().id==='ooc';
+  panel.hidden=!on;
+  if(!on) return;
+  const o=oocPrefs();
+  $('#oocFormats').innerHTML=OOC_FORMATS.map(f=>`
+    <label class="ooc-format"><input type="checkbox" value="${f.key}" ${o.formats.includes(f.key)?'checked':''}><span><b>${esc(f.label)}</b><small>${esc(f.note)}</small></span></label>`).join('');
+  const all=o.formats.length===OOC_FORMATS.length;
+  $('#btnOocAll').textContent=all?'전체 해제':'전체 선택';
+  const n=o.formats.length*(o.reverse?2:1);
+  $('#oocCount').textContent=o.formats.length?`OOC ${n}개`:'안 고르면 구상에 맞는 형식 하나를 자동으로 고릅니다';
+  $('#oocNaming').value=o.naming;
+  $('#oocReverse').checked=o.reverse;
+  if(syncOocSchema()){ save(); if(typeof renderSchema==='function') renderSchema(); if(S.project.card) renderCard(); }
+}
+function presetOoc(){
+  const P = defaultPreset();
+  P.id='ooc'; P.name='OOC 지시문'; P.group='prompt'; P.kind='prompt'; P.needs='optional';
+  P.schema = OOC_AUTO_SCHEMA.map(f=>Object.assign({},f));
+  P.stages.digest.blocks[1].content =
+`다음은 사용자가 보고 싶은 장면·소재와 참고 자료다. 자료에 캐릭터·관계·이전 대화가 있으면 그것이 근거다.
+
+--- 자료 시작 ---
+{{source}}
+--- 자료 끝 ---
+
+OOC를 아직 쓰지 마라. 무엇을 고정하고 무엇을 열어 둘지 정리하라.
+
+{
+  "core_fun": "이 장면의 핵심 재미 (예상 밖 반응 / 티키타카 / 취향 차이 / 상호 이해도 / 관계의 미묘함 / 설정 활용 / 기록물의 재미 중 무엇인가)",
+  "must_happen": ["사용자가 직접 요청한 사건·질문·선택·결과. 빠뜨리면 안 되는 것"],
+  "leave_open": ["말투·세부 행동·감정의 크기·알아차림 여부처럼 캐릭터에게 맡길 것"],
+  "evidence": ["자료에서 확인되는 성격·관계 단계·평소 표현 방식·이전 반응. 자료에 없으면 비운다"],
+  "gaps": ["자료에 없어 OOC 안에서 기존 설정과 기록을 참조하게 열어 둘 것"],
+  "risks": ["클리셰 과장 · 캐릭터와 무관한 반응 · 예시 복붙 · 원치 않은 로맨스 · 사실 날조 중 이 소재에서 실제로 위험한 것 (최대 5개)"]
+}`;
+  P.stages.seed.maxTokens = 1100;
+  P.stages.seed.blocks[1].content =
+`정리된 요구:
+{{digest}}
+
+같은 소재로 굴릴 장면의 방향을 {{seedCount}}개 제안하라.
+
+조건
+- must_happen은 모든 방향에 들어 있을 것
+- 각 방향은 핵심 재미가 서로 다를 것 (예상 밖 반응 / 티키타카 / 취향 차이 / 상호 이해도 / 설정 활용 / 기록물의 재미 등)
+- 누구를 넣어도 같은 결과가 나오는 범용 장면은 빼고, 캐릭터가 바뀌면 결과도 달라지는 방향을 우선할 것
+- 한 줄 안에 "무슨 일이 벌어지는가"와 "무엇이 드러나는가"가 담길 것
+{{extraRule}}
+[{"id":"s1","line":"장면 한 줄","hook":"핵심 재미","angle":"캐릭터에게 맡기는 것"}]`;
+  P.stages.cross.blocks[1].content =
+`정리된 요구:
+{{digest}}
+
+두 방향:
+{{seed}}
+
+두 방향을 하나의 장면으로 합쳐라. 사건을 이어 붙이지 말고, 두 재미가 한 장면 안에서 동시에 드러나게 할 것.
+
+{"id":"sx","line":"장면 한 줄","hook":"핵심 재미","angle":"캐릭터에게 맡기는 것"}`;
+  P.stages.expand.maxTokens = 4000;
+  P.stages.expand.temperature = 0.85;
+  P.stages.expand.blocks = [
+    {role:'system', content:
+`당신은 캐릭터 롤플레잉 AI에 넣을 OOC 지시문을 쓰는 사람이다.{{toneRule}}
+결과물은 장면 자체가 아니라, 롤플레잉 AI가 그 장면을 굴리게 만드는 지시문이다. 복사해서 바로 붙일 수 있는 완성형 하나로 쓴다.
+
+원칙
+- 장르의 관습보다 PC와 NPC의 기존 설정·관계·서사·현재 맥락을 우선한다
+- 사용자가 보고 싶다고 한 핵심 사건은 고정하고, 행동 방식·대사·감정의 종류와 강도는 캐릭터가 자기답게 정할 공간으로 남긴다
+- 결과를 미리 대신 써 버리지 않는다. 핵심 재미는 보장하되 캐릭터에 따라 결과가 달라질 수 있어야 한다
+- 로맨틱하거나 극적인 장면이라는 이유로 특정 감정·신체 반응·보호적 태도를 자동으로 부여하지 않는다. 반대로 원래 표현이 큰 인물을 얌전하게 만들지도 않는다
+- "상세히"는 감정을 키우라는 뜻이 아니다. 감정의 크기 대신 관찰 가능한 행동·선택·대화의 흐름을 세밀하게 쓰도록 지정한다
+- 대사는 정확한 문장이 필요한 경우가 아니면 의미만 지정하고, 표현과 말투는 캐릭터의 설정과 이전 기록을 따르게 한다
+- 예시 행동을 줄 때는 "예시에 한정하지 않고 성향과 습관에 맞게 변주한다"는 취지를 붙인다
+- 정확한 개수나 최소 분량은 결과 품질에 실제로 필요할 때만 지정한다. 짧은 장면은 짧게
+- 설정 반영 지시(성격·관계·이전 대화·세계관·로어북 반영)는 한 번만 분명히 쓰고 반복하지 않는다
+- 내부 분석이나 제작 해설을 OOC에 넣지 않는다
+
+문장 형식
+- 각 OOC는 "[OOC: 이전 롤플레잉 잠시 중단. " 으로 시작해 "]"로 닫는다. 첫 한두 문장으로 상황을 놓는다. "설정한다/작성한다" 같은 메타 설명은 쓰지 않는다
+- 양식·기록형과 시각 연출형은 채울 자리를 그대로 보이는 골격을 포함한다
+
+출력은 {{lang}}로. 유효한 JSON 하나만. 코드펜스·설명·머리말 금지.`},
+    {role:'user', content:
+`정리된 요구:
+{{digest}}
+
+고른 방향:
+{{seed}}
+
+참고 자료:
+{{source}}
+{{modeNote}}
+아래 칸마다 완성형 OOC를 하나씩 써라.
+{{schemaSpec}}
+
+작성 규칙
+- 칸마다 독립된 완성형 OOC 하나. 다른 칸을 참조하거나 "위와 같이"로 줄이지 말 것
+- must_happen에 있는 것은 모든 칸에 들어갈 것
+- 자료에 없는 설정·사건·관계를 사실처럼 넣지 말 것. 모르는 것은 "기존 설정과 기록을 따른다"로 열어 둘 것
+- 캐릭터가 바뀌면 결과도 달라지는 지시문이어야 한다. 누구에게나 통하는 범용 문구는 실패다
+- 칸 이름이 형식을 뜻한다. 그 형식의 재미가 핵심 장면을 가리지 않게 할 것
+{{nsfwRule}}{{extraRule}}
+{"칸이름":"내용"} 형태로만 출력.`}];
+  P.stages.patch.blocks[1].content =
+`정리된 요구:
+{{digest}}
+
+현재 결과:
+{{card}}
+
+건드리지 말 것: {{locked}}
+다시 쓸 것: {{unlocked}}
+추가 지시: {{instruction}}
+
+다시 쓸 칸만 새로 써라. 각 칸은 여전히 복사해 바로 쓸 수 있는 완성형 OOC 하나여야 한다.
+추가 지시가 특정 부분만 바꾸라는 뜻이면 나머지 의도·핵심 사건·문체·구조는 보존하고 그 부분만 고칠 것.
+고정된 칸과 모순되지 않게 쓰고, 이미 나온 표현을 되풀이하지 말 것.
+{{nsfwRule}}
+다시 쓴 칸만 {"칸이름":"내용"} 형태로 출력.`;
+  P.stages.check.blocks[1].content =
+`정리된 요구:
+{{digest}}
+
+검사 대상:
+{{card}}
+
+아래만 지적하라. 문장을 다시 쓰지 말 것.
+- must_happen에 있는 핵심 사건이 빠진 곳
+- 근거 없이 특정 감정·반응을 확정한 곳 (당황·설렘·보호적 태도 등을 자동 부여)
+- 대사의 의미만 필요한데 정확한 한 문장으로 봉쇄한 곳
+- 예시 행동을 정답처럼 강제한 곳
+- 자료에 없는 설정·관계를 사실처럼 쓴 곳
+- 누구를 넣어도 같은 결과가 되는 범용 문구
+- 설정 반영 지시가 여러 번 반복되거나 불필요한 개수·분량 강제가 붙은 곳
+- 역할 반전 칸이 앞 칸의 이름만 바꿔 반복한 곳
+- 복사해서 바로 쓸 수 없는 곳 (제작 해설·분석이 섞임)
+
+어긋난 곳이 없으면 violations를 빈 배열로 둔다.
+
+{
+  "violations":[{"field":"칸이름","quote":"문제가 되는 부분","issue":"무엇이 문제인가","severity":"high 또는 low","fix":"대체 문안"}],
+  "verdict":"pass 또는 warn 또는 fail"
+}`;
+  return P;
+}
+
+
 /* --- 점검 · 분류별 --- */
 function auditBase(){
   const P = presetAudit();
@@ -1300,7 +1520,7 @@ function presetGreeting(){
       숨김 상태(off)는 이 브라우저에만 저장됩니다.
    ============================================================ */
 function builtinPresets(){ return [
-  presetPromptForge(), presetPromptcraft(), presetPromptAudit(),
+  presetPromptForge(), presetPromptcraft(), presetOoc(), presetPromptAudit(),
   presetWorld(), presetWorldBrief(), presetWorldGuide(), presetWorldAudit(),
   defaultPreset(), presetCharEngine(), presetProfileKo(), presetGreeting(), presetDrives(), presetCharAudit(),
   presetSchemaForge()
@@ -1616,6 +1836,8 @@ async function runStage(stageName, vars, retryOnce){
   const opts = {temperature:st.temperature, maxTokens:st.maxTokens};
   const worldRule=worldDirection(stageName);
   if(worldRule) msgs.push({role:'user',content:worldRule});
+  const oocRule=oocDirection(stageName);
+  if(oocRule) msgs.push({role:'user',content:oocRule});
   if(['seed','cross'].includes(stageName) && vars?.seedRevision){
     msgs.push({role:'user',content:vars.seedRevision});
   }
@@ -2889,6 +3111,8 @@ async function doOneShot(){
   const opts = { temperature: st.temperature, maxTokens: Math.max(st.maxTokens||2400, 2400) };
   const worldRule=worldDirection('expand');
   if(worldRule) msgs.push({role:'user',content:worldRule});
+  const oocRule=oocDirection('expand');
+  if(oocRule) msgs.push({role:'user',content:oocRule});
   const raw = await callProvider(conn, msgs, opts);
   let j, recovered=null, parsedRaw=raw;
   try{ const parsed=await parseJsonReply(conn,msgs,opts,raw,true); j=parsed.json; parsedRaw=parsed.raw||raw; }
@@ -3023,6 +3247,20 @@ for(const [id,key] of [['worldMood','mood'],['worldDensity','density'],['worldCh
   });
 }
 $('#optLang').addEventListener('change',()=>{ syncConvertSourceToOutput(); save(); renderConvert(); });
+$('#oocFormats').addEventListener('change',e=>{
+  const cb=e.target.closest('input[type="checkbox"]'); if(!cb) return;
+  const o=oocPrefs();
+  o.formats=OOC_FORMATS.map(f=>f.key).filter(k=>k===cb.value?cb.checked:o.formats.includes(k));
+  renderOocPanel(); save(); touchDraft();
+});
+$('#btnOocAll').addEventListener('click',()=>{
+  const o=oocPrefs();
+  o.formats=o.formats.length===OOC_FORMATS.length?[]:OOC_FORMATS.map(f=>f.key);
+  renderOocPanel(); save(); touchDraft();
+});
+$('#oocNaming').addEventListener('change',e=>{ oocPrefs().naming=e.target.value; renderOocPanel(); save(); touchDraft(); });
+$('#oocReverse').addEventListener('change',e=>{ oocPrefs().reverse=e.target.checked; renderOocPanel(); save(); touchDraft(); });
+
 bindOpt('#optSeedN','seedCount',Number); bindOpt('#optCastN','castCount',Number);
 $('#optCastN').addEventListener('change',renderOneshot);
 bindOpt('#optNsfw','nsfw',v=>v==='1'); bindOpt('#optCheck','check',v=>v==='1');
