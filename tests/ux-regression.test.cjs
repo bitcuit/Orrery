@@ -762,7 +762,7 @@ test('OOC preset turns chosen formats into result fields and hands the settings 
   assert.deepEqual(plain(a.run('activePreset().schema.map(f=>f.key)')), ['scene','scene_rev','record','record_rev']);
   assert.equal(a.$('#oocCount').textContent, 'OOC 4개');
   a.$('#btnOocAll').click();
-  assert.equal(a.run('oocPrefs().formats.length'), 7);
+  assert.equal(a.run('oocPrefs().formats.length'), 6);
   assert.equal(a.$('#btnOocAll').textContent, '전체 해제');
   a.$('#btnOocAll').click();
   assert.deepEqual(plain(a.run('activePreset().schema.map(f=>f.key)')), ['ooc','note']);

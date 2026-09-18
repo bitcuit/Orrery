@@ -330,8 +330,8 @@ function applyGroupUi(){
   }
   const setPh=(sel,v)=>{ const el=$(sel); if(el) el.placeholder=v||''; };
   const ooc=activePreset().id==='ooc';
-  setPh('#optBrief',ooc?'예: 주말 아침, PC가 먼저 깨서 자는 NPC를 한참 본다 · 키워드: 장난, 들킴':u.ph);
-  setPh('#rerollNote',ooc?'예: 장면형은 더 짧게, NPC가 이미 깨어 있는 쪽으로':u.rerollPh);
+  setPh('#optBrief',ooc?'예: 비 오는 퇴근길, PC가 우산 하나만 들고 NPC를 데리러 간다 · 키워드: 거리감, 말 없는 배려':u.ph);
+  setPh('#rerollNote',ooc?'예: 양식·기록형은 항목을 절반으로 · 결말은 열어 두기':u.rerollPh);
   setPh('#continueNote',u.continuePh); setPh('#askIn',u.askPh);
   const castField=$('#castCountField'); if(castField) castField.hidden=S.opts.group!=='character';
   renderModeChooser(); renderNebulaPicker();
