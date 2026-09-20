@@ -68,7 +68,8 @@ Object.defineProperty(S, 'chat', {
   }
 });
 let LOG = [];
-let ABORT = null;
+let ABORT = null;            /* 작업대 요청 — 한 번에 하나, 상단 중지 버튼과 짝 */
+const INFLIGHT = new Set();  /* 동시에 나가도 되는 요청(대화) 의 중지 손잡이 */
 let ACTIVE_TASK = null;
 let LAST_USAGE = null;
 let LAST_RAW = '', LAST_RAW_AT = 0;
@@ -573,9 +574,13 @@ const PROV_ORDER = ['openai','anthropic','gemini','vertex','openrouter','nanogpt
 
 /* --- 호출 --- */
 async function callProvider(conn, messages, opts){
-  const task=ACTIVE_TASK;
-  assertTask(task);
-  if(ABORT) throw new Error('다른 요청이 진행 중입니다. 완료 후 다시 시도해 주세요.');
+  // concurrent 요청은 전역 한 자리를 쓰지 않는다 — 대화창마다 따로 오갈 수 있게.
+  const solo = !(opts && opts.concurrent);
+  const task = solo ? ACTIVE_TASK : null;
+  if(solo){
+    assertTask(task);
+    if(ABORT) throw new Error('다른 요청이 진행 중입니다. 완료 후 다시 시도해 주세요.');
+  }
   const p = PROV[conn.provider];
   if(!p) throw new Error('알 수 없는 연결 종류: '+conn.provider);
   if(!conn.model) throw new Error('모델을 고르지 않았습니다.');
@@ -586,7 +591,7 @@ async function callProvider(conn, messages, opts){
     if(conn.temperature!=null) o.temperature = conn.temperature;
     if(conn.topP!=null)        o.topP        = conn.topP;
   }
-  delete o.connectionOverrides;
+  delete o.connectionOverrides; delete o.concurrent; delete o.onStart;
   const est = messages.reduce((a,m)=>a+tok(m.content),0);
   if(conn.contextLimit){
     const room = conn.contextLimit - (o.maxTokens||2000);
@@ -597,11 +602,13 @@ async function callProvider(conn, messages, opts){
     if(est > room*0.85) log(`컨텍스트 여유가 적습니다 — 보낼 것 ${est} / 상한 ${conn.contextLimit}`,'err');
   }
   const req = p.chat(conn, messages, o);
-  LAST_USAGE = null;
+  let usage = null;
+  if(solo) LAST_USAGE = null;
   const controller = new AbortController();
-  ABORT = controller;
+  if(solo) ABORT = controller; else INFLIGHT.add(controller);
+  if(typeof opts?.onStart==='function') opts.onStart(controller);
   if(task?.studio){ task.calls=(task.calls||0)+1; renderStudioScreen(); }
-  const stop=$('#btnAbortCall');
+  const stop = solo ? $('#btnAbortCall') : null;
   if(stop){
     const activeBtn=document.querySelector('button .busy')?.closest('button');
     if(task?.studio){ $('#studioStopSlot').append(stop); stop.classList.add('inline'); }
@@ -622,12 +629,13 @@ async function callProvider(conn, messages, opts){
     log('연결 실패: '+e.message,'err');
     throw new Error('서버에 닿지 못했습니다. 브라우저가 요청을 막았거나(CORS) 주소가 틀렸을 수 있습니다. 상단 ? 단추의 안내를 보세요.');
   }finally{
+    INFLIGHT.delete(controller);
     if(ABORT===controller){
       ABORT=null;
       if(stop&&!task?.studio){ stop.hidden=true; document.body.append(stop); stop.classList.remove('inline'); }
     }
   }
-  assertTask(task);
+  if(solo) assertTask(task);
   if(!res.ok){
     log(`← ${res.status} ${txt.slice(0,600)}`,'err');
     let detail = txt.slice(0,300);
@@ -635,15 +643,17 @@ async function callProvider(conn, messages, opts){
     throw new Error(`${res.status} · ${detail}`);
   }
   let j; try{ j = JSON.parse(txt); }catch(e){ throw new Error('응답이 JSON이 아닙니다: '+txt.slice(0,200)); }
-  LAST_USAGE = responseUsage(j);
+  usage = responseUsage(j);
+  if(solo) LAST_USAGE = usage;
   const out = p.parse(j) || '';
-  log(`← ${out.length}자${LAST_USAGE?' · '+usageLabel(LAST_USAGE):''} · ${((Date.now()-t0)/1000).toFixed(1)}초`,'ok');
+  log(`← ${out.length}자${usage?' · '+usageLabel(usage):''} · ${((Date.now()-t0)/1000).toFixed(1)}초`,'ok');
   if(S.logVerbose) log(out);
   if(!out.trim()) throw new Error('모델이 빈 응답을 돌려줬습니다. (필터에 걸렸거나 토큰이 모자랐을 수 있습니다)');
-  LAST_RAW = out; LAST_RAW_AT = Date.now();
+  // 동시 요청이 작업대의 '마지막 API 응답' 을 덮어쓰지 않게 한다.
+  if(solo){ LAST_RAW = out; LAST_RAW_AT = Date.now(); }
   // 실제 생성이 성공하면 그 자체가 연결 확인 — '확인' 안 눌러도 초록불로
   if(conn._ok!==true){
-    conn._ok = true; conn._lastTest = {at:Date.now(), ok:true, usage:LAST_USAGE, auto:true};
+    conn._ok = true; conn._lastTest = {at:Date.now(), ok:true, usage, auto:true};
     try{ renderConnSel(); renderConns(); }catch(_){ }
   }
   return out;

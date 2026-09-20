@@ -29,7 +29,27 @@ function talkContext(){
   if(c.card && S.project.card) parts.push('[지금 만든 것]\n'+JSON.stringify(S.project.card.fields,null,1));
   return parts.join('\n\n');
 }
-let CHAT_SENDING=false, SENDING_CHAT_ID=null;
+/* 대화창마다 요청 하나씩, 서로 동시에 오간다.
+   chatId -> {kind:'send'|'wrap', controller} */
+const CHAT_JOBS = new Map();
+function chatJob(id){ return CHAT_JOBS.get(id)||null; }
+function renderChatActions(){
+  const send=$('#btnSend'), wrap=$('#btnTalkWrap');
+  const job=chatJob(S.chatId);
+  if(send){
+    const sending=job&&job.kind==='send';
+    send.textContent=sending?'중지':'보내기';
+    send.title=sending?'이 대화의 요청을 중지합니다':'보내기 (Ctrl+Enter)';
+    send.classList.toggle('primary',!sending);
+    send.classList.toggle('ghost',!!sending);
+    send.disabled=!!(job&&job.kind==='wrap');
+  }
+  if(wrap){
+    const wrapping=job&&job.kind==='wrap';
+    wrap.textContent=wrapping?'정리 중지':'대화 요약';
+    wrap.disabled=!!(job&&!wrapping);
+  }
+}
 function resizeChatInput(){
   const input=$('#chatIn');
   if(!input || !input.clientWidth) return;
@@ -105,7 +125,7 @@ function renderChatTabs(){
   const box=$('#chatTabs'); if(!box) return;
   const list=chatList();
   box.innerHTML = list.map((c,i)=>{
-    const on=c.id===S.chatId, label=chatLabel(c,i), sending=c.id===SENDING_CHAT_ID;
+    const on=c.id===S.chatId, label=chatLabel(c,i), sending=CHAT_JOBS.has(c.id);
     return `<div class="chat-tab${on?' on':''}${sending?' sending':''}" role="presentation">${sending?'<span class="chat-tab-dot" title="답을 기다리는 중" aria-label="답을 기다리는 중"></span>':''}<button type="button" role="tab" aria-selected="${on}" class="chat-tab-open" data-chat="${esc(c.id)}" title="${esc(label)}${on?' · 한 번 더 누르면 이름 바꾸기':''}">${esc(label)}</button>`
       + (list.length>1?`<button type="button" class="chat-tab-close" data-chat-close="${esc(c.id)}" title="이 대화창 닫기" aria-label="${esc(label)} 닫기">×</button>`:'')
       + `</div>`;
@@ -128,7 +148,7 @@ function newChat(){
   $('#chatIn').focus();
 }
 function closeChat(id){
-  if(id===SENDING_CHAT_ID) return toast('이 대화창은 답을 기다리는 중입니다. 받은 뒤에 닫아 주세요.',1);
+  if(CHAT_JOBS.has(id)) return toast('이 대화창은 답을 기다리는 중입니다. 받은 뒤에 닫아 주세요.',1);
   const list=chatList(), at=list.findIndex(c=>c.id===id);
   if(at<0 || list.length<2) return;
   const c=list[at];
@@ -154,9 +174,11 @@ $('#chatTabs').addEventListener('click', e=>{
 });
 function renderChat(preserveScroll=false){
   // 새로고침 등으로 끊긴 요청은 지금 보고 있지 않은 대화창에도 남는다.
-  if(!CHAT_SENDING) chatList().forEach(c=>c.msgs.forEach(m=>{
-    if(m.status==='pending'){ m.status='failed'; m.error='응답을 받기 전에 작업이 종료됐습니다.'; }
-  }));
+  chatList().forEach(c=>{ if(CHAT_JOBS.has(c.id)) return;
+    c.msgs.forEach(m=>{
+      if(m.status==='pending'){ m.status='failed'; m.error='응답을 받기 전에 작업이 종료됐습니다.'; }
+    });
+  });
   const box = $('#chatLog');
   const scrollTop=box.scrollTop;
   const wrapHtml = talkSummaryItems().map(m=>{
@@ -176,6 +198,7 @@ function renderChat(preserveScroll=false){
   $('#ctxTok').textContent = (t ? `함께 보낼 분량 ${t} 토큰쯤` : '함께 보낼 것 없음')
     + (ct ? ` · 대화 ${ct} 토큰쯤` : '');
   renderChatTabs();
+  renderChatActions();
   renderTalkAssets();
   renderWrapNudge(ct);
   const toCard = $('#btnTalkToCard');
@@ -263,25 +286,26 @@ $('#talkAssetList').addEventListener('click', e=>{
   renderTalkAssets();
 });
 async function wrapTalk(){
-  if(!canChangeWork()) return;
+  if(CHAT_JOBS.has(S.chatId)) return;
   if(S.chat.msgs.some(m=>m.status)) return toast('응답을 받지 못한 메시지를 먼저 다시 보내거나 삭제해 주세요.',1);
   const included=talkHistoryMessages();
   if(included.length < 2) return toast('정리할 대화가 없습니다',1);
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) return toast('먼저 연결을 만들어 주세요',1);
   if(!confirm('전송에 포함한 대화를 요약으로 바꿉니다. 제외한 대화는 남습니다.\n원문이 필요하면 먼저 복사해 두세요. 계속할까요?')) return;
-  const task=beginTask(); if(!task) return;
   const chat=S.chat;
-  const btn = $('#btnTalkWrap');
-  busy(btn, true, '정리 중');
+  const job={kind:'wrap',controller:null,cancelled:false};
+  CHAT_JOBS.set(chat.id,job);
+  renderChat();
   try{
     const convo = talkTranscript(true);
     const before = tok(convo);
     const out = await callProvider(conn, [
       {role:'system', content:'너는 진행 중인 창작 상담 대화를 이어가기 위한 압축 정리를 만든다. 새 의견이나 제안을 덧붙이지 않는다. '+(S.opts.lang||'한국어')+' 로 쓴다.'},
       {role:'user', content:'아래 대화를 다음 항목으로 정리하라. 각 항목은 짧은 개조식으로, 없는 항목은 빼라.\n- 다룬 주제\n- 정해진 것·합의\n- 검토했지만 접은 것\n- 아직 열린 질문\n\n대화:\n'+convo}
-    ], {temperature:0.3, maxTokens:1000});
-    assertTask(task);
+    ], {temperature:0.3, maxTokens:1000,
+      concurrent:true, onStart:c=>{ job.controller=c; }});
+    if(job.cancelled) throw new Error('__ABORT__');
     chat.summaryHistory=(chat.summaryHistory||[]).filter(m=>m.includeHistory===false);
     if(chat.summary && chat.summaryIncluded===false){
       chat.summaryHistory.push({id:uid(),content:chat.summary,includeHistory:false});
@@ -290,17 +314,18 @@ async function wrapTalk(){
     chat.summaryIncluded = true;
     chat.msgs = chat.msgs.filter(m=>!included.includes(m));
     chat.nudgeOff = false;
-    save(); renderChat();
+    save();
     toast(`대화를 정리했습니다 — ${before} 토큰 → ${tok(out)} 토큰`);
-  }catch(err){ showErr(err); }
-  finally{ busy(btn, false); endTask(task); }
+  }catch(err){ if(err.message!=='__ABORT__') showErr(err); }
+  finally{ CHAT_JOBS.delete(chat.id); save(); renderChat(chat.id!==S.chatId); }
 }
-$('#btnTalkWrap').addEventListener('click', wrapTalk);
+$('#btnTalkWrap').addEventListener('click', ()=>{
+  const job=chatJob(S.chatId);
+  if(job&&job.kind==='wrap') stopChat(S.chatId); else wrapTalk();
+});
 async function sendChat(retryId){
-  if(!canChangeWork(true)) return;
-  // 한 번에 하나의 API 호출만 나간다(core 의 ABORT 는 전역이다).
-  if(CHAT_SENDING) return toast('앞선 대화의 답을 받는 중입니다. 끝난 뒤에 보내 주세요.',1);
   const chat=S.chat, inp=$('#chatIn');
+  if(CHAT_JOBS.has(chat.id)) return;
   const failed=chat.msgs.find(m=>m.status==='failed');
   const retry=typeof retryId==='string' && failed && failed.id===retryId;
   if(failed&&!retry) return toast('실패한 메시지의 다시 보내기를 눌러 주세요. 새 입력은 그대로 남겨 뒀습니다.',1);
@@ -308,17 +333,16 @@ async function sendChat(retryId){
   if(!text) return;
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) return toast('먼저 연결을 만들어 주세요',1);
-  const task=beginTask(); if(!task) return;
-  CHAT_SENDING=true; SENDING_CHAT_ID=chat.id;
+  const job={kind:'send',controller:null,cancelled:false};
+  CHAT_JOBS.set(chat.id,job);
   const message=retry?failed:{id:uid(),role:'user',content:text,includeHistory:true};
   message.includeHistory=true; message.status='pending'; delete message.error;
   if(!retry){ chat.msgs.push(message); inp.value=''; chat.inputDraft=''; }
-  const btn=$('#btnSend');
-  busy(btn,true,'응답 중');
   try{
   renderChat(); save();
+  // 보낼 내용은 지금 이 자리에서 다 굳힌다 — 기다리는 동안 다른 창으로 옮겨도 흔들리지 않게.
   const sys = [];
-  const roleKey = S.chat.role;
+  const roleKey = chat.role;
   const customPrompt = S.customTalkPrompts && S.customTalkPrompts[roleKey];
   if(customPrompt && customPrompt.trim()){
     sys.push(customPrompt.trim());
@@ -332,23 +356,31 @@ async function sendChat(retryId){
   if(ctx) sys.push('아래는 상대가 지금 다루고 있는 자료다. 묻지 않은 것까지 통째로 다시 써주지 마라.\n\n'+ctx);
   const msgs = [{role:'system', content: sys.join('\n\n')}].concat(
     talkHistoryMessages(message,24).map(m=>({role:m.role, content:m.content})));
-    const out = await callProvider(conn, msgs, {temperature:0.85, maxTokens:2200});
-    assertTask(task);
+    const out = await callProvider(conn, msgs, {temperature:0.85, maxTokens:2200,
+      concurrent:true, onStart:c=>{ job.controller=c; }});
+    if(job.cancelled) throw new Error('__ABORT__');
     delete message.status; delete message.error;
     chat.msgs.push({id:uid(),role:'assistant',content:out.trim(),includeHistory:true});
-    save(); renderChat();
   }catch(err){
     message.status='failed'; message.error=err.message==='__ABORT__'?'요청을 중지했습니다. 메시지는 보관돼 있습니다.':err.message;
-    save(); renderChat();
-    showErr(err);
+    if(err.message!=='__ABORT__') showErr(err);
   }
-  finally{ CHAT_SENDING=false; SENDING_CHAT_ID=null; busy(btn,false); endTask(task); }
+  // 보고 있지 않은 대화창이 끝났으면 지금 읽는 자리를 흔들지 않는다.
+  finally{ CHAT_JOBS.delete(chat.id); save(); renderChat(chat.id!==S.chatId); }
 }
-$('#btnSend').addEventListener('click', sendChat);
+function stopChat(id){
+  const job=CHAT_JOBS.get(id); if(!job) return;
+  job.cancelled=true;
+  if(job.controller) job.controller.abort();
+  renderChat();
+}
+$('#btnSend').addEventListener('click', ()=>{
+  if(CHAT_JOBS.has(S.chatId)) stopChat(S.chatId); else sendChat();
+});
 $('#chatLog').addEventListener('click',e=>{
   const historyToggle=e.target.closest('.chat-history-toggle');
   if(historyToggle){
-    if(!canChangeWork() || CHAT_SENDING) return;
+    if(CHAT_JOBS.has(S.chatId)) return;
     if(historyToggle.dataset.summary){
       if(historyToggle.dataset.summary==='current') S.chat.summaryIncluded=S.chat.summaryIncluded===false;
       else{
@@ -370,7 +402,7 @@ $('#chatLog').addEventListener('click',e=>{
   }
   const retry=e.target.closest('.chat-retry'), discard=e.target.closest('.chat-discard');
   if(retry) return sendChat(retry.dataset.message);
-  if(discard && canChangeWork()){
+  if(discard && !CHAT_JOBS.has(S.chatId)){
     S.chat.msgs=S.chat.msgs.filter(m=>!(m.id===discard.dataset.message && m.status==='failed'));
     save(); renderChat();
   }
@@ -410,7 +442,7 @@ $('#btnTalkResetRole').addEventListener('click', ()=>{
   });
 });
 $('#btnTalkClear').addEventListener('click', ()=>{
-  if(!canChangeWork()) return;
+  if(CHAT_JOBS.has(S.chatId)) return toast('이 대화창은 답을 기다리는 중입니다',1);
   if((!S.chat.msgs.length && !talkSummaryItems().length) || confirm('대화와 정리를 모두 비울까요?')){
     S.chat.msgs=[]; S.chat.summary=''; S.chat.summaryHistory=[]; S.chat.summaryIncluded=true; S.chat.nudgeOff=false; save(); renderChat();
   }
