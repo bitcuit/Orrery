@@ -420,13 +420,20 @@ const PROV = {
     mlist:['gpt-4o','gpt-4o-mini','gpt-4.1','o3-mini'], ...OAI_LIKE('https://api.openai.com/v1') },
 
   anthropic: { label:'Anthropic (Claude)', base:'https://api.anthropic.com/v1',
-    mlist:['claude-sonnet-4-5','claude-opus-4-1','claude-3-5-haiku-latest'],
+    mlist:['claude-opus-5','claude-sonnet-5','claude-haiku-4-5'],
+    // Opus 4.6 이후 모델(Opus 5 / Sonnet 5 / Opus 4.7~4.8 / Fable)은 temperature가 1.0만 허용되고
+    // 그 외 값은 400. 추론이 상시 켜져 있어 샘플링 조절이 불가능해졌다. 아예 보내지 않는다(= 1.0과 동일).
+    nosample:/^claude-(fable|mythos)-|^claude-opus-(5|4-7|4-8)|^claude-sonnet-5/,
     chat(c,msgs,o){
       const sys = msgs.filter(m=>m.role==='system').map(m=>m.content).join('\n\n');
       const rest = msgs.filter(m=>m.role!=='system').map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.content}));
-      const body = { model:c.model, max_tokens:o.maxTokens||2400, temperature:o.temperature ?? 0.9,
+      const body = { model:c.model, max_tokens:o.maxTokens||2400,
                      messages: rest.length?rest:[{role:'user',content:' '}] };
-      if(o.topP != null) body.top_p = o.topP;
+      const sampling = !PROV.anthropic.nosample.test(String(c.model||''));
+      if(sampling){
+        body.temperature = o.temperature ?? 0.9;
+        if(o.topP != null) body.top_p = o.topP;
+      }
       if(sys) body.system = sys;
       return { url:(c.baseUrl||'https://api.anthropic.com/v1').replace(/\/$/,'')+'/messages',
         headers:{'Content-Type':'application/json','x-api-key':c.apiKey,
