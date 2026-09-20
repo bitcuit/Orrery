@@ -30,7 +30,7 @@ let S = {
 /* 대화창은 여러 개가 나란히 있고 서로 참조하지 않는다.
    S.chat 은 그중 '지금 보고 있는 것' 하나를 가리키는 이름일 뿐이다. */
 function emptyChat(group, name){
-  return { id:uid(), name:name||'', role:group==='character'?'char':(group||'world'),
+  return { id:uid(), name:name||'', updated:Date.now(), role:group==='character'?'char':(group||'world'),
     msgs:[], ctx:{assets:true, digest:true, card:false},
     summary:'', summaryHistory:[], summaryIncluded:true, inputDraft:'', nudgeOff:false };
 }
