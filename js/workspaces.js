@@ -96,7 +96,7 @@ function captureWorkspace(){
   const ids=new Set([S.activePreset,...Object.values(S.project.workBy||{}).map(w=>w.presetId)]);
   return {version:1,opts:clone(S.opts),project:clone(S.project),activePreset:S.activePreset,
     presets:clone(S.presets.filter(p=>ids.has(p.id))),materials:clone(S.assets.filter(a=>a.use)),
-    chat:clone(S.chat),continueNote:$('#continueNote').value,rerollNote:$('#rerollNote').value};
+    chats:clone(chatList()),chatId:S.chatId,continueNote:$('#continueNote').value,rerollNote:$('#rerollNote').value};
 }
 function syncActiveWorkspace(){
   if(WORKER_WINDOW || WORKSPACE_RESTORING) return;
@@ -124,7 +124,10 @@ function installWorkspace(snapshot){
     }
     const materials=new Map((snapshot.materials||[]).map(a=>[a.id,clone(a)]));
     S.assets=S.assets.map(a=>{const saved=materials.get(a.id);materials.delete(a.id);return saved||{...a,use:false};}).concat([...materials.values()]);
-    if(snapshot.chat) S.chat=clone(snapshot.chat);
+    if(Array.isArray(snapshot.chats)&&snapshot.chats.length){
+      S.chats=snapshot.chats.map(c=>normalizeChat(clone(c),S.opts.group));
+      S.chatId=S.chats.some(c=>c.id===snapshot.chatId)?snapshot.chatId:S.chats[0].id;
+    } else if(snapshot.chat){ S.chats=[normalizeChat(clone(snapshot.chat),S.opts.group)]; S.chatId=S.chats[0].id; }
     $('#continueNote').value=snapshot.continueNote||'';$('#rerollNote').value=snapshot.rerollNote||'';
     OPEN_DONE_STAGE=null;CLOSED_DONE_STAGE=null;
   }finally{WORKSPACE_RESTORING=false;}
@@ -156,8 +159,8 @@ function createWorkspace(){
   Object.assign(S.project,emptyWork(),{screen:'input'});
   S.assets.forEach(a=>{ a.use=false; });
   $('#optBrief').value='';$('#continueNote').value='';$('#rerollNote').value='';
-  // Each work owns its conversation. Other group work is retained in the saved prior session.
-  S.chat={role:g==='character'?'char':g,msgs:[],ctx:{assets:true,digest:true,card:false}};
+  // Each work owns its conversations. Other group work is retained in the saved prior session.
+  S.chats=[emptyChat(g)]; S.chatId=S.chats[0].id;
   OPEN_DONE_STAGE=null;CLOSED_DONE_STAGE=null;
   const w=ensureWorkspace();w.name=(GROUP_LABEL[g]||'새')+' 작업 '+S.workspaces.length;
   bootUI();save();touchDraft();saveDraftNow();$('#workspaceModal').hidden=true;tab('studio');return true;
