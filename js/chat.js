@@ -148,7 +148,7 @@ function renderChatTabs(){
     const on=c.id===S.chatId, label=labelOf(c), sending=CHAT_JOBS.has(c.id);
     return `<div class="chat-tab${on?' on':''}${sending?' sending':''}" role="presentation">${sending?'<span class="chat-tab-dot" title="답을 기다리는 중" aria-label="답을 기다리는 중"></span>':''}<button type="button" role="tab" aria-selected="${on}" class="chat-tab-open" data-chat="${esc(c.id)}" title="${esc(label)}">${esc(label)}</button>`
       + `<button type="button" class="chat-tab-edit" data-chat-rename="${esc(c.id)}" title="이름 바꾸기" aria-label="${esc(label)} 이름 바꾸기"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>`
-      + (list.length>1?`<button type="button" class="chat-tab-close" data-chat-close="${esc(c.id)}" title="이 대화창 닫기" aria-label="${esc(label)} 닫기">×</button>`:'')
+      + (all.length>1?`<button type="button" class="chat-tab-close" data-chat-close="${esc(c.id)}" title="이 대화창 닫기" aria-label="${esc(label)} 닫기">×</button>`:'')
       + `</div>`;
   }).join('')
     + (all.length>list.length
