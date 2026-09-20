@@ -1294,7 +1294,24 @@ body:has(#v-talk.on) .working-note{flex:none}
 #talkRoleEdit>summary{font-family:var(--body);font-size:13px;letter-spacing:0}
 #talkPick{margin:0}
 .talk-conversation{display:flex;flex-direction:column;min-width:0;min-height:0;margin:0}
-.talk-conversation>.panel-h,.talk-conversation>.ctxbar,.talk-conversation>.wrapnudge{flex:none}
+.talk-conversation>.panel-h,.talk-conversation>.ctxbar,.talk-conversation>.wrapnudge,.talk-conversation>.chat-tabs{flex:none}
+/* 대화창 탭 — 각 창은 완전히 별개의 대화다 */
+.chat-tabs{display:flex;align-items:center;gap:4px;margin-bottom:10px;padding-bottom:6px;
+  border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.chat-tabs::-webkit-scrollbar{display:none}
+.chat-tab{display:flex;align-items:center;flex:none;max-width:190px;border-radius:var(--r-in);
+  background:var(--s2);border:1px solid transparent;transition:background .15s var(--ease),border-color .15s var(--ease)}
+.chat-tab:hover{background:var(--s2h)}
+.chat-tab.on{background:var(--s2h);border-color:var(--line2)}
+.chat-tab-open{min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  padding:6px 10px;border:0;background:none;color:var(--dim);font-size:12.5px;cursor:pointer}
+.chat-tab.on .chat-tab-open{color:var(--text)}
+.chat-tab-close{flex:none;padding:4px 8px 4px 2px;border:0;background:none;color:var(--icon-muted);
+  font-size:15px;line-height:1;cursor:pointer}
+.chat-tab-close:hover{color:var(--danger-icon-hover)}
+.chat-tab-add{flex:none;padding:5px 11px;border:1px dashed var(--line2);border-radius:var(--r-in);
+  background:none;color:var(--dim2);font-size:15px;line-height:1;cursor:pointer}
+.chat-tab-add:hover{color:var(--brass);border-color:var(--brass-glow)}
 .talk-conversation>.panel-h{margin-bottom:8px}
 .talk-conversation .ctxbar{gap:8px;margin-bottom:10px}
 .talk-conversation .ctxbar .note{flex:1 1 220px;min-width:0}
@@ -1372,6 +1389,8 @@ body:has(#v-talk.on) .working-note{flex:none}
   .talk-actions{width:100%}
   .talk-conversation .ctxbar button{font-size:12px;padding:7px 10px}
   .talk-conversation .panel-h{margin-bottom:2px}
+  .chat-tabs{margin-bottom:6px;padding-bottom:4px}
+  .chat-tab-open{max-width:104px;padding:5px 8px;font-size:12px}
   .chatlog{padding:12px;gap:10px}
   .chatin{gap:4px;margin:0 10px 10px}
   .chatin textarea{max-height:120px;font-size:16px}

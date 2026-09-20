@@ -23,10 +23,50 @@ let S = {
   project: { digest:null, digestSrc:'', seeds:[], sel:[], seedNote:'', card:null, locked:{}, violations:null, verdict:null, cast:[], relations:null, qa:[], libId:null, digestBy:{}, digestMeta:null, workBy:{}, screen:null },
   library: [],
   workspaces: [], activeWorkspaceId:null,
-  chat: { role:'world', msgs:[], ctx:{assets:true, digest:true, card:false} },
+  chats: [], chatId: null,
   customTalkPrompts: {},
   logVerbose: false
 };
+/* 대화창은 여러 개가 나란히 있고 서로 참조하지 않는다.
+   S.chat 은 그중 '지금 보고 있는 것' 하나를 가리키는 이름일 뿐이다. */
+function emptyChat(group, name){
+  return { id:uid(), name:name||'', role:group==='character'?'char':(group||'world'),
+    msgs:[], ctx:{assets:true, digest:true, card:false},
+    summary:'', summaryHistory:[], summaryIncluded:true, inputDraft:'', nudgeOff:false };
+}
+function normalizeChat(c, group){
+  const base=emptyChat(group);
+  if(!c || typeof c!=='object') return base;
+  const out=Object.assign(base, c);
+  out.id=typeof c.id==='string'&&c.id?c.id:base.id;
+  out.ctx=Object.assign({assets:true,digest:true,card:false}, c.ctx||{});
+  out.msgs=Array.isArray(c.msgs)?c.msgs:[];
+  out.summaryHistory=Array.isArray(c.summaryHistory)?c.summaryHistory:[];
+  return out;
+}
+function chatList(){
+  if(!Array.isArray(S.chats)) S.chats=[];
+  if(!S.chats.length) S.chats.push(emptyChat(S.opts&&S.opts.group));
+  if(!S.chats.some(c=>c.id===S.chatId)) S.chatId=S.chats[0].id;
+  return S.chats;
+}
+function chatIndex(){ const list=chatList(); return list.findIndex(c=>c.id===S.chatId); }
+function chatLabel(c, i){
+  if(c.name&&c.name.trim()) return c.name.trim();
+  const first=(c.msgs||[]).find(m=>m.role==='user'&&m.content&&m.content.trim());
+  if(first) return first.content.trim().replace(/\s+/g,' ').slice(0,18);
+  return '대화 '+(i+1);
+}
+Object.defineProperty(S, 'chat', {
+  configurable:true, enumerable:false,
+  get(){ return chatList()[chatIndex()]; },
+  set(v){
+    const list=chatList(), at=chatIndex(), keep=list[at];
+    const next=normalizeChat(v, S.opts&&S.opts.group);
+    // 대입은 '지금 대화의 내용을 갈아끼운다'는 뜻이므로 자리와 id 를 지킨다.
+    next.id=keep.id; list[at]=next; S.chatId=next.id; return next;
+  }
+});
 let LOG = [];
 let ABORT = null;
 let ACTIVE_TASK = null;
@@ -226,7 +266,7 @@ function save(){
     localStorage.setItem(KEY, JSON.stringify({
     connections:S.connections, activeConn:S.activeConn,
     presets:S.presets, activePreset:S.activePreset,
-    opts:S.opts, library:S.library, chat:S.chat, customTalkPrompts:S.customTalkPrompts, logVerbose:S.logVerbose,
+    opts:S.opts, library:S.library, chats:chatList(), chatId:S.chatId, customTalkPrompts:S.customTalkPrompts, logVerbose:S.logVerbose,
     workspaces:S.workspaces, activeWorkspaceId:S.activeWorkspaceId,
     assetFolders:S.assetFolders,
     assets:S.assets.map(a=>clone(normalizeAssetMetadata(a)))
@@ -260,7 +300,10 @@ function load(){
     if(d.library) S.library = d.library.map(r=>Object.assign({
       star:false, group:'character', presetName:'', updated:r.at||Date.now() }, r));
     if(typeof loadSharedRecords==='function')loadSharedRecords();
-    if(d.chat) S.chat = Object.assign(S.chat, d.chat);
+    if(Array.isArray(d.chats)&&d.chats.length){
+      S.chats=d.chats.map(c=>normalizeChat(c, S.opts.group));
+      S.chatId=S.chats.some(c=>c.id===d.chatId)?d.chatId:S.chats[0].id;
+    } else if(d.chat){ S.chats=[normalizeChat(d.chat, S.opts.group)]; S.chatId=S.chats[0].id; }
     if(d.customTalkPrompts) S.customTalkPrompts = d.customTalkPrompts;
     if(d.logVerbose) S.logVerbose = d.logVerbose;
     if(Array.isArray(d.assetFolders)) S.assetFolders=clone(d.assetFolders);

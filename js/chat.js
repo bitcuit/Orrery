@@ -90,10 +90,77 @@ function talkHistoryButton(excluded, attributes, subject){
     : '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
   return `<button type="button" class="mini ghost chat-history-toggle" ${attributes} aria-label="${label}" title="${label}" aria-pressed="${excluded}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></button>`;
 }
+/* ---- 여러 대화창 ------------------------------------------------
+   각 대화창은 역할·보낼 내용·요약·입력까지 따로 가지며 서로를 참조하지 않는다.
+   보내는 중에는 전환·추가·삭제를 막는다 — 도착한 답이 갈 곳을 잃지 않도록. */
+function applyChatToUI(){
+  $('#talkRole').value = S.chat.role;
+  $('#chatIn').value = S.chat.inputDraft||'';
+  $('#ctxAssets').checked = !!S.chat.ctx.assets;
+  $('#ctxDigest').checked = !!S.chat.ctx.digest;
+  $('#ctxCard').checked   = !!S.chat.ctx.card;
+  updateTalkRoleUI();
+}
+function renderChatTabs(){
+  const box=$('#chatTabs'); if(!box) return;
+  const list=chatList();
+  box.innerHTML = list.map((c,i)=>{
+    const on=c.id===S.chatId, label=chatLabel(c,i);
+    return `<div class="chat-tab${on?' on':''}" role="presentation"><button type="button" role="tab" aria-selected="${on}" class="chat-tab-open" data-chat="${esc(c.id)}" title="${esc(label)}${on?' · 한 번 더 누르면 이름 바꾸기':''}">${esc(label)}</button>`
+      + (list.length>1?`<button type="button" class="chat-tab-close" data-chat-close="${esc(c.id)}" title="이 대화창 닫기" aria-label="${esc(label)} 닫기">×</button>`:'')
+      + `</div>`;
+  }).join('') + '<button type="button" class="chat-tab-add" id="btnChatNew" title="새 대화창" aria-label="새 대화창">+</button>';
+}
+function chatBusy(){
+  if(CHAT_SENDING){ toast('응답을 받는 중에는 대화창을 바꿀 수 없습니다',1); return true; }
+  return false;
+}
+function selectChat(id){
+  if(id===S.chatId || chatBusy()) return;
+  if(!chatList().some(c=>c.id===id)) return;
+  S.chatId=id; save(); applyChatToUI(); renderChat();
+}
+function newChat(){
+  if(chatBusy() || !canChangeWork()) return;
+  const list=chatList();
+  if(list.length>=12) return toast('대화창은 12개까지 만들 수 있습니다',1);
+  const c=emptyChat(S.opts.group);
+  c.role=S.chat.role; c.ctx=Object.assign({},S.chat.ctx);
+  list.push(c); S.chatId=c.id;
+  save(); applyChatToUI(); renderChat();
+  $('#chatIn').focus();
+}
+function closeChat(id){
+  if(chatBusy() || !canChangeWork()) return;
+  const list=chatList(), at=list.findIndex(c=>c.id===id);
+  if(at<0 || list.length<2) return;
+  const c=list[at];
+  if((c.msgs.length||c.summary) && !confirm(`“${chatLabel(c,at)}” 대화창을 닫을까요? 내용은 지워집니다.`)) return;
+  list.splice(at,1);
+  if(S.chatId===id) S.chatId=list[Math.max(0,at-1)].id;
+  save(); applyChatToUI(); renderChat();
+}
+function renameChat(id){
+  if(chatBusy()) return;
+  const list=chatList(), at=list.findIndex(c=>c.id===id); if(at<0) return;
+  const next=prompt('대화창 이름 (비우면 자동)', list[at].name||'');
+  if(next===null) return;
+  list[at].name=next.trim().slice(0,24);
+  save(); renderChatTabs();
+}
+$('#chatTabs').addEventListener('click', e=>{
+  const close=e.target.closest('[data-chat-close]');
+  if(close) return closeChat(close.dataset.chatClose);
+  if(e.target.closest('#btnChatNew')) return newChat();
+  const open=e.target.closest('[data-chat]'); if(!open) return;
+  const id=open.dataset.chat;
+  if(id===S.chatId) renameChat(id); else selectChat(id);
+});
 function renderChat(preserveScroll=false){
-  if(!CHAT_SENDING) S.chat.msgs.forEach(m=>{
+  // 새로고침 등으로 끊긴 요청은 지금 보고 있지 않은 대화창에도 남는다.
+  if(!CHAT_SENDING) chatList().forEach(c=>c.msgs.forEach(m=>{
     if(m.status==='pending'){ m.status='failed'; m.error='응답을 받기 전에 작업이 종료됐습니다.'; }
-  });
+  }));
   const box = $('#chatLog');
   const scrollTop=box.scrollTop;
   const wrapHtml = talkSummaryItems().map(m=>{
@@ -112,6 +179,7 @@ function renderChat(preserveScroll=false){
   const ct = tok(talkHistorySummary()+talkHistoryMessages().map(m=>m.content).join('\n'));
   $('#ctxTok').textContent = (t ? `함께 보낼 분량 ${t} 토큰쯤` : '함께 보낼 것 없음')
     + (ct ? ` · 대화 ${ct} 토큰쯤` : '');
+  renderChatTabs();
   renderTalkAssets();
   renderWrapNudge(ct);
   const toCard = $('#btnTalkToCard');

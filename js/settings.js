@@ -265,7 +265,7 @@ function makeBackup(options){
     out.project=clone(S.project);
     out.workspaces=clone(S.workspaces);out.activeWorkspaceId=S.activeWorkspaceId;
     for(const w of out.workspaces){
-      if(!o.chat)delete w.snapshot.chat;
+      if(!o.chat){ delete w.snapshot.chat; delete w.snapshot.chats; delete w.snapshot.chatId; }
       if(!o.assets)delete w.snapshot.materials;
       if(!o.presets)delete w.snapshot.presets;
     }
@@ -273,7 +273,7 @@ function makeBackup(options){
     if(!out.opts)out.workOpts=clone(S.opts);
     out.continueNote=$('#continueNote').value; out.rerollNote=$('#rerollNote').value;
   }
-  if(o.chat)out.chat=clone(S.chat);
+  if(o.chat){ out.chats=clone(chatList()); out.chatId=S.chatId; }
   return out;
 }
 $('#btnDataExport').addEventListener('click', ()=>{ $('#backupModal').hidden=false; });
@@ -303,8 +303,10 @@ $('#dataFile').addEventListener('change', async e=>{
     if(!canChangeWork()) return;
     if(d?.type==='connections'){ importConnectionBackup(d); return; }
     flushCardEdits();
-    if(!d || typeof d!=='object' || !(d.connections || d.presets || d.library || d.assets || d.favoriteAssets || d.project || d.chat || (d.app==='Orrery'&&(d.opts||d.customTalkPrompts))))
+    if(!d || typeof d!=='object' || !(d.connections || d.presets || d.library || d.assets || d.favoriteAssets || d.project || d.chat || d.chats || (d.app==='Orrery'&&(d.opts||d.customTalkPrompts))))
       throw new Error('Orrery 백업 파일이 아닙니다.');
+    if(d.chats!=null && (!Array.isArray(d.chats) || d.chats.some(c=>!c || typeof c!=='object' || Array.isArray(c))))
+      throw new Error('백업의 대화 형식이 올바르지 않습니다.');
     for(const key of ['connections','presets','library','assets','favoriteAssets','assetFolders','workspaces']){
       if(d[key]!=null && (!Array.isArray(d[key]) || d[key].some(v=>!v || typeof v!=='object' || Array.isArray(v))))
         throw new Error('백업의 목록 형식이 올바르지 않습니다.');
@@ -369,9 +371,11 @@ $('#dataFile').addEventListener('change', async e=>{
       }
       else S.activeWorkspaceId=null;
     }
-    if(d.chat){
-      S.chat=Object.assign({role:'world',msgs:[],ctx:{assets:true,digest:true,card:false}},clone(d.chat));
-      S.chat.ctx=Object.assign({assets:true,digest:true,card:false},S.chat.ctx||{});
+    if(d.chat||d.chats){
+      if(Array.isArray(d.chats)&&d.chats.length){
+        S.chats=d.chats.map(c=>normalizeChat(clone(c),S.opts.group));
+        S.chatId=S.chats.some(c=>c.id===d.chatId)?d.chatId:S.chats[0].id;
+      } else if(d.chat){ S.chats=[normalizeChat(clone(d.chat),S.opts.group)]; S.chatId=S.chats[0].id; }
     }
     if(d.customTalkPrompts) S.customTalkPrompts=clone(d.customTalkPrompts);
     if(d.commonPrompts)localStorage.setItem(COMMON_EXTRA_KEY,JSON.stringify(normCommon(d.commonPrompts)));
