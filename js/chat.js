@@ -109,7 +109,7 @@ function renderChatTabs(){
     return `<div class="chat-tab${on?' on':''}${sending?' sending':''}" role="presentation">${sending?'<span class="chat-tab-dot" title="답을 기다리는 중" aria-label="답을 기다리는 중"></span>':''}<button type="button" role="tab" aria-selected="${on}" class="chat-tab-open" data-chat="${esc(c.id)}" title="${esc(label)}${on?' · 한 번 더 누르면 이름 바꾸기':''}">${esc(label)}</button>`
       + (list.length>1?`<button type="button" class="chat-tab-close" data-chat-close="${esc(c.id)}" title="이 대화창 닫기" aria-label="${esc(label)} 닫기">×</button>`:'')
       + `</div>`;
-  }).join('') + '<button type="button" class="chat-tab-add" id="btnChatNew" title="새 대화창" aria-label="새 대화창">+</button>';
+  }).join('') + '<button type="button" class="chat-tab-add" id="btnChatNew"><span aria-hidden="true">+</span> 새 대화</button>';
 }
 /* 답을 기다리는 동안에도 다른 대화창을 읽고 쓸 수 있다.
    답은 보낸 창으로 돌아간다. 다만 그 창을 닫아 버리면 갈 곳이 없다. */
