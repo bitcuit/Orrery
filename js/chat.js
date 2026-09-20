@@ -121,27 +121,102 @@ function applyChatToUI(){
   $('#ctxCard').checked   = !!S.chat.ctx.card;
   updateTalkRoleUI();
 }
+const CHAT_MAX=50;        // 기록이 쌓이는 곳이므로 넉넉히
+const CHAT_TAB_LIMIT=8;   // 왼쪽에 바로 보이는 개수. 나머지는 전체 보기로
+function labelOf(c){ return chatLabel(c, chatList().indexOf(c)); }
+function chatPreview(c){
+  const last=[...(c.msgs||[])].reverse().find(m=>m.content && m.content.trim());
+  if(last) return (last.role==='user'?'나: ':'상대: ')+last.content.trim().replace(/\s+/g,' ').slice(0,60);
+  if(c.summary) return '정리만 남아 있음';
+  return '아직 아무 말도 안 했습니다';
+}
+function chatsByRecent(){
+  return chatList().slice().sort((a,b)=>(b.updated||0)-(a.updated||0));
+}
+function touchChat(c){ if(c) c.updated=Date.now(); }
 function renderChatTabs(){
   const box=$('#chatTabs'); if(!box) return;
-  const list=chatList();
-  box.innerHTML = list.map((c,i)=>{
-    const on=c.id===S.chatId, label=chatLabel(c,i), sending=CHAT_JOBS.has(c.id);
+  const all=chatList(), recent=chatsByRecent();
+  // 활성 창은 최근 순위에서 밀려나도 항상 보인다
+  let shown=recent.slice(0,CHAT_TAB_LIMIT);
+  if(!shown.some(c=>c.id===S.chatId)){
+    const cur=all.find(c=>c.id===S.chatId);
+    if(cur) shown=[cur,...shown.slice(0,CHAT_TAB_LIMIT-1)];
+  }
+  const list=shown;
+  box.innerHTML = list.map((c)=>{
+    const on=c.id===S.chatId, label=labelOf(c), sending=CHAT_JOBS.has(c.id);
     return `<div class="chat-tab${on?' on':''}${sending?' sending':''}" role="presentation">${sending?'<span class="chat-tab-dot" title="답을 기다리는 중" aria-label="답을 기다리는 중"></span>':''}<button type="button" role="tab" aria-selected="${on}" class="chat-tab-open" data-chat="${esc(c.id)}" title="${esc(label)}">${esc(label)}</button>`
       + `<button type="button" class="chat-tab-edit" data-chat-rename="${esc(c.id)}" title="이름 바꾸기" aria-label="${esc(label)} 이름 바꾸기"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>`
       + (list.length>1?`<button type="button" class="chat-tab-close" data-chat-close="${esc(c.id)}" title="이 대화창 닫기" aria-label="${esc(label)} 닫기">×</button>`:'')
       + `</div>`;
-  }).join('') + '<button type="button" class="chat-tab-add" id="btnChatNew"><span aria-hidden="true">+</span> 새 대화</button>';
+  }).join('')
+    + (all.length>list.length
+        ? `<button type="button" class="chat-tab-all" id="btnChatAll">전체 ${all.length}개 보기</button>` : '')
+    + '<button type="button" class="chat-tab-add" id="btnChatNew"><span aria-hidden="true">+</span> 새 대화</button>';
 }
+
+/* ---- 전체 대화창 보기 --------------------------------------------
+   대화창이 쌓이면 고르는 일 자체가 작업이 된다. 팝업에 욱여넣지 않고
+   오른쪽 대화 칸을 목록 화면으로 바꿔, 검색하며 찾게 한다. */
+let CHAT_BROWSE=false, CHAT_BROWSE_Q='';
+function openChatBrowse(){
+  CHAT_BROWSE=true; renderChatBrowse();
+  const q=$('#chatBrowseQ'); if(q){ q.value=CHAT_BROWSE_Q; q.focus(); }
+}
+function closeChatBrowse(){ CHAT_BROWSE=false; renderChatBrowse(); }
+function renderChatBrowse(){
+  const pane=$('#chatBrowse'), wrap=$('#chatWrap');
+  if(!pane||!wrap) return;
+  pane.hidden=!CHAT_BROWSE; wrap.hidden=CHAT_BROWSE;
+  if(!CHAT_BROWSE) return;
+  const box=$('#chatBrowseList'); if(!box) return;
+  const q=CHAT_BROWSE_Q.trim().toLowerCase();
+  const rows=chatsByRecent().filter(c=>{
+    if(!q) return true;
+    if(labelOf(c).toLowerCase().includes(q)) return true;
+    return (c.msgs||[]).some(m=>(m.content||'').toLowerCase().includes(q));
+  });
+  if(!rows.length){
+    box.innerHTML=`<div class="empty"><b>${q?'찾는 대화창이 없습니다':'대화창이 없습니다'}</b>${q?'다른 말로 찾아보세요.':'왼쪽 새 대화로 시작하세요.'}</div>`;
+    return;
+  }
+  box.innerHTML=rows.map(c=>{
+    const on=c.id===S.chatId, n=(c.msgs||[]).length;
+    const when=c.updated?new Date(c.updated).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+    return `<div class="chat-row${on?' on':''}" data-row="${esc(c.id)}">
+      <button type="button" class="chat-row-open" data-chat="${esc(c.id)}">
+        <span class="chat-row-top"><b>${esc(labelOf(c))}</b>${CHAT_JOBS.has(c.id)?'<span class="chat-tab-dot" aria-label="답을 기다리는 중"></span>':''}<span class="sp"></span><span class="note">${esc(when)}</span></span>
+        <span class="chat-row-prev">${esc(chatPreview(c))}</span>
+        <span class="note">${TALK_ROLE_LABEL[c.role]||c.role} · ${n}개</span>
+      </button>
+      <button type="button" class="mini ghost" data-chat-rename="${esc(c.id)}" title="이름 바꾸기" aria-label="${esc(labelOf(c))} 이름 바꾸기">이름</button>
+      <button type="button" class="mini ghost danger" data-chat-close="${esc(c.id)}" title="이 대화창 닫기" aria-label="${esc(labelOf(c))} 닫기">×</button>
+    </div>`;
+  }).join('');
+}
+const TALK_ROLE_LABEL={world:'세계관 상담역',char:'인물 상담역',prompt:'프롬프트 상담역',critic:'냉정한 평가자',free:'역할 없음'};
+$('#chatBrowse').addEventListener('click', e=>{
+  const close=e.target.closest('[data-chat-close]');
+  if(close) return closeChat(close.dataset.chatClose);
+  const rename=e.target.closest('[data-chat-rename]');
+  if(rename) return renameChat(rename.dataset.chatRename);
+  const open=e.target.closest('[data-chat]');
+  if(open){ selectChat(open.dataset.chat); closeChatBrowse(); }
+});
+$('#chatBrowseQ').addEventListener('input', e=>{ CHAT_BROWSE_Q=e.target.value; renderChatBrowse(); });
+$('#chatBrowseQ').addEventListener('keydown', e=>{ if(e.key==='Escape'){ e.preventDefault(); closeChatBrowse(); } });
+$('#btnChatBrowseClose').addEventListener('click', closeChatBrowse);
 /* 답을 기다리는 동안에도 다른 대화창을 읽고 쓸 수 있다.
    답은 보낸 창으로 돌아간다. 다만 그 창을 닫아 버리면 갈 곳이 없다. */
 function selectChat(id){
   if(id===S.chatId) return;
   if(!chatList().some(c=>c.id===id)) return;
-  S.chatId=id; save(); applyChatToUI(); renderChat();
+  S.chatId=id; touchChat(S.chat); save(); applyChatToUI(); renderChat();
 }
 function newChat(){
   const list=chatList();
-  if(list.length>=12) return toast('대화창은 12개까지 만들 수 있습니다',1);
+  if(list.length>=CHAT_MAX) return toast(`대화창은 ${CHAT_MAX}개까지 만들 수 있습니다`,1);
   // 여러 창을 오갈 때 무슨 대화였는지가 목록의 전부다. 만들 때 물어 둔다.
   const name=prompt('대화창 이름 (비우면 첫 메시지에서 자동)','');
   if(name===null) return;
@@ -174,6 +249,7 @@ $('#chatTabs').addEventListener('click', e=>{
   if(close) return closeChat(close.dataset.chatClose);
   const rename=e.target.closest('[data-chat-rename]');
   if(rename) return renameChat(rename.dataset.chatRename);
+  if(e.target.closest('#btnChatAll')) return openChatBrowse();
   if(e.target.closest('#btnChatNew')) return newChat();
   const open=e.target.closest('[data-chat]'); if(!open) return;
   selectChat(open.dataset.chat);
@@ -204,6 +280,7 @@ function renderChat(preserveScroll=false){
   $('#ctxTok').textContent = (t ? `함께 보낼 분량 ${t} 토큰쯤` : '함께 보낼 것 없음')
     + (ct ? ` · 대화 ${ct} 토큰쯤` : '');
   renderChatTabs();
+  renderChatBrowse();
   renderChatActions();
   renderTalkAssets();
   renderWrapNudge(ct);
@@ -340,7 +417,7 @@ async function sendChat(retryId){
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) return toast('먼저 연결을 만들어 주세요',1);
   const job={kind:'send',controller:null,cancelled:false};
-  CHAT_JOBS.set(chat.id,job);
+  CHAT_JOBS.set(chat.id,job); touchChat(chat);
   const message=retry?failed:{id:uid(),role:'user',content:text,includeHistory:true};
   message.includeHistory=true; message.status='pending'; delete message.error;
   if(!retry){ chat.msgs.push(message); inp.value=''; chat.inputDraft=''; }

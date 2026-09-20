@@ -499,7 +499,14 @@
       <button type="button" class="mini primary" id="btnWrapNudge">요약</button>
       <button type="button" class="mini ghost" id="btnWrapNudgeDismiss" aria-label="요약 안내 닫기">닫기</button>
     </div>
-    <div class="chatwrap">
+    <div class="chat-browse" id="chatBrowse" hidden>
+      <div class="chat-browse-bar">
+        <input type="search" id="chatBrowseQ" placeholder="대화창 이름·내용 검색" aria-label="대화창 검색">
+        <button type="button" class="mini ghost" id="btnChatBrowseClose">닫기</button>
+      </div>
+      <div class="chat-browse-list" id="chatBrowseList"></div>
+    </div>
+    <div class="chatwrap" id="chatWrap">
       <div class="chatlog" id="chatLog"></div>
       <div class="chatin">
         <textarea id="chatIn" rows="1" aria-label="메시지" placeholder="메시지 입력"></textarea>
