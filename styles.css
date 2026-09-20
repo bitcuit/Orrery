@@ -1310,13 +1310,17 @@ body:has(#v-talk.on) .working-note{flex:none}
   padding:8px 4px 8px 10px;border:0;background:none;color:var(--dim);
   font-size:13px;text-align:left;cursor:pointer}
 .chat-tab.on .chat-tab-open{color:var(--text)}
-.chat-tab-dot{flex:none;order:2;width:6px;height:6px;margin:0 2px;border-radius:50%;
+.chat-tab-dot{flex:none;order:1;width:6px;height:6px;margin:0 2px;border-radius:50%;
   background:var(--brass);animation:chat-tab-pulse 1.4s ease-in-out infinite}
 @keyframes chat-tab-pulse{50%{opacity:.25}}
 @media(prefers-reduced-motion:reduce){.chat-tab-dot{animation:none}}
-.chat-tab-close{flex:none;order:3;padding:6px 9px;border:0;background:none;color:transparent;
+.chat-tab-edit{flex:none;order:2;display:inline-flex;align-items:center;padding:6px 3px;
+  border:0;background:none;color:transparent;cursor:pointer}
+.chat-tab-close{flex:none;order:3;padding:6px 9px 6px 6px;border:0;background:none;color:transparent;
   font-size:15px;line-height:1;cursor:pointer}
-.chat-tab:hover .chat-tab-close,.chat-tab.on .chat-tab-close{color:var(--icon-muted)}
+.chat-tab:hover .chat-tab-close,.chat-tab.on .chat-tab-close,
+.chat-tab:hover .chat-tab-edit,.chat-tab.on .chat-tab-edit{color:var(--icon-muted)}
+.chat-tab-edit:hover,.chat-tab-edit:focus-visible{color:var(--brass)}
 .chat-tab-close:hover,.chat-tab-close:focus-visible{color:var(--danger-icon-hover)}
 .chat-tab-add{flex:none;margin-top:4px;padding:8px 10px;border:1px dashed var(--line2);
   border-radius:var(--r-in);background:none;color:var(--dim2);font-size:12.5px;
@@ -1405,7 +1409,8 @@ body:has(#v-talk.on) .working-note{flex:none}
   .chat-list::-webkit-scrollbar{display:none}
   .chat-tab{flex:none;max-width:170px;background:var(--s2)}
   .chat-tab-open{flex:0 1 auto;max-width:110px;padding:6px 4px 6px 9px;font-size:12px}
-  .chat-tab-close{color:var(--icon-muted);padding:5px 7px}
+  .chat-tab-edit{color:var(--icon-muted);padding:5px 2px}
+  .chat-tab-close{color:var(--icon-muted);padding:5px 6px 5px 4px}
   .chat-tab-add{flex:none;margin:0;padding:6px 10px;white-space:nowrap;font-size:12px}
   .chatlog{padding:12px;gap:10px}
   .chatin{gap:4px;margin:0 10px 10px}

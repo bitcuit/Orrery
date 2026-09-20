@@ -126,7 +126,8 @@ function renderChatTabs(){
   const list=chatList();
   box.innerHTML = list.map((c,i)=>{
     const on=c.id===S.chatId, label=chatLabel(c,i), sending=CHAT_JOBS.has(c.id);
-    return `<div class="chat-tab${on?' on':''}${sending?' sending':''}" role="presentation">${sending?'<span class="chat-tab-dot" title="답을 기다리는 중" aria-label="답을 기다리는 중"></span>':''}<button type="button" role="tab" aria-selected="${on}" class="chat-tab-open" data-chat="${esc(c.id)}" title="${esc(label)}${on?' · 한 번 더 누르면 이름 바꾸기':''}">${esc(label)}</button>`
+    return `<div class="chat-tab${on?' on':''}${sending?' sending':''}" role="presentation">${sending?'<span class="chat-tab-dot" title="답을 기다리는 중" aria-label="답을 기다리는 중"></span>':''}<button type="button" role="tab" aria-selected="${on}" class="chat-tab-open" data-chat="${esc(c.id)}" title="${esc(label)}">${esc(label)}</button>`
+      + `<button type="button" class="chat-tab-edit" data-chat-rename="${esc(c.id)}" title="이름 바꾸기" aria-label="${esc(label)} 이름 바꾸기"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>`
       + (list.length>1?`<button type="button" class="chat-tab-close" data-chat-close="${esc(c.id)}" title="이 대화창 닫기" aria-label="${esc(label)} 닫기">×</button>`:'')
       + `</div>`;
   }).join('') + '<button type="button" class="chat-tab-add" id="btnChatNew"><span aria-hidden="true">+</span> 새 대화</button>';
@@ -141,7 +142,11 @@ function selectChat(id){
 function newChat(){
   const list=chatList();
   if(list.length>=12) return toast('대화창은 12개까지 만들 수 있습니다',1);
+  // 여러 창을 오갈 때 무슨 대화였는지가 목록의 전부다. 만들 때 물어 둔다.
+  const name=prompt('대화창 이름 (비우면 첫 메시지에서 자동)','');
+  if(name===null) return;
   const c=emptyChat(S.opts.group);
+  c.name=name.trim().slice(0,24);
   c.role=S.chat.role; c.ctx=Object.assign({},S.chat.ctx);
   list.push(c); S.chatId=c.id;
   save(); applyChatToUI(); renderChat();
@@ -159,7 +164,7 @@ function closeChat(id){
 }
 function renameChat(id){
   const list=chatList(), at=list.findIndex(c=>c.id===id); if(at<0) return;
-  const next=prompt('대화창 이름 (비우면 자동)', list[at].name||'');
+  const next=prompt('대화창 이름 (비우면 첫 메시지에서 자동)', list[at].name||'');
   if(next===null) return;
   list[at].name=next.trim().slice(0,24);
   save(); renderChatTabs();
@@ -167,10 +172,11 @@ function renameChat(id){
 $('#chatTabs').addEventListener('click', e=>{
   const close=e.target.closest('[data-chat-close]');
   if(close) return closeChat(close.dataset.chatClose);
+  const rename=e.target.closest('[data-chat-rename]');
+  if(rename) return renameChat(rename.dataset.chatRename);
   if(e.target.closest('#btnChatNew')) return newChat();
   const open=e.target.closest('[data-chat]'); if(!open) return;
-  const id=open.dataset.chat;
-  if(id===S.chatId) renameChat(id); else selectChat(id);
+  selectChat(open.dataset.chat);
 });
 function renderChat(preserveScroll=false){
   // 새로고침 등으로 끊긴 요청은 지금 보고 있지 않은 대화창에도 남는다.
