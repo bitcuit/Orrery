@@ -1439,6 +1439,8 @@ body:has(#v-talk.on) .working-note{flex:none}
   .chat-browse-bar{padding:9px 10px}
   .chat-row-open{padding:9px 10px}
   .chatlog{padding:12px;gap:10px}
+  .msg-history-control{gap:2px}
+  .chat-history-toggle[aria-label],.chat-regen,.chat-delturn{width:32px;min-width:32px;min-height:32px;padding:5px}
   .chatin{gap:4px;margin:0 10px 10px}
   .chatin textarea{max-height:120px;font-size:16px}
   .chatin #btnSend{padding:10px 12px;font-size:14px}
@@ -1591,6 +1593,13 @@ button.build-mode.on .bn{color:var(--c152)}
 .chat-history-toggle[aria-label]{padding:6px;width:36px;min-width:36px;min-height:36px}
 .chat-history-toggle svg{width:18px;height:18px;flex:none}
 .chat-history-toggle[aria-pressed="true"]{color:var(--brass);background:var(--c137)}
+/* 문답 단위 동작 — 전송 제외 옆에 같은 크기로 선다 */
+.chat-regen,.chat-delturn{display:inline-flex;align-items:center;justify-content:center;
+  width:36px;min-width:36px;min-height:36px;padding:6px;border:0;background:transparent;color:var(--dim)}
+.chat-regen svg,.chat-delturn svg{width:18px;height:18px;flex:none}
+.chat-regen:hover{color:var(--brass)}
+.chat-delturn{color:var(--danger-icon)}
+.chat-delturn:hover{color:var(--danger-icon-hover);background:var(--danger-bg)}
 .msg.history-excluded{background:var(--c138);border-style:dashed}
 .msg.history-excluded{color:var(--dim)}
 .working-note{display:none;margin:0 0 14px;color:var(--brass);font-size:13px}
