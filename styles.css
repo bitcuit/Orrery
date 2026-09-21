@@ -1600,7 +1600,8 @@ button.build-mode.on .bn{color:var(--c152)}
 .chat-regen:hover{color:var(--brass)}
 .chat-delturn{color:var(--danger-icon)}
 .chat-delturn:hover{color:var(--danger-icon-hover);background:var(--danger-bg)}
-.msg.history-excluded{background:var(--c138);border-style:dashed}
+/* 제외 표시는 약하게 — 2px 점선은 파선이 굵고 길어 메시지보다 테두리가 먼저 읽혔다 */
+.msg.history-excluded{background:var(--c138);border-left-width:1px;border-left-style:dashed}
 .msg.history-excluded{color:var(--dim)}
 .working-note{display:none;margin:0 0 14px;color:var(--brass);font-size:13px}
 body.working .working-note{display:block}
