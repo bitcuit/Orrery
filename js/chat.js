@@ -254,6 +254,41 @@ $('#chatTabs').addEventListener('click', e=>{
   const open=e.target.closest('[data-chat]'); if(!open) return;
   selectChat(open.dataset.chat);
 });
+function talkTurnButton(cls, index, label, icon){
+  return `<button type="button" class="mini ghost ${cls}" data-message-index="${index}" `
+    + `aria-label="${label}" title="${label}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" `
+    + `stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></button>`;
+}
+const ICON_REDO='<path d="M21 4v6h-6"/><path d="M20.5 14a8.5 8.5 0 1 1-2.2-8.1L21 8"/>';
+const ICON_TRASH='<path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/>'
+  +'<path d="m6 7 .8 12.1A2 2 0 0 0 8.8 21h6.4a2 2 0 0 0 2-1.9L18 7"/><path d="M10 11v6M14 11v6"/>';
+
+/* 답변 다시 받기 — 그 질문을 그대로 다시 보낸다.
+   뒤에 이어진 대화는 새 답변과 어긋나므로 함께 지우고, 그 사실을 먼저 묻는다. */
+function talkRegenerate(index){
+  const chat=S.chat;
+  if(CHAT_JOBS.has(chat.id)) return toast('이 대화창은 답을 기다리는 중입니다',1);
+  if(chat.msgs.some(m=>m.status)) return toast('실패한 메시지를 먼저 다시 보내거나 삭제해 주세요',1);
+  const conn=S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) return toast('먼저 연결을 만들어 주세요',1);
+  const idxs=talkTurnIndexes(index); if(!idxs.length) return;
+  const start=idxs[0], ask=chat.msgs[start];
+  if(!ask || ask.role!=='user') return toast('다시 받을 질문을 찾지 못했습니다',1);
+  const tail=chat.msgs.length-(start+idxs.length);
+  if(tail>0 && !confirm(`이 답변 뒤의 대화 ${tail}개도 함께 지워집니다. 계속할까요?`)) return;
+  chat.msgs.splice(start+1);              // 질문만 남기고 답변부터 끝까지 지운다
+  ask.status='failed'; delete ask.error;  // 재전송 경로를 그대로 탄다
+  save();
+  sendChat(ask.id);
+}
+function talkDeleteTurn(index){
+  if(CHAT_JOBS.has(S.chatId)) return toast('이 대화창은 답을 기다리는 중입니다',1);
+  const idxs=talkTurnIndexes(index); if(!idxs.length) return;
+  if(idxs.some(i=>S.chat.msgs[i].status)) return;
+  if(!confirm('이 문답을 지울까요? 뒤의 대화는 그대로 남습니다.')) return;
+  S.chat.msgs.splice(idxs[0], idxs.length);
+  save(); renderChat();
+}
 function renderChat(preserveScroll=false){
   // 새로고침 등으로 끊긴 요청은 지금 보고 있지 않은 대화창에도 남는다.
   chatList().forEach(c=>{ if(CHAT_JOBS.has(c.id)) return;
@@ -272,7 +307,7 @@ function renderChat(preserveScroll=false){
   } else {
     box.innerHTML = wrapHtml + S.chat.msgs.map((m,i)=>{
       const excluded=talkTurnExcluded(i), completed=talkTurnIndexes(i).every(n=>!S.chat.msgs[n].status);
-      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span><div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}</div></div>${esc(m.content)}${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span><div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${completed&&m.role==='assistant'?talkTurnButton('chat-regen',i,'이 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div></div>${esc(m.content)}${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
     }).join('');
   }
   const t = tok(talkContext());
@@ -483,6 +518,10 @@ $('#chatLog').addEventListener('click',e=>{
       ? button.dataset.summary===summary : button.dataset.messageIndex===messageIndex)?.focus({preventScroll:true});
     return;
   }
+  const regen=e.target.closest('.chat-regen');
+  if(regen) return talkRegenerate(Number(regen.dataset.messageIndex));
+  const delTurn=e.target.closest('.chat-delturn');
+  if(delTurn) return talkDeleteTurn(Number(delTurn.dataset.messageIndex));
   const retry=e.target.closest('.chat-retry'), discard=e.target.closest('.chat-discard');
   if(retry) return sendChat(retry.dataset.message);
   if(discard && !CHAT_JOBS.has(S.chatId)){
