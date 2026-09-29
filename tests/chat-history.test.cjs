@@ -20,7 +20,7 @@ function boot(t, saved = '{}') {
   w.localStorage.setItem('orrery.v1', saved);
   const context = dom.getInternalVMContext(), run = code => vm.runInContext(code, context);
   for (const script of w.document.querySelectorAll('script[src]')) {
-    const file = script.getAttribute('src');
+    const file = script.getAttribute('src').split('?')[0];
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, {filename:file});
   }
   t.after(() => { w.close(); assert.deepEqual(errors, []); });
@@ -177,4 +177,23 @@ test('history window starts with a question and failed/pending messages have no 
   assert.equal(a.$('[data-message-index="30"]'), null);
   assert.ok(a.$('.chat-retry'));
   assert.ok(!a.run('talkHistoryMessages().some(m=>m.id==="pending")'));
+});
+
+test('chat messages render markdown while copy keeps the raw text and raw HTML stays inert', t => {
+  const a = boot(t);
+  const raw = '## 정리\n**굵게** 와 *기울임*, `코드`\n\n- 하나\n- 둘\n\n1. 첫째\n2. 둘째\n\n> 인용\n\n| 이름 | 값 |\n|---|---|\n| a | **b** |\n\n<img src=x onerror=alert(1)> 2 * 3 * 4';
+  a.run(`S.chat.msgs=[{role:'user',content:'질문'},{role:'assistant',content:${JSON.stringify(raw)}}];renderChat();`);
+  const body = a.$('.msg.bot .md');
+  assert.equal(body.querySelector('.md-h').textContent, '정리');
+  assert.equal(body.querySelector('strong').textContent, '굵게');
+  assert.equal(body.querySelector('em').textContent, '기울임');
+  assert.equal(body.querySelector('code').textContent, '코드');
+  assert.equal(body.querySelectorAll('ul li').length, 2);
+  assert.equal(body.querySelectorAll('ol li').length, 2);
+  assert.equal(body.querySelector('blockquote').textContent, '인용');
+  assert.equal(body.querySelector('td strong').textContent, 'b');
+  assert.equal(body.querySelector('img'), null);
+  assert.match(body.textContent, /<img src=x onerror=alert\(1\)> 2 \* 3 \* 4/);
+  assert.doesNotMatch(body.textContent, /\*\*/);
+  assert.equal(a.run('S.chat.msgs[1].content'), raw);
 });

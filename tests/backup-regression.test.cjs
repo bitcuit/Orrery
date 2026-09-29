@@ -12,7 +12,7 @@ function boot(t){
   const w=dom.window;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.confirm=()=>true;
   w.fetch=async()=>{throw new Error('No network calls expected');};w.localStorage.setItem('orrery.v1','{}');
   const context=dom.getInternalVMContext(),run=code=>vm.runInContext(code,context);
-  for(const script of w.document.querySelectorAll('script[src]')) run(fs.readFileSync(path.join(root,script.getAttribute('src')),'utf8'));
+  for(const script of w.document.querySelectorAll('script[src]')) run(fs.readFileSync(path.join(root,script.getAttribute('src').split('?')[0]),'utf8'));
   t.after(()=>{w.close();assert.deepEqual(errors,[]);});
   return {w,run,$:selector=>w.document.querySelector(selector)};
 }

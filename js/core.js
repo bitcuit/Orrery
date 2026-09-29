@@ -6,6 +6,51 @@
 const $  = (s,r)=> (r||document).querySelector(s);
 const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// 대화 답변의 마크다운을 화면용으로만 그린다. 먼저 전부 이스케이프하므로 원문 HTML은 끼어들지 못한다.
+// 줄바꿈은 .md 의 pre-wrap 이 살리므로 블록 요소 앞뒤에는 줄바꿈을 붙이지 않는다.
+function mdInline(s){
+  const codes=[];
+  s=s.replace(/`([^`\n]+)`/g,(_,c)=>`\u0000${codes.push(c)-1}\u0000`);
+  s=s.replace(/\*\*\*(?!\s)([^\n]+?)(?<!\s)\*\*\*/g,'<strong><em>$1</em></strong>')
+     .replace(/\*\*(?!\s)([^\n]+?)(?<!\s)\*\*/g,'<strong>$1</strong>')
+     .replace(/__(?!\s)([^\n]+?)(?<!\s)__/g,'<strong>$1</strong>')
+     .replace(/(^|[^*\w])\*(?![\s*])([^*\n]+?)(?<!\s)\*(?!\*)/g,'$1<em>$2</em>')
+     .replace(/~~(?!\s)([^\n]+?)(?<!\s)~~/g,'<del>$1</del>');
+  return s.replace(/\u0000(\d+)\u0000/g,(_,i)=>`<code>${codes[i]}</code>`);
+}
+function mdHtml(src){
+  const lines=esc(src).replace(/\r\n?/g,'\n').split('\n'), out=[];
+  const cells=l=>l.trim().replace(/^\||\|$/g,'').split('|').map(c=>mdInline(c.trim()));
+  let text=[];
+  const flush=()=>{ if(text.length) out.push({t:text.join('\n')}); text=[]; };
+  const block=h=>{ flush(); out.push({b:h}); };
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i]; let m;
+    if(/^\s*```/.test(l)){
+      const body=[]; while(++i<lines.length && !/^\s*```/.test(lines[i])) body.push(lines[i]);
+      block(`<pre><code>${body.join('\n')}</code></pre>`);
+    } else if((m=l.match(/^\s*(#{1,6})\s+(.*?)\s*#*\s*$/))){
+      block(`<b class="md-h md-h${m[1].length}">${mdInline(m[2])}</b>`);
+    } else if(/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)){
+      block('<hr>');
+    } else if(/^\s*\|.*\|\s*$/.test(l) && /^\s*\|?\s*:?-{2,}/.test(lines[i+1]||'')){
+      const head=cells(l), rows=[]; i++;
+      while(i+1<lines.length && /^\s*\|.*\|\s*$/.test(lines[i+1])) rows.push(cells(lines[++i]));
+      block(`<table><thead><tr>${head.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
+    } else if(/^\s*&gt;/.test(l)){
+      const q=[l]; while(i+1<lines.length && /^\s*&gt;/.test(lines[i+1])) q.push(lines[++i]);
+      block(`<blockquote>${q.map(x=>mdInline(x.replace(/^\s*&gt;\s?/,''))).join('\n')}</blockquote>`);
+    } else if((m=l.match(/^\s*([-*+]|\d+[.)])\s+/))){
+      const ordered=/\d/.test(m[1]), re=ordered?/^\s*\d+[.)]\s+/:/^\s*[-*+]\s+/, items=[l.replace(re,'')];
+      while(i+1<lines.length && re.test(lines[i+1])) items.push(lines[++i].replace(re,''));
+      const tag=ordered?'ol':'ul', start=ordered&&parseInt(m[1])!==1?` start="${parseInt(m[1])}"`:'';
+      block(`<${tag}${start}>${items.map(x=>`<li>${mdInline(x)}</li>`).join('')}</${tag}>`);
+    } else text.push(mdInline(l));
+  }
+  flush();
+  // 블록 사이 간격은 CSS 여백이 맡으므로 텍스트 조각 가장자리의 빈 줄은 뺀다.
+  return out.map(p=>p.b||p.t.replace(/^\n+|\n+$/g,'')).join('');
+}
 const uid = () => Math.random().toString(36).slice(2,10);
 const tok = s => Math.ceil(String(s||'').length/3);
 const clone = o => JSON.parse(JSON.stringify(o));

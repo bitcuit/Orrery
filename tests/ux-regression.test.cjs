@@ -23,7 +23,7 @@ function boot(t, storage = {}) {
   const context = dom.getInternalVMContext();
   const run = code => vm.runInContext(code, context);
   for (const script of w.document.querySelectorAll('script[src]')) {
-    const file = script.getAttribute('src');
+    const file = script.getAttribute('src').split('?')[0];
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   }
   t.after(() => { w.close(); assert.deepEqual(errors, []); });
