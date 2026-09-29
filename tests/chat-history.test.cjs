@@ -197,3 +197,20 @@ test('chat messages render markdown while copy keeps the raw text and raw HTML s
   assert.doesNotMatch(body.textContent, /\*\*/);
   assert.equal(a.run('S.chat.msgs[1].content'), raw);
 });
+
+test('refining an existing work needs a picked material and puts the material picker first', async t => {
+  const a = boot(t);
+  a.run(`S.opts.group='world'; activeMode(); S.opts.modeBy.world='supplement'; applyGroupUi();`);
+  assert.ok(a.$('#briefPanel').classList.contains('source-first'));
+  assert.equal(a.$('#studioMaterialTitle').textContent, '다듬을 세계');
+  assert.ok(a.$('#nebulaPick').open);
+  assert.match(a.$('#optBrief').placeholder, /합치고/);
+  a.run(`S.project.brief='바다가 마른 항구';`);
+  await assert.rejects(a.run('doDigest()'), /다듬을 세계를 재료에서 골라 주세요/);
+  await assert.rejects(a.run('doOneShot()'), /연결|다듬을 세계/);
+  a.run(`S.assets=[{id:'w1',kind:'text',name:'세계',body:'원본 세계',use:true}]; renderModeChooser();`);
+  assert.doesNotThrow(() => a.run('requireModeSource()'));
+  a.run(`S.opts.modeBy.world='new'; renderModeChooser();`);
+  assert.ok(!a.$('#briefPanel').classList.contains('source-first'));
+  assert.equal(a.$('#studioMaterialTitle').textContent, '사용할 재료');
+});

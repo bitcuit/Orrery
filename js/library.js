@@ -228,6 +228,15 @@ const MODE_UI = {
     ]
   }
 };
+// 모드별 구상 예시. 없으면 분류 기본 예시(GROUP_UI.ph)를 쓴다.
+const MODE_PH={
+  'world:supplement':'예: 세력 설명에서 겹치는 부분은 합치고, 마법의 대가를 분명하게',
+  'character:supplement':'예: 말투는 그대로 두고, 과거사에서 겹치는 사건을 하나로 합쳐 줘',
+  'character:foil':'예: 목표는 같지만 방법이 정반대인 사람',
+  'character:cast':'예: 같은 항구의 선원 셋. 서로 빚지고 의심하는 사이',
+  'prompt:supplement':'예: 겹치는 규칙은 합치고, 출력 형식을 더 엄격하게',
+  'prompt:adapt':'예: 1:1 롤플레이용을 여러 인물이 나오는 장면 묘사용으로'
+};
 function renderModeChooser(){
   const u = MODE_UI[S.opts.group] || MODE_UI.character, mode = activeMode();
   const editingPrompt=S.opts.group==='prompt'&&['supplement','adapt'].includes(mode);
@@ -239,6 +248,13 @@ function renderModeChooser(){
     if(editingPrompt&&id==='supplement') note=mode==='adapt'?'다른 용도로 바꾸기':'같은 용도로 다듬기';
     return `<button type="button" class="mode ${id===cur?'on':''}" data-mode="${id}" aria-pressed="${id===cur}"><span class="mn">${esc(name)}</span><span class="md">${esc(note)}</span></button>`;
   }).join('');
+  const src=modeSource();
+  // 원본이 필요한 모드는 재료 칸을 구상 위로 올리고, 아직 안 골랐으면 목록을 펼친다.
+  $('#briefPanel').classList.toggle('source-first',!!src);
+  $('#studioMaterialTitle').textContent=src?src.title:'사용할 재료';
+  if(src && !sourcePicked()) $('#nebulaPick').open=true;
+  if(activePreset().id!=='ooc') $('#optBrief').placeholder=MODE_PH[S.opts.group+':'+mode]||(GROUP_UI[S.opts.group]||GROUP_UI.world).ph;
+  renderNebulaPicker();
   renderRefineChooser();
 }
 

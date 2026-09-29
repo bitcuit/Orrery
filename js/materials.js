@@ -256,6 +256,24 @@ function activeMode(){
   const by = S.opts.modeBy || (S.opts.modeBy = {world:'new',character:S.opts.mode||'w2c',prompt:'new'});
   return by[S.opts.group] || (S.opts.group==='character' ? 'w2c' : 'new');
 }
+// 원본을 고쳐 쓰는 모드는 성운에서 원본을 골라야 시작할 수 있다. 구상 칸은 무엇을 바꿀지 적는 곳이다.
+const SOURCE_MODE={
+  'world:supplement':{title:'다듬을 세계', need:'다듬을 세계를 재료에서 골라 주세요.'},
+  'character:supplement':{title:'다듬을 인물', need:'다듬을 인물을 재료에서 골라 주세요.'},
+  'character:foil':{title:'상대할 인물', need:'상대할 인물을 재료에서 골라 주세요.'},
+  'prompt:supplement':{title:'고칠 프롬프트', need:'고칠 프롬프트를 재료에서 골라 주세요.'}
+};
+function modeSource(){
+  const m=activeMode();
+  return SOURCE_MODE[S.opts.group+':'+(m==='adapt'?'supplement':m)]||null;
+}
+function sourcePicked(){
+  return S.assets.some(a=>a.use && (a.kind!=='lorebook' || (a.entries||[]).some(e=>e.use)));
+}
+function requireModeSource(){
+  const src=modeSource();
+  if(src && !sourcePicked()) throw new Error(src.need);
+}
 function assetStats(){
   const t = sourceText();
   return { chars:t.length, tokens:tok(t),
@@ -524,6 +542,7 @@ function renderNebulaPicker(){
   box.innerHTML = ordered.length ? ordered.map(a=>`
     <label class="nebula-row"><input type="checkbox" class="n-use" data-id="${a.id}" ${a.use?'checked':''}>
       <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${a.purposes.includes(S.opts.group)?'추천 · ':''}${a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]).join(' · ')||'미분류'} · ${{character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind}</span></label>`).join('')
+    : modeSource()?'<div class="note">고를 재료가 없습니다 · 재료 추가·관리에서 원본을 넣어 주세요.</div>'
     : '<div class="note">고를 재료가 없습니다 · 그대로 구상만으로 만들 수 있습니다.</div>';
 }
 function materialChanged(){ save(); renderDigest(); renderMat(); renderNebulaPicker(); renderOneshot(); touchDraft(); }

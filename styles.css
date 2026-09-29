@@ -1582,6 +1582,9 @@ button.build-mode.on .bn{color:var(--c152)}
 .input-heading b{color:var(--text)}
 .studio-material-group{position:relative;margin-top:12px;border:1px solid var(--c135);border-radius:11px;background:var(--c136);overflow:hidden}
 .studio-material-group>#btnStudioMaterials{position:absolute;top:7px;right:7px}
+/* 원본을 고쳐 쓰는 모드: 재료가 먼저다 */
+.brief-panel.source-first{display:flex;flex-direction:column}
+.brief-panel.source-first>.studio-material-group{order:-1;margin:0 0 14px}
 .studio-materials{margin:0;border:0;border-radius:0;background:none}
 .studio-materials>summary{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-height:48px;padding:8px 128px 8px 13px;font-weight:400}
 .studio-materials>summary:focus-visible{outline-offset:-3px;border-radius:10px}

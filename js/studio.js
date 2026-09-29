@@ -1892,6 +1892,7 @@ async function runStage(stageName, vars, retryOnce){
 
 /* --- 공정 실행 --- */
 async function doDigest(){
+  requireModeSource();
   const src = sourceText();
   if(!src.trim()){
     throw new Error(activePreset().needs === 'required'
@@ -3127,6 +3128,7 @@ async function doOneShot(){
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
   const P = activePreset();
+  requireModeSource();
   const src = sourceText();
   if(!src.trim()){
     throw new Error(P.needs === 'required'
