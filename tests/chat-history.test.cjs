@@ -24,7 +24,7 @@ function boot(t, saved = '{}') {
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, {filename:file});
   }
   t.after(() => { w.close(); assert.deepEqual(errors, []); });
-  return {w,run,$:selector=>w.document.querySelector(selector)};
+  return {w,run,$:selector=>w.document.querySelector(selector),$$:selector=>w.document.querySelectorAll(selector)};
 }
 const plain = value => JSON.parse(JSON.stringify(value));
 function stubReplies(a, replies) {
@@ -226,4 +226,51 @@ test('refining an existing work needs a picked material and puts the material pi
   a.run(`S.opts.modeBy.world='new'; renderModeChooser();`);
   assert.ok(!a.$('#briefPanel').classList.contains('source-first'));
   assert.equal(a.$('#studioMaterialTitle').textContent, '사용할 재료');
+});
+
+test('workbench material picker: cards, search by text and tag, search history, preview popup', t => {
+  const a = boot(t);
+  a.run(`S.assets=[{id:'m1',kind:'text',name:'소금 항구',body:'물을 파는 길드',use:false,purposes:['world'],tags:['항구']},
+    {id:'m2',kind:'text',name:'등대지기',body:'밤마다 불을 켠다',use:false,purposes:['character'],tags:['바다']}];
+    tab('studio');renderNebulaPicker();`);
+  assert.equal(a.$$('#nebulaList .pick-card').length, 2);
+  const search = a.$('#pickSearch');
+  search.value = '길드'; search.dispatchEvent(new a.w.Event('input'));
+  assert.deepEqual([...a.$$('#nebulaList .pick-name')].map(x=>x.textContent), ['소금 항구']);
+  search.dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'Enter'}));
+  a.run(`setPickSearch('')`);
+  a.$('#nebulaList [data-tag="바다"]').click();
+  assert.equal(search.value, '#바다');
+  assert.deepEqual([...a.$$('#nebulaList .pick-name')].map(x=>x.textContent), ['등대지기']);
+  assert.equal(a.run('S.assets[1].use'), false);
+  a.run(`setPickSearch('')`);
+  assert.deepEqual([...a.$$('#pickHistory .pick-hist-q')].map(x=>x.textContent), ['#바다','길드']);
+  a.$('#pickHistory .pick-hist-q').click();
+  assert.equal(search.value, '#바다');
+  a.run(`setPickSearch('')`);
+  a.$('#pickHistory .pick-hist-del').click();
+  assert.deepEqual([...a.$$('#pickHistory .pick-hist-q')].map(x=>x.textContent), ['길드']);
+  a.$('#nebulaList .pick-view[data-id="m2"]').click();
+  assert.equal(a.$('#assetViewModal').hidden, false);
+  assert.match(a.$('#assetViewBody').textContent, /밤마다 불을 켠다/);
+  assert.equal(a.run('S.assets[1].use'), false);
+  a.$('#assetViewUse').click();
+  assert.equal(a.run('S.assets[1].use'), true);
+  assert.ok(a.$('#nebulaList .n-use[data-id="m2"]').checked);
+});
+
+test('record cards open the preview, keep star and load on the card, and delete from the preview', t => {
+  const a = boot(t);
+  a.run(`S.library=[{id:'r1',name:'소금의 도시',group:'world',presetId:'world',presetName:'세계관 설계',fields:{title:'소금의 도시',premise:'바다가 말라붙은 항구'},at:1}];tab('library');`);
+  const card = a.$('.libitem');
+  assert.match(card.querySelector('.lp').textContent, /바다가 말라붙은 항구/);
+  assert.equal(card.querySelector('.l-del'), null);
+  card.querySelector('.l-star').click();
+  assert.equal(a.run('S.library[0].star'), true);
+  assert.equal(a.$('#libViewModal').hidden, true);
+  a.$('.libitem .ln').click();
+  assert.equal(a.$('#libViewModal').hidden, false);
+  a.$('#libViewDel').click();
+  assert.equal(a.run('S.library.length'), 0);
+  assert.equal(a.$('#libViewModal').hidden, true);
 });

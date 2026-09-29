@@ -38,10 +38,10 @@ test('record JSON exports use the recorded preset while another workbench is act
   const a = boot(t);
   characterRecord(a);
   assert.equal(a.run('S.opts.group'), 'world');
-  a.$('.l-json').click();
-  a.run("openLibView('record')");
+  a.$('.libitem').click();
+  assert.equal(a.$('#libViewModal').hidden, false);
   a.$('#libViewJson').click();
-  assert.equal(a.w.exports.length, 2);
+  assert.equal(a.w.exports.length, 1);
   for (const item of a.w.exports) {
     assert.equal(JSON.parse(item.text).data.description, '[배경]\nHistory');
   }
@@ -79,7 +79,7 @@ test('record PNG exports retain their preset across asynchronous rendering', asy
   const a = boot(t), finishCanvas = deferredCanvas(a);
   characterRecord(a);
   a.run('window.pngs=[];dlBlob=(name,blob)=>window.pngs.push({name,blob})');
-  for (const selector of ['.l-png','#libViewPng']) {
+  for (const selector of ['#libViewPng','#libViewPng']) {
     a.run("applyGroup('world');libFilter='';renderLib();openLibView('record')");
     a.$(selector).click();
     a.run("applyGroup('prompt')");

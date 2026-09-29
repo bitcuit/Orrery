@@ -641,7 +641,6 @@ button.iconbtn{width:40px;height:40px;min-height:40px;padding:0;display:grid;pla
   input,select,textarea{max-width:100%}
   .chatin{padding:10px}
   .chatin textarea{min-width:0}
-  .libitem .ln{min-width:0}
   pre{max-width:100%;overflow-x:auto}
   .bar>*,.panel-h>*,.formrow>*,.oneshot>*{min-width:0;max-width:100%}
   .stitem summary{min-width:0}
@@ -1138,13 +1137,20 @@ button.refine-mode.on .rn{color:var(--c152)}
 .edge .ten{font-size:12px;color:var(--c143);border-top:1px solid var(--c56);margin-top:9px;padding-top:8px}
 
 /* ---------- 보관함 ---------- */
-.libitem{display:flex;gap:11px;align-items:center;flex-wrap:wrap;border-radius:12px;padding:11px 15px;
-  margin-bottom:8px;background:var(--s2);
+#libList{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+#libList>.empty{grid-column:1/-1}
+.libitem{display:flex;flex-direction:column;gap:5px;min-width:0;border-radius:12px;padding:11px 12px 11px 15px;
+  background:var(--s2);cursor:pointer;
   backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
   box-shadow:inset 0 1px 0 var(--c24);
   transition:background-color .2s,transform .2s var(--ease)}
 .libitem:hover{background:var(--s2h);transform:translateY(-1px)}
-.libitem .ln{font-family:var(--body);font-size:14px;font-weight:520;flex:1;min-width:110px;color:var(--c164);cursor:pointer}
+.libitem:focus-visible{outline:2px solid var(--brass-d);outline-offset:2px}
+.libitem .lib-top{display:flex;align-items:center;gap:6px;min-width:0}
+.libitem .ln{font-family:var(--body);font-size:14px;font-weight:600;flex:1;min-width:0;color:var(--c164);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.libitem .l-star{flex:none;border:none;font-size:15px;padding:2px 6px}
+.libitem .lp{margin:2px 0 0;font-size:12.5px;line-height:1.6;color:var(--dim);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:0}
+.libitem .lib-acts{display:flex;justify-content:flex-end;margin-top:auto;padding-top:4px}
 .libitem .lm{font-family:var(--mono);font-size:11px;color:var(--c174)}
 .libitem .iconbtn{width:34px;height:34px;min-height:34px}
 .libitem .iconbtn.danger{color:var(--icon)}
@@ -1594,7 +1600,30 @@ button.build-mode.on .bn{color:var(--c152)}
 .studio-materials[open]>summary::after{content:'⌃'}
 #optAdv .refine-panel{margin:0 0 16px;padding:0;border:0}
 #promptEditField[hidden]{display:none}
-.studio-materials .nebula-list{max-height:260px;overflow-y:auto}
+.studio-materials .nebula-list{max-height:340px;overflow-y:auto;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));align-content:start}
+.studio-materials .nebula-list>.note{grid-column:1/-1}
+/* 작업대 재료 칸: 좁은 카드 여러 줄 — 한 줄에 하나씩 늘어나 스크롤이 길어지지 않게 */
+.pick-search{padding:0 13px 10px}
+.pick-search[hidden]{display:none}
+.pick-search input{width:100%;font-size:13px;min-height:36px;padding:6px 11px}
+.pick-history{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pick-history[hidden]{display:none}
+.pick-hist{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:999px;overflow:hidden}
+.pick-hist button{border:0;background:none;min-height:26px;padding:2px 4px 2px 10px;font-size:12px;color:var(--dim);cursor:pointer}
+.pick-hist .pick-hist-del{padding:2px 9px 2px 4px;color:var(--dim2)}
+.pick-hist button:hover{color:var(--text)}
+.pick-card{display:flex;flex-direction:column;gap:4px;min-width:0;padding:8px 8px 9px 11px;border:1px solid transparent;border-radius:9px;background:var(--c68);font-size:12px;cursor:pointer;transition:border-color .15s,background .15s}
+.pick-card:hover{background:var(--s2h)}
+.pick-card.on{border-color:var(--brass-d)}
+.pick-top{display:flex;align-items:center;gap:8px;min-width:0}
+.pick-top input{width:auto;flex:none;accent-color:var(--brass)}
+.pick-name{flex:1;min-width:0;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick-card .pick-view{flex:none;width:28px;height:28px;min-height:28px;padding:3px}
+.pick-card .pick-view svg{width:18px;height:18px}
+.pick-meta{color:var(--dim2);font-size:11px;padding-left:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick-tags{display:flex;flex-wrap:wrap;gap:4px;padding-left:24px}
+.pick-tag{border:0;background:none;padding:0;min-height:0;font-size:11px;color:var(--brass-d);cursor:pointer}
+.pick-tag:hover{text-decoration:underline}
 .brief-panel #optAdv{margin:0 0 18px}
 .chat-failure{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);white-space:normal;font-size:12px;color:var(--bad)}
 .chat-failure>span{display:block;margin-bottom:8px}

@@ -313,8 +313,8 @@ function assetMatchesFolder(a){
   if(ASSET_FOLDER_FILTER==='unfiled') return !!a.favorite && !a.folderId;
   return ASSET_FOLDER_FILTER.startsWith('folder:') && a.favorite && a.folderId===ASSET_FOLDER_FILTER.slice(7);
 }
-function assetMatchesSearch(a){
-  const q=ASSET_SEARCH.trim().toLowerCase(); if(!q) return true;
+function assetMatchesSearch(a, query=ASSET_SEARCH){
+  const q=String(query||'').trim().toLowerCase(); if(!q) return true;
   normalizeAssetMetadata(a);
   const parts=[a.name,a.kind,a.from,a.body,...a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]||x),...a.tags,...a.tags.map(x=>'#'+x)];
   if(a.kind==='character') Object.entries(a.fields||{}).forEach(([k,v])=>parts.push(k,v));
@@ -542,18 +542,89 @@ $('#materialsManagerModal').addEventListener('click',e=>{
 new MutationObserver(()=>{
   if($('#materialsManagerModal').hidden) restoreMaterialsHome();
 }).observe($('#materialsManagerModal'),{attributes:true,attributeFilter:['hidden']});
+// 작업대 재료 칸: 검색어와 최근 검색은 이 브라우저에만 남긴다(백업·작업 저장에 섞지 않음).
+const PICK_HISTORY_KEY='orrery.pickSearch.v1', PICK_HISTORY_MAX=8;
+const EXPAND_SVG='<svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M18.5 7.5h6v6"/><path d="M13.5 24.5h-6v-6"/><path d="m24.5 7.5-6.5 6.5M7.5 24.5l6.5-6.5" stroke="#e9b654"/></svg>';
+let PICK_SEARCH='';
+function pickHistory(){
+  try{ const v=JSON.parse(localStorage.getItem(PICK_HISTORY_KEY)||'[]'); return Array.isArray(v)?v.filter(x=>typeof x==='string'&&x.trim()):[]; }
+  catch(_){ return []; }
+}
+function setPickHistory(list){ try{ localStorage.setItem(PICK_HISTORY_KEY, JSON.stringify(list.slice(0,PICK_HISTORY_MAX))); }catch(_){} }
+function rememberPickSearch(q){
+  q=String(q||'').trim(); if(!q) return;
+  setPickHistory([q,...pickHistory().filter(x=>x!==q)]);
+}
+function setPickSearch(q, remember){
+  PICK_SEARCH=q; $('#pickSearch').value=q;
+  if(remember) rememberPickSearch(q);
+  renderNebulaPicker();
+}
+function renderPickHistory(){
+  const box=$('#pickHistory'); if(!box) return;
+  const list=PICK_SEARCH.trim()?[]:pickHistory();
+  box.hidden=!list.length;
+  box.innerHTML=list.map(q=>`<span class="pick-hist"><button type="button" class="pick-hist-q" data-q="${esc(q)}">${esc(q)}</button><button type="button" class="pick-hist-del" data-q="${esc(q)}" aria-label="${esc(q)} 검색 기록 지우기">×</button></span>`).join('');
+}
 function renderNebulaPicker(){
   const box = $('#nebulaList'), count = $('#nebulaCount'); if(!box || !count) return;
   const n = S.assets.filter(a=>a.use).length;
   count.textContent = `선택 ${n}/${S.assets.length}개`;
   $('#materialsManagerCount').textContent=`선택한 재료 ${n}개`;
+  $('#pickSearchBox').hidden=!S.assets.length;
+  renderPickHistory();
   const ordered=[...S.assets].map(normalizeAssetMetadata).sort((a,b)=>Number(b.purposes.includes(S.opts.group))-Number(a.purposes.includes(S.opts.group)));
-  box.innerHTML = ordered.length ? ordered.map(a=>`
-    <label class="nebula-row"><input type="checkbox" class="n-use" data-id="${a.id}" ${a.use?'checked':''}>
-      <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${a.purposes.includes(S.opts.group)?'추천 · ':''}${a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]).join(' · ')||'미분류'} · ${{character:'캐릭터',lorebook:'로어북',text:'텍스트'}[a.kind]||a.kind}</span></label>`).join('')
+  const shown=ordered.filter(a=>assetMatchesSearch(a,PICK_SEARCH));
+  box.innerHTML = shown.length ? shown.map(a=>`
+    <label class="pick-card${a.use?' on':''}">
+      <span class="pick-top"><input type="checkbox" class="n-use" data-id="${a.id}" ${a.use?'checked':''}><span class="pick-name">${esc(a.name)}</span>
+        <button type="button" class="iconbtn pick-view" data-id="${a.id}" title="크게 보기" aria-label="${esc(a.name)} 크게 보기">${EXPAND_SVG}</button></span>
+      <span class="pick-meta">${a.purposes.includes(S.opts.group)?'추천 · ':''}${a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]).join(' · ')||'미분류'} · ${ASSET_KIND_LABEL[a.kind]||a.kind}</span>
+      ${a.tags.length?`<span class="pick-tags">${a.tags.map(t=>`<button type="button" class="pick-tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</span>`:''}
+    </label>`).join('')
+    : ordered.length ? '<div class="note">검색 결과가 없습니다 · 검색어를 바꿔 보세요.</div>'
     : modeSource()?'<div class="note">고를 재료가 없습니다 · 재료 추가·관리에서 원본을 넣어 주세요.</div>'
     : '<div class="note">고를 재료가 없습니다 · 그대로 구상만으로 만들 수 있습니다.</div>';
 }
+$('#pickSearch').addEventListener('input', e=>{ PICK_SEARCH=e.target.value; renderNebulaPicker(); });
+$('#pickSearch').addEventListener('change', e=>{ rememberPickSearch(e.target.value); });
+$('#pickSearch').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); rememberPickSearch(e.target.value); }
+  if(e.key==='Escape' && e.target.value){ e.preventDefault(); e.stopPropagation(); setPickSearch(''); }
+});
+$('#pickHistory').addEventListener('click', e=>{
+  const del=e.target.closest('.pick-hist-del');
+  if(del){ setPickHistory(pickHistory().filter(x=>x!==del.dataset.q)); renderPickHistory(); return; }
+  const q=e.target.closest('.pick-hist-q'); if(q) setPickSearch(q.dataset.q, true);
+});
+
+// 재료 크게 보기
+let assetViewId=null;
+function openAssetView(id){
+  const a=assetById(id); if(!a) return;
+  assetViewId=id; normalizeAssetMetadata(a);
+  $('#assetViewTitle').textContent=a.name||'이름 없음';
+  $('#assetViewMeta').textContent=[ASSET_KIND_LABEL[a.kind]||a.kind, a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]).join(' · ')||'미분류', ...a.tags.map(t=>'#'+t)].join(' · ');
+  const block=(h,t)=>`<h4>${esc(h)}</h4><div>${esc(t).replace(/\n/g,'<br>')}</div>`;
+  let rows=[];
+  if(a.kind==='character') rows=Object.entries(a.fields||{}).filter(([,v])=>v).map(([k,v])=>block(k,v));
+  else if(a.kind==='lorebook') rows=(a.entries||[]).map((en,i)=>block((en.comment||(en.keys||[]).join(', ')||'항목 '+(i+1))+(en.use?'':' · 안 씀'),en.content||''));
+  else rows=[`<div>${esc(a.body||'').replace(/\n/g,'<br>')}</div>`];
+  $('#assetViewBody').innerHTML=rows.join('')||'<div class="note">내용이 없습니다.</div>';
+  renderAssetViewUse();
+  $('#assetViewModal').hidden=false;
+}
+function renderAssetViewUse(){
+  const a=assetById(assetViewId); if(!a) return;
+  $('#assetViewUse').textContent=a.use?'선택 해제':'이 재료 쓰기';
+}
+function closeAssetView(){ $('#assetViewModal').hidden=true; assetViewId=null; }
+$('#assetViewClose').addEventListener('click', closeAssetView);
+$('#assetViewModal').addEventListener('click', e=>{ if(e.target.id==='assetViewModal') closeAssetView(); });
+$('#assetViewUse').addEventListener('click', ()=>{
+  const a=assetById(assetViewId); if(!a) return;
+  a.use=!a.use; renderAssets(); materialChanged(); renderAssetViewUse();
+});
 function materialChanged(){ save(); renderDigest(); renderMat(); renderNebulaPicker(); renderOneshot(); touchDraft(); }
 function deleteUnfavoriteAssets(){
   const removable=S.assets.filter(a=>!a.favorite);
@@ -700,6 +771,12 @@ $('#assetList').addEventListener('input', e=>{
   touchDraft();
 });
 
+$('#nebulaList').addEventListener('click', e=>{
+  const view=e.target.closest('.pick-view');
+  if(view){ e.preventDefault(); openAssetView(view.dataset.id); return; }
+  const tag=e.target.closest('.pick-tag');
+  if(tag){ e.preventDefault(); setPickSearch('#'+tag.dataset.tag, true); }
+});
 $('#nebulaList').addEventListener('change', e=>{
   if(!e.target.classList.contains('n-use')) return;
   const a = assetById(e.target.dataset.id); if(!a) return;

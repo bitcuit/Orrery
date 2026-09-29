@@ -55,41 +55,45 @@ function renderLib(){
   }
   if(!list.length){ box.innerHTML = '<div class="empty"><b>맞는 것이 없습니다</b>검색어나 분류를 바꿔보세요.</div>'; return; }
   box.innerHTML = list.map(r=>{
-    const preset=S.presets.find(p=>p.id===r.presetId);
-    const cardExport=(preset&&preset.kind==='character')||(!preset&&r.group==='character');
+    const P=S.presets.find(p=>p.id===r.presetId);
     return `
-    <div class="libitem" data-id="${r.id}">
-      <button class="mini ghost l-star" style="flex:none;border:none;font-size:15px;padding:2px 6px;color:${r.star?'var(--brass)':'var(--dim2)'}">${r.star?'★':'☆'}</button>
-      <span class="ln l-name" title="눌러서 내용 보기">${esc(r.name||'이름 없음')}</span>
+    <div class="libitem" data-id="${r.id}" role="button" tabindex="0" aria-label="${esc(r.name||'이름 없음')} 크게 보기">
+      <div class="lib-top">
+        <span class="ln">${esc(r.name||'이름 없음')}</span>
+        <button class="mini ghost l-star" aria-label="${r.star?'고정 풀기':'고정'}" style="color:${r.star?'var(--brass)':'var(--dim2)'}">${r.star?'★':'☆'}</button>
+      </div>
       <span class="lm">${esc(GROUP_LABEL[r.group]||'')} · ${esc(r.presetName||'')}${r.world?' · '+esc(r.world):''} · ${new Date(r.updated||r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
-      <button class="mini ghost l-open">불러오기</button>
-      <button class="mini ghost l-md">글</button>
-      ${cardExport?'<button class="mini ghost l-json">카드 JSON</button><button class="mini ghost l-png">PNG 카드</button>':''}
-      <button class="iconbtn danger l-del" title="삭제" aria-label="삭제">${TRASH_SVG}</button>
+      <p class="lp">${esc(recordPreview(r,P))}</p>
+      <div class="lib-acts"><button class="mini ghost l-open">불러오기</button></div>
     </div>`;
   }).join('');
 }
+// 카드 미리보기: 양식 순서대로 첫 번째로 채워진 칸(이름 칸은 제목과 겹치므로 건너뜀)
+function recordPreview(r,P){
+  const f=r.fields||{}, keys=[...((P&&P.schema)||[]).map(x=>x.key),...Object.keys(f)];
+  const key=keys.find(k=>k!=='name'&&k!=='title'&&String(f[k]||'').trim());
+  return key?String(f[key]).replace(/\s+/g,' ').trim().slice(0,160):'';
+}
 $('#libSearch').addEventListener('input', e=>{ libQuery = e.target.value.toLowerCase().trim(); renderLib(); });
 $('#libFilter').addEventListener('change', e=>{ libFilter = e.target.value; renderLib(); });
-$('#libList').addEventListener('click', async e=>{
+// 카드: 별·불러오기 말고 어디를 눌러도 크게 보기. 내보내기·삭제는 크게 보기 안에 있다.
+$('#libList').addEventListener('click', e=>{
   const it = e.target.closest('.libitem'); if(!it) return;
   const rec = S.library.find(x=>x.id===it.dataset.id); if(!rec) return;
-  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
   if(e.target.closest('.l-star')){ rec.star = !rec.star; save(); renderLib(); return; }
-  if(e.target.closest('.l-name')){ openLibView(rec.id); return; }
-  if(e.target.closest('.l-del')){
-    if(rec.star && !confirm('고정해둔 항목입니다. 지울까요?')) return;
-    S.library = S.library.filter(x=>x.id!==rec.id);
-    if(S.project.libId===rec.id) S.project.libId = null;
-    save(); renderLib(); return;
-  }
-  const fn = (rec.name||'record').replace(/[\\/:*?"<>|]/g,'_');
-  if(e.target.closest('.l-md')){ dl(fn+'.md', fieldsToText(rec.fields, P), 'text/markdown;charset=utf-8'); return; }
-  if(e.target.closest('.l-json')){ dl(fn+'.json', JSON.stringify(toV2(rec.fields, P),null,2)); return; }
-  if(e.target.closest('.l-png')){
-    try{ dlBlob(fn+'.png', await makeCardPng(rec.fields, P)); }catch(err){ toast(err.message,1); } return; }
-  if(e.target.closest('.l-open')){ loadRecordToStudio(rec); }
+  if(e.target.closest('.l-open')){ loadRecordToStudio(rec); return; }
+  openLibView(rec.id);
 });
+$('#libList').addEventListener('keydown', e=>{
+  if(!['Enter',' '].includes(e.key) || !e.target.classList.contains('libitem')) return;
+  e.preventDefault(); openLibView(e.target.dataset.id);
+});
+function deleteRecord(rec){
+  if(rec.star && !confirm('고정해둔 항목입니다. 지울까요?')) return false;
+  S.library = S.library.filter(x=>x.id!==rec.id);
+  if(S.project.libId===rec.id) S.project.libId = null;
+  save(); renderLib(); return true;
+}
 function loadRecordToStudio(rec){
   if(!canChangeWork()) return;
   flushCardEdits();
@@ -146,6 +150,10 @@ $('#libViewRename').addEventListener('click', ()=>{
 $('#libViewOpen').addEventListener('click', ()=>{
   const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
   closeLibView(); loadRecordToStudio(rec);
+});
+$('#libViewDel').addEventListener('click', ()=>{
+  const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;
+  if(deleteRecord(rec)) closeLibView();
 });
 $('#libViewMat').addEventListener('click', ()=>{
   const rec = S.library.find(x=>x.id===libViewId); if(!rec) return;

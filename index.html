@@ -1,4 +1,4 @@
-<!-- ORRERY v1.0.5 · 2026-08-14 -->
+<!-- ORRERY v1.0.6 · 2026-08-14 -->
 <!-- ⚠ styles.css·js 를 고치면 아래 ?v= 값을 함께 올릴 것.
      GitHub Pages 는 10분간 옛 파일을 캐시해서, 올리지 않으면 바뀐 내용이 안 보인다. -->
 <!DOCTYPE html>
@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <title>ORRERY · 세계 · 인물 · 프롬프트</title>
-<link rel="stylesheet" href="styles.css?v=1.0.5">
+<link rel="stylesheet" href="styles.css?v=1.0.6">
 <base target="_blank">
 </head>
 <body class="boot">
@@ -26,7 +26,7 @@
     </svg>
     <div class="brand-inner">
       <h1>ORRERY</h1>
-      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.5</span></span>
+      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.6</span></span>
     </div>
   </div>
   <div class="topctl">
@@ -208,6 +208,10 @@
     <div class="studio-material-group">
     <details class="nebula-pick studio-materials" id="nebulaPick">
       <summary><strong id="studioMaterialTitle">사용할 재료</strong><span id="nebulaCount">선택 0개</span></summary>
+      <div class="pick-search" id="pickSearchBox">
+        <input type="search" id="pickSearch" placeholder="이름·내용·#태그 검색" aria-label="재료 검색">
+        <div class="pick-history" id="pickHistory" aria-label="최근 검색"></div>
+      </div>
       <div class="nebula-list" id="nebulaList"></div>
     </details>
     <button type="button" class="mini ghost" id="btnStudioMaterials">재료 추가·관리</button>
@@ -712,6 +716,23 @@
       <button class="mini ghost" id="libViewMd">글로 내려받기</button>
       <button class="mini ghost" id="libViewJson" hidden>카드 JSON</button>
       <button class="mini ghost" id="libViewPng" hidden>PNG 카드</button>
+      <button class="iconbtn danger" id="libViewDel" title="삭제" aria-label="이 기록 삭제" style="margin-left:auto"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="assetViewModal" hidden>
+  <div class="modal-in" style="max-width:760px">
+    <div class="modal-h">
+      <h2 id="assetViewTitle" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></h2>
+      <button class="mini" id="assetViewClose" aria-label="닫기">닫기</button>
+    </div>
+    <p class="note" id="assetViewMeta" style="padding:0 16px"></p>
+    <div class="modal-b">
+      <div id="assetViewBody" class="libview-body"></div>
+    </div>
+    <div class="modal-f" style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line)">
+      <button class="mini" id="assetViewUse"></button>
     </div>
   </div>
 </div>
@@ -806,15 +827,15 @@
     </div>
   </div>
 </div>
-<script src="prompts.js?v=1.0.5"></script>
+<script src="prompts.js?v=1.0.6"></script>
 <!-- 일반 스크립트를 아래 순서대로 읽어 파일을 직접 열어도 작동합니다. -->
-<script src="js/core.js?v=1.0.5"></script>
-<script src="js/materials.js?v=1.0.5"></script>
-<script src="js/studio.js?v=1.0.5"></script>
-<script src="js/chat.js?v=1.0.5"></script>
-<script src="js/library.js?v=1.0.5"></script>
-<script src="js/settings.js?v=1.0.5"></script>
-<script src="js/workspaces.js?v=1.0.5"></script>
-<script src="js/app.js?v=1.0.5"></script>
+<script src="js/core.js?v=1.0.6"></script>
+<script src="js/materials.js?v=1.0.6"></script>
+<script src="js/studio.js?v=1.0.6"></script>
+<script src="js/chat.js?v=1.0.6"></script>
+<script src="js/library.js?v=1.0.6"></script>
+<script src="js/settings.js?v=1.0.6"></script>
+<script src="js/workspaces.js?v=1.0.6"></script>
+<script src="js/app.js?v=1.0.6"></script>
 </body>
 </html>
