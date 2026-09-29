@@ -3041,7 +3041,7 @@ async function makeExpandedResult(seed){
   return S.project.card;
 }
 
-$('#btnDigest').addEventListener('click', e=> guard(e.target,'재료를 정리하고 있습니다', async()=>{
+$('#btnDigest').addEventListener('click', e=> askModeSource() || guard(e.target,'재료를 정리하고 있습니다', async()=>{
   await doDigest(); renderDigest(); touchDraft();
   const u=GROUP_UI[S.opts.group]||GROUP_UI.world;
   S.project.seeds=[]; S.project.sel=[]; renderSeeds();
@@ -3242,6 +3242,7 @@ $('#btnOneShot').addEventListener('click', e=>{
     if(input) input.focus();
     return;
   }
+  if(askModeSource()) return;
   if(S.opts.buildMode!=='oneshot'){ $('#btnDigest').click(); return; }
   if(activeMode()==='cast'){ $('#btnCast').click(); return; }
   return guard(e.target,'만드는 중', async()=>{

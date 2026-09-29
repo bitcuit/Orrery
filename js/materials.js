@@ -270,6 +270,15 @@ function modeSource(){
 function sourcePicked(){
   return S.assets.some(a=>a.use && (a.kind!=='lorebook' || (a.entries||[]).some(e=>e.use)));
 }
+// 원본 없이 시작하려 하면 재료 추가 창을 바로 연다. 재료가 하나도 없으면 붙여넣기 칸까지.
+function askModeSource(){
+  const src=modeSource();
+  if(!src || sourcePicked()) return false;
+  toast(src.need,1);
+  openMaterialsManager();
+  if(!S.assets.length && $('#pasteBox').hidden) $('#btnPaste').click();
+  return true;
+}
 function requireModeSource(){
   const src=modeSource();
   if(src && !sourcePicked()) throw new Error(src.need);
@@ -744,8 +753,10 @@ $('#btnPasteAdd').addEventListener('click', ()=>{
   const typedName = $('#pasteName').value.trim();
   const purposes=$$('#pastePurposes input').filter(x=>x.checked).map(x=>x.value);
   const tags=cleanAssetTags($('#pasteTags').value);
+  // 원본을 기다리는 모드면 붙여 넣은 것을 바로 원본으로 고른다.
+  const use=!!modeSource() && !sourcePicked();
   S.assets.push({ id:uid(), kind:'text',
-    name: typedName || (first ? first + (t.length>24?'…':'') : '붙여넣은 텍스트'), body:t, purposes, tags, use:false });
+    name: typedName || (first ? first + (t.length>24?'…':'') : '붙여넣은 텍스트'), body:t, purposes, tags, use });
   resetPasteForm(); $('#pasteBox').hidden = true;
   renderAssets(); materialChanged(); toast('재료에 넣었습니다');
 });

@@ -1,8 +1,8 @@
 {
-  "at": "2026-09-29 15:40",
+  "at": "2026-09-29 15:55",
   "by": "claude-code",
-  "doing": "다듬기·상대역 모드는 재료를 골라야 시작되게 하고, 재료 칸을 구상 위로 올림",
-  "where": "js/materials.js SOURCE_MODE · js/library.js renderModeChooser()",
+  "doing": "다듬기 모드에서 원본 없이 누르면 재료 추가 창을 열고, 붙여 넣은 원본을 바로 고르게 함",
+  "where": "js/materials.js askModeSource() · btnPasteAdd",
   "state": "돌아감",
   "next": "원래부터 실패하던 테스트 2개(백업 검증·대화 기록 창) 원인 보기",
   "blocked": "",
