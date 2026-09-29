@@ -183,7 +183,7 @@ test('chat messages render markdown while copy keeps the raw text and raw HTML s
   const a = boot(t);
   const raw = '## 정리\n**굵게** 와 *기울임*, `코드`\n\n- 하나\n- 둘\n\n1. 첫째\n2. 둘째\n\n> 인용\n\n| 이름 | 값 |\n|---|---|\n| a | **b** |\n\n<img src=x onerror=alert(1)> 2 * 3 * 4';
   a.run(`S.chat.msgs=[{role:'user',content:'질문'},{role:'assistant',content:${JSON.stringify(raw)}}];renderChat();`);
-  const body = a.$('.msg.bot .md');
+  const body = a.$('.msg.bot .msg-md');
   assert.equal(body.querySelector('.md-h').textContent, '정리');
   assert.equal(body.querySelector('strong').textContent, '굵게');
   assert.equal(body.querySelector('em').textContent, '기울임');

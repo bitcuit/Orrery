@@ -7,7 +7,7 @@ const $  = (s,r)=> (r||document).querySelector(s);
 const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // 대화 답변의 마크다운을 화면용으로만 그린다. 먼저 전부 이스케이프하므로 원문 HTML은 끼어들지 못한다.
-// 줄바꿈은 .md 의 pre-wrap 이 살리므로 블록 요소 앞뒤에는 줄바꿈을 붙이지 않는다.
+// 줄바꿈은 .msg-md 의 pre-wrap 이 살리므로 블록 요소 앞뒤에는 줄바꿈을 붙이지 않는다.
 function mdInline(s){
   const codes=[];
   s=s.replace(/`([^`\n]+)`/g,(_,c)=>`\u0000${codes.push(c)-1}\u0000`);
