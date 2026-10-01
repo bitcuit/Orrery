@@ -240,7 +240,24 @@ function sourceText(){
     if(!a.use) continue;
     const t=assetText(a); if(t) parts.push(t);
   }
+  // 성도의 완성본도 체크해 두면 복사 없이 재료처럼 들어간다.
+  for(const r of S.library){ if(r.use){ const t=recordText(r); if(t) parts.push(t); } }
   return parts.join('\n\n');
+}
+function setRecordUse(id, on){
+  const r=S.library.find(x=>x.id===id); if(!r) return;
+  r.use=!!on; materialChanged(); if(typeof renderTalkAssets==='function') renderTalkAssets();
+}
+function recordPreset(r){ return S.presets.find(p=>p.id===r.presetId)||null; }
+function recordText(r){
+  const f=r.fields||{}, P=recordPreset(r), seen={}, rows=[];
+  ((P&&P.schema)||[]).forEach(x=>{ seen[x.key]=1; if(String(f[x.key]||'').trim()) rows.push(`### ${x.label}\n${f[x.key]}`); });
+  Object.keys(f).forEach(k=>{ if(!seen[k]&&String(f[k]||'').trim()) rows.push(`### ${k}\n${f[k]}`); });
+  return rows.length?`## 완성본: ${r.name||'이름 없음'}${r.presetName?` (${r.presetName})`:''}\n`+rows.join('\n\n'):'';
+}
+function recordMatchesSearch(r,query){
+  const q=String(query||'').trim().toLowerCase(); if(!q) return true;
+  return [r.name,r.presetName,r.world,...Object.values(r.fields||{})].filter(Boolean).join('\n').toLowerCase().includes(q);
 }
 // 재료 하나를 프롬프트용 글로. 로어북은 켜 둔 항목만, 하나도 없으면 빈 문자열.
 function assetText(a){
@@ -274,7 +291,7 @@ function modeSource(){
   return SOURCE_MODE[S.opts.group+':'+(m==='adapt'?'supplement':m)]||null;
 }
 function sourcePicked(){
-  return S.assets.some(a=>a.use && (a.kind!=='lorebook' || (a.entries||[]).some(e=>e.use)));
+  return S.library.some(r=>r.use) || S.assets.some(a=>a.use && (a.kind!=='lorebook' || (a.entries||[]).some(e=>e.use)));
 }
 // 원본 없이 시작하려 하면 재료 추가 창을 바로 연다. 재료가 하나도 없으면 붙여넣기 칸까지.
 function askModeSource(){
@@ -574,21 +591,31 @@ function renderPickHistory(){
 }
 function renderNebulaPicker(){
   const box = $('#nebulaList'), count = $('#nebulaCount'); if(!box || !count) return;
-  const n = S.assets.filter(a=>a.use).length;
-  count.textContent = `선택 ${n}/${S.assets.length}개`;
+  const n = S.assets.filter(a=>a.use).length, rn = S.library.filter(r=>r.use).length;
+  count.textContent = `선택 ${n+rn}/${S.assets.length+S.library.length}개`;
   $('#materialsManagerCount').textContent=`선택한 재료 ${n}개`;
-  $('#pickSearchBox').hidden=!S.assets.length;
+  $('#pickSearchBox').hidden=!(S.assets.length||S.library.length);
   renderPickHistory();
   const ordered=[...S.assets].map(normalizeAssetMetadata).sort((a,b)=>Number(b.purposes.includes(S.opts.group))-Number(a.purposes.includes(S.opts.group)));
   const shown=ordered.filter(a=>assetMatchesSearch(a,PICK_SEARCH));
-  box.innerHTML = shown.length ? shown.map(a=>`
+  // 완성본(성도): 지금 분류의 것을 앞에, 최근 것부터
+  const recs=[...S.library].filter(r=>recordMatchesSearch(r,PICK_SEARCH))
+    .sort((a,b)=>Number((b.group||'')===S.opts.group)-Number((a.group||'')===S.opts.group)||(b.updated||b.at)-(a.updated||a.at));
+  const recHtml=recs.length?`<div class="pick-section">완성본</div>`+recs.map(r=>`
+    <label class="pick-card rec${r.use?' on':''}">
+      <span class="pick-top"><input type="checkbox" class="r-use" data-id="${r.id}" ${r.use?'checked':''}><span class="pick-name">${esc(r.name||'이름 없음')}</span>
+        <button type="button" class="iconbtn pick-view" data-rec="${r.id}" title="크게 보기" aria-label="${esc(r.name||'이름 없음')} 크게 보기">${EXPAND_SVG}</button></span>
+      <span class="pick-meta">${(r.group||'')===S.opts.group?'추천 · ':''}${esc(GROUP_LABEL[r.group]||'')} · ${esc(r.presetName||'')}</span>
+    </label>`).join(''):'';
+  const assetHead=recs.length&&shown.length?'<div class="pick-section">재료</div>':'';
+  box.innerHTML = (shown.length||recs.length) ? assetHead+shown.map(a=>`
     <label class="pick-card${a.use?' on':''}">
       <span class="pick-top"><input type="checkbox" class="n-use" data-id="${a.id}" ${a.use?'checked':''}><span class="pick-name">${esc(a.name)}</span>
         <button type="button" class="iconbtn pick-view" data-id="${a.id}" title="크게 보기" aria-label="${esc(a.name)} 크게 보기">${EXPAND_SVG}</button></span>
       <span class="pick-meta">${a.purposes.includes(S.opts.group)?'추천 · ':''}${a.purposes.map(x=>ASSET_PURPOSE_LABEL[x]).join(' · ')||'미분류'} · ${ASSET_KIND_LABEL[a.kind]||a.kind}</span>
       ${a.tags.length?`<span class="pick-tags">${a.tags.map(t=>`<button type="button" class="pick-tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</span>`:''}
-    </label>`).join('')
-    : ordered.length ? '<div class="note">검색 결과가 없습니다 · 검색어를 바꿔 보세요.</div>'
+    </label>`).join('')+recHtml
+    : (ordered.length||S.library.length) ? '<div class="note">검색 결과가 없습니다 · 검색어를 바꿔 보세요.</div>'
     : modeSource()?'<div class="note">고를 재료가 없습니다 · 재료 추가·관리에서 원본을 넣어 주세요.</div>'
     : '<div class="note">고를 재료가 없습니다 · 그대로 구상만으로 만들 수 있습니다.</div>';
 }
@@ -779,11 +806,12 @@ $('#assetList').addEventListener('input', e=>{
 
 $('#nebulaList').addEventListener('click', e=>{
   const view=e.target.closest('.pick-view');
-  if(view){ e.preventDefault(); openAssetView(view.dataset.id); return; }
+  if(view){ e.preventDefault(); if(view.dataset.rec) openLibView(view.dataset.rec); else openAssetView(view.dataset.id); return; }
   const tag=e.target.closest('.pick-tag');
   if(tag){ e.preventDefault(); setPickSearch('#'+tag.dataset.tag, true); }
 });
 $('#nebulaList').addEventListener('change', e=>{
+  if(e.target.classList.contains('r-use')){ setRecordUse(e.target.dataset.id, e.target.checked); return; }
   if(!e.target.classList.contains('n-use')) return;
   const a = assetById(e.target.dataset.id); if(!a) return;
   a.use = e.target.checked; renderAssets(); materialChanged();

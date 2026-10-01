@@ -309,3 +309,30 @@ test('chat attachments: text files ride along in the message, images go out as p
   const plain = a.run(`PROV.openai.chat({model:'m',apiKey:'k'},[{role:'user',content:'글만'}],{})`).body.messages[0].content;
   assert.equal(plain, '글만');
 });
+
+test('a finished conversation becomes a completed record in the chosen form, and records can be picked as materials', async t => {
+  const a = boot(t);
+  a.run("S.connections=[{id:'c',name:'C',provider:'openai',apiKey:'k',model:'m'}];S.activeConn='c';tab('talk');S.chat.role='char'");
+  a.run(`S.chat.msgs=[{id:'u',role:'user',content:'이름은 레아, 항해사로 하자',includeHistory:true},{id:'b',role:'assistant',content:'좋아요. 레아는 말수가 적은 항해사입니다.',includeHistory:true}];renderChat();`);
+  const sent=[];
+  a.w.fetch = async (_u,o) => { sent.push(JSON.parse(o.body)); return {ok:true,status:200,text:async()=>JSON.stringify({choices:[{message:{content:'```json\n{"name":"레아","description":"말수가 적은 항해사","unknown":"x"}\n```'}}]})}; };
+  a.$('#btnTalkToRecord').click();
+  assert.equal(a.$('#talkRecordModal').hidden, false);
+  const preset = a.$('#talkRecordPreset').value;
+  assert.equal(a.run(`S.presets.find(p=>p.id===${JSON.stringify(preset)}).kind`), 'character');
+  await a.run('runTalkRecord()');
+  assert.match(sent[0].messages.at(-1).content, /\[나\] 이름은 레아, 항해사로 하자/);
+  const rec = plain(a.run('S.library.at(-1)'));
+  assert.equal(rec.name, '레아');
+  assert.equal(rec.from, 'chat');
+  assert.equal(rec.fields.unknown, undefined);
+  assert.equal(a.$('#talkRecordModal').hidden, true);
+  assert.equal(a.$('#libViewModal').hidden, false);
+  a.run("tab('studio');renderNebulaPicker()");
+  const box = a.$('#nebulaList .r-use');
+  assert.ok(box);
+  box.checked = true; box.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  assert.equal(a.run('S.library.at(-1).use'), true);
+  assert.match(a.run('sourceText()'), /## 완성본: 레아/);
+  assert.ok(a.run('sourcePicked()'));
+});

@@ -1619,6 +1619,9 @@ button.build-mode.on .bn{color:var(--c152)}
 #promptEditField[hidden]{display:none}
 .studio-materials .nebula-list{max-height:340px;overflow-y:auto;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));align-content:start}
 .studio-materials .nebula-list>.note{grid-column:1/-1}
+.pick-section{grid-column:1/-1;margin:6px 0 0;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--dim2)}
+.pick-section:first-child{margin-top:0}
+.pick-card.rec .pick-name{color:var(--brass)}
 /* 작업대 재료 칸: 좁은 카드 여러 줄 — 한 줄에 하나씩 늘어나 스크롤이 길어지지 않게 */
 .pick-search{padding:0 13px 10px}
 .pick-search[hidden]{display:none}

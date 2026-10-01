@@ -373,12 +373,15 @@ function renderTalkAssets(){
   const box = $('#talkAssetList'), assetCount = $('#talkAssetCount'); if(!box) return;
   const c=S.chat.ctx||{}, materialText=sourceText(), digestText=S.project.digest?JSON.stringify(S.project.digest):'';
   const cardText=S.project.card?JSON.stringify(S.project.card.fields||{}):'';
-  const n = S.assets.filter(a=>a.use).length;
-  assetCount.textContent = S.assets.length ? `선택 ${n}/${S.assets.length}개` : '성운이 비어 있습니다';
-  box.innerHTML = S.assets.length ? S.assets.map(talkAssetRow).join('')
+  const n = S.assets.filter(a=>a.use).length + S.library.filter(r=>r.use).length, total=S.assets.length+S.library.length;
+  assetCount.textContent = total ? `선택 ${n}/${total}개` : '성운이 비어 있습니다';
+  const recRows=S.library.length?'<div class="pick-section">완성본</div>'+[...S.library].sort((a,b)=>(b.updated||b.at)-(a.updated||a.at)).map(r=>`
+    <label class="nebula-row"><input type="checkbox" class="t-rec" data-id="${r.id}" ${r.use?'checked':''}>
+      <span>${esc(r.name||'이름 없음')}</span><span class="sp"></span><span class="note">${esc(GROUP_LABEL[r.group]||'')} · ${esc(r.presetName||'')}</span></label>`).join(''):'';
+  box.innerHTML = total ? S.assets.map(talkAssetRow).join('')+recRows
     : '<div class="note">재료 탭에서 파일이나 글을 먼저 넣어 주세요.</div>';
   const assets=$('#ctxAssets'), digest=$('#ctxDigest'), card=$('#ctxCard');
-  assets.disabled=!(S.assets.length||curBrief().trim()); digest.disabled=!digestText; card.disabled=!cardText;
+  assets.disabled=!(total||curBrief().trim()); digest.disabled=!digestText; card.disabled=!cardText;
   $('#ctxAssetsMeta').textContent=materialText.trim()
     ? `${n?`고른 재료 ${n}개${curBrief().trim()?' + 구상':''}`:'구상'} · ${tok(materialText)} 토큰쯤`
     : '선택한 재료나 구상 없음';
@@ -389,6 +392,7 @@ function renderTalkAssets(){
   $('#talkMaterialPick').hidden=!c.assets;
 }
 $('#talkAssetList').addEventListener('change', e=>{
+  if(e.target.classList.contains('t-rec')){ setRecordUse(e.target.dataset.id, e.target.checked); renderChat(); return; }
   if(e.target.classList.contains('t-use')){
     const a = assetById(e.target.dataset.id); if(!a) return;
     a.use = e.target.checked;
@@ -767,3 +771,67 @@ $('#btnTalkToAsset').addEventListener('click', ()=>{
   renderAssets(); materialChanged(); renderChat(true); toast('재료에 넣었습니다');
 });
 
+
+/* ---- 대화 → 완성본 -------------------------------------------
+   대화에서 확정된 것만 골라 양식 칸에 옮겨 성도(완성본)에 저장한다. */
+let TALK_RECORD_BUSY=false;
+function talkRecordPresets(){ return S.presets.filter(p=>['character','world'].includes(p.kind)&&Array.isArray(p.schema)&&p.schema.length); }
+function openTalkRecord(){
+  if(!talkHistoryMessages().length && !talkHistorySummary()) return toast('정리할 대화가 없습니다',1);
+  const list=talkRecordPresets(), sel=$('#talkRecordPreset');
+  const want=S.chat.role==='char'?'character':S.chat.role==='world'?'world':null;
+  const pick=(want&&list.find(p=>p.kind===want))||list.find(p=>p.id===S.activePreset)||list[0];
+  sel.innerHTML=list.map(p=>`<option value="${esc(p.id)}" ${p===pick?'selected':''}>[${esc(GROUP_LABEL[p.group]||'')}] ${esc(p.name)}</option>`).join('');
+  renderTalkRecordNote();
+  $('#talkRecordModal').hidden=false; sel.focus();
+}
+function renderTalkRecordNote(){
+  const P=S.presets.find(p=>p.id===$('#talkRecordPreset').value);
+  $('#talkRecordNote').textContent=P?`칸 ${P.schema.length}개: ${P.schema.map(f=>f.label).join(' · ')}`:'';
+}
+function closeTalkRecord(){ $('#talkRecordModal').hidden=true; }
+async function talkRecordTranscript(){
+  const parts=[], summary=talkHistorySummary();
+  if(summary) parts.push('[지금까지의 정리]\n'+summary);
+  for(const m of talkHistoryMessages()){
+    const w=await talkWireMessage(m);
+    parts.push((m.role==='user'?'[나] ':'[상대] ')+w.content+(w.images?`\n(이미지 ${w.images.length}장 첨부)`:''));
+  }
+  return parts.join('\n\n');
+}
+async function runTalkRecord(){
+  if(TALK_RECORD_BUSY) return;
+  const P=S.presets.find(p=>p.id===$('#talkRecordPreset').value); if(!P) return;
+  const conn=S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) return toast('먼저 연결을 만들어 주세요',1);
+  const btn=$('#talkRecordRun'); TALK_RECORD_BUSY=true; btn.disabled=true; btn.textContent='정리하는 중…';
+  try{
+    const lang=S.opts.lang||'한국어';
+    const fields=P.schema.map(f=>`- "${f.key}": ${f.label}${f.hint?' — '+f.hint:''}`).join('\n');
+    const msgs=[
+      {role:'system',content:`너는 창작 상담 대화에서 확정된 내용을 정해진 양식의 칸에 옮겨 적는 정리자다.
+- 대화에서 합의되거나 확정된 내용만 쓴다. 제안만 되고 채택되지 않은 것, 아직 여러 안이 남은 것은 쓰지 않는다.
+- 대화에 없는 내용을 지어내지 않는다. 대화에서 다루지 않은 칸은 빈 문자열로 둔다.
+- 뒤에 나온 결정이 앞의 결정을 바꿨으면 뒤의 것을 따른다.
+- ${lang}로 쓴다.
+- 출력은 JSON 객체 하나뿐이다. 설명이나 코드 울타리를 붙이지 않는다.`},
+      {role:'user',content:`양식: ${P.name}\n칸:\n${fields}\n\n위 칸 이름(key)을 그대로 키로 쓴 JSON 객체로 답하라.\n\n[대화]\n${await talkRecordTranscript()}`}
+    ];
+    const out=await callProvider(conn,msgs,{temperature:0.4,maxTokens:4000,concurrent:true});
+    const j=extractJson(out), got={};
+    P.schema.forEach(f=>{ const v=j&&j[f.key]; const t=Array.isArray(v)?v.join('\n'):v==null?'':typeof v==='object'?JSON.stringify(v,null,1):String(v); if(t.trim()) got[f.key]=t.trim(); });
+    if(!Object.keys(got).length) throw new Error('대화에서 이 양식에 옮길 내용을 찾지 못했습니다.');
+    const now=Date.now();
+    const rec={id:uid(),star:false,at:now,updated:now,name:guessName(got,P)||'대화에서 정리',fields:got,
+      presetId:P.id,presetName:P.name,group:P.group||'character',world:'',from:'chat'};
+    S.library.push(rec); save(); renderLib();
+    closeTalkRecord(); openLibView(rec.id);
+    toast('완성본에 저장했습니다 · 성도에서 다시 볼 수 있습니다');
+  }catch(err){ if(err.message!=='__ABORT__') showErr(err); }
+  finally{ TALK_RECORD_BUSY=false; btn.disabled=false; btn.textContent='정리하기'; }
+}
+$('#btnTalkToRecord').addEventListener('click',openTalkRecord);
+$('#talkRecordPreset').addEventListener('change',renderTalkRecordNote);
+$('#talkRecordRun').addEventListener('click',runTalkRecord);
+$('#talkRecordClose').addEventListener('click',closeTalkRecord);
+$('#talkRecordModal').addEventListener('click',e=>{ if(e.target.id==='talkRecordModal') closeTalkRecord(); });

@@ -137,7 +137,7 @@ function checkMaterialPersistence(t, a, expectedKind, expectedText) {
   assert.match(expectedKind === 'lorebook' ? asset.entries[0].content : asset.body, expectedText);
   assert.equal(a.$('#talkAssetList .t-use').dataset.id, asset.id);
   assert.equal(a.$('#talkAssetList .t-use').checked, true);
-  assert.match(a.$('#talkAssetCount').textContent, /1\/1/);
+  assert.match(a.$('#talkAssetCount').textContent, /선택 1\//); // 완성본도 전체 수에 들어간다
   assert.equal(a.$('#ctxAssets').disabled, false);
   assert.match(a.$('#ctxTok').textContent, new RegExp(String(a.run('tok(talkContext())'))));
   const restored = boot(t, a.w.localStorage.getItem('orrery.v1'));
