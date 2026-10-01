@@ -1,4 +1,4 @@
-<!-- ORRERY v1.0.15 · 2026-08-14 -->
+<!-- ORRERY v1.0.16 · 2026-08-14 -->
 <!-- ⚠ styles.css·js 를 고치면 아래 ?v= 값을 함께 올릴 것.
      GitHub Pages 는 10분간 옛 파일을 캐시해서, 올리지 않으면 바뀐 내용이 안 보인다. -->
 <!DOCTYPE html>
@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <title>ORRERY · 세계 · 인물 · 프롬프트</title>
-<link rel="stylesheet" href="styles.css?v=1.0.15">
+<link rel="stylesheet" href="styles.css?v=1.0.16">
 <base target="_blank">
 </head>
 <body class="boot">
@@ -26,7 +26,7 @@
     </svg>
     <div class="brand-inner">
       <h1>ORRERY</h1>
-      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.15</span></span>
+      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.16</span></span>
     </div>
   </div>
   <div class="topctl">
@@ -462,6 +462,8 @@
           <option value="critic">냉정한 평가자</option>
           <option value="free">역할 없음</option>
         </select></div>
+      <label class="ooc-inline talk-compact"><input type="checkbox" id="talkAutoCompact" checked><span>길어지면 앞부분 자동 정리</span>
+        <button type="button" class="qhelp" aria-label="자동 정리란" data-tip="대화가 연결의 컨텍스트 한도(없으면 64,000토큰)에 가까워지면, 오래된 앞부분을 요약해 '지금까지의 정리'에 합치고 최근 대화는 원문으로 둡니다. 정리할 때 API를 한 번 더 부릅니다. 끄면 한도를 넘는 앞부분은 잘려 보내지지 않습니다.">?</button></label>
     <details class="adv" id="talkRoleEdit">
       <summary>역할 프롬프트 편집</summary>
       <div>
@@ -853,18 +855,18 @@
     </div>
   </div>
 </div>
-<script src="prompts.js?v=1.0.15"></script>
-<script src="builtin-presets.js?v=1.0.15"></script>
-<script src="talk-roles.js?v=1.0.15"></script>
+<script src="prompts.js?v=1.0.16"></script>
+<script src="builtin-presets.js?v=1.0.16"></script>
+<script src="talk-roles.js?v=1.0.16"></script>
 <!-- 일반 스크립트를 아래 순서대로 읽어 파일을 직접 열어도 작동합니다. -->
-<script src="js/core.js?v=1.0.15"></script>
-<script src="js/materials.js?v=1.0.15"></script>
-<script src="js/studio.js?v=1.0.15"></script>
-<script src="js/preset-export.js?v=1.0.15"></script>
-<script src="js/chat.js?v=1.0.15"></script>
-<script src="js/library.js?v=1.0.15"></script>
-<script src="js/settings.js?v=1.0.15"></script>
-<script src="js/workspaces.js?v=1.0.15"></script>
-<script src="js/app.js?v=1.0.15"></script>
+<script src="js/core.js?v=1.0.16"></script>
+<script src="js/materials.js?v=1.0.16"></script>
+<script src="js/studio.js?v=1.0.16"></script>
+<script src="js/preset-export.js?v=1.0.16"></script>
+<script src="js/chat.js?v=1.0.16"></script>
+<script src="js/library.js?v=1.0.16"></script>
+<script src="js/settings.js?v=1.0.16"></script>
+<script src="js/workspaces.js?v=1.0.16"></script>
+<script src="js/app.js?v=1.0.16"></script>
 </body>
 </html>

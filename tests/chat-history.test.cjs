@@ -505,3 +505,47 @@ test('built-in forms come from builtin-presets.js and talk roles from talk-roles
   a.$('#btnPresetExport')?.click();
   if (a.run('window.__out')) assert.ok(!a.run('window.__out').includes('_sig'));
 });
+
+test('chat history is sent by token budget instead of a 24-message cap', async t => {
+  const a = boot(t);
+  const requests = stubReplies(a, ['ok']);
+  a.run(`S.chat.msgs=Array.from({length:40},(_,i)=>({id:'m'+i,role:i%2?'assistant':'user',content:'짧은 말 '+i,includeHistory:true}));renderChat();`);
+  a.$('#chatIn').value='다음'; await a.run('sendChat()');
+  assert.equal(requests[0].messages.length, 1+41);   // 시스템 + 40개 + 새 질문, 잘림 없음
+});
+
+test('when the conversation nears the connection limit, older turns are summarized automatically and recent ones stay verbatim', async t => {
+  const a = boot(t);
+  const requests = stubReplies(a, ['- 정해진 것: 항구 도시', '이어서 답합니다']);
+  a.run("S.connections[0].contextLimit=8000");
+  const long = '가'.repeat(1500);   // 메시지마다 500토큰쯤
+  a.run(`S.chat.msgs=Array.from({length:16},(_,i)=>({id:'m'+i,role:i%2?'assistant':'user',content:'${long} '+i,includeHistory:true}));renderChat();`);
+  a.$('#chatIn').value='다음 질문'; await a.run('sendChat()');
+  assert.equal(requests.length, 2);
+  assert.match(JSON.stringify(requests[0].messages), /압축 정리/);
+  assert.equal(a.run('S.chat.summary'), '- 정해진 것: 항구 도시');
+  const kept = plain(a.run('S.chat.msgs.map(m=>m.id||"")'));
+  assert.ok(!kept.includes('m0'));                 // 오래된 앞부분은 정리됨
+  assert.ok(kept.includes('m15'));                 // 최근 것은 원문 그대로
+  assert.equal(a.run("S.chat.msgs.find(m=>m.id===S.chat.msgs.filter(x=>x.role==='user'&&x.id&&x.id.startsWith('m'))[0]?.id)?.role"), 'user');
+  const sys = requests[1].messages[0].content;
+  assert.match(sys, /지금까지 나눈 대화를 압축한 정리[\s\S]*항구 도시/);
+  assert.equal(requests[1].messages[1].role, 'user');  // 남은 대화는 질문으로 시작
+});
+
+test('with auto summary off, the oldest turns are trimmed to fit and the summary nudge appears', async t => {
+  const a = boot(t);
+  const requests = stubReplies(a, ['답']);
+  a.run("S.connections[0].contextLimit=8000;S.talkAutoCompact=false");
+  const long = '가'.repeat(1500);
+  a.run(`S.chat.msgs=Array.from({length:16},(_,i)=>({id:'m'+i,role:i%2?'assistant':'user',content:'${long} '+i,includeHistory:true}));renderChat();`);
+  assert.equal(a.$('#talkAutoCompact').checked, false);
+  assert.equal(a.$('#wrapNudge').hidden, false);
+  a.$('#chatIn').value='다음'; await a.run('sendChat()');
+  assert.equal(requests.length, 1);
+  const sent = requests[0].messages.slice(1);
+  assert.ok(sent.length < 17 && sent.length > 2);
+  assert.equal(sent[0].role, 'user');
+  assert.equal(sent.at(-1).content, '다음');
+  assert.equal(a.run('S.chat.msgs.length'), 18);   // 원문은 지워지지 않는다
+});

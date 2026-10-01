@@ -23,7 +23,9 @@ test('editor reads tags and enabled when present, defaults to none and on when a
   e.$('#btnLoadSource').click();
   const before = plain(e.run('items'));
   assert.ok(before.length > 0);
-  assert.ok(before.every(x=>x.enabled===true && Array.isArray(x.tags) && x.tags.length===0));
+  // 실제 prompts.js 내용과 상관없이: 파일 값이 있으면 그대로, 없으면 태그 없음·켜짐
+  const src = plain(e.run('window.BUILTIN_COMMON.filter(x=>x&&x.content)'));
+  assert.deepEqual(before.map(x=>[x.tags,x.enabled]), src.map(x=>[Array.isArray(x.tags)?x.tags:[], x.enabled!==false]));
   e.run(`items=[];[{name:'A',content:'aaa'},{name:'B',content:'bbb',tags:['#클로드',' 긴 출력 '],enabled:false,groups:'all'}].forEach(x=>items.push(newItem(x)));render();`);
   assert.deepEqual(plain(e.run('items[1].tags')), ['클로드','긴 출력']);
   assert.ok(e.$('.item[data-i="1"]').classList.contains('dim'));

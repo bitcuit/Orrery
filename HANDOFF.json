@@ -1,10 +1,10 @@
 {
-  "at": "2026-10-01 19:30",
+  "at": "2026-10-01 20:20",
   "by": "claude-code",
-  "doing": "내장 양식·상담역을 파일로 떼고, 모델 이름 자동 태그와 편집기 확장을 넣어 커밋함 (prompts.js 제외)",
-  "where": "builtin-presets.js · talk-roles.js · js/studio.js syncBuiltinPresets() · prompt-editor.html(git 제외)",
-  "state": "미검증",
-  "next": "편집기에서 파일 연결 후 파일에 반영이 실제 파일을 고치는지 크롬에서 확인",
+  "doing": "대화를 24개 제한 대신 토큰 분량으로 보내고, 한도의 80%에 닿으면 앞부분을 자동 정리하게 함",
+  "where": "js/chat.js talkHistoryFit()·autoCompactTalk()",
+  "state": "돌아감",
+  "next": "실제 연결로 긴 대화를 해 보며 자동 정리 시점과 요약 품질 확인",
   "blocked": "",
   "session": {
     "id": "c9264113-94d9-4964-96e8-157af1c51a84",

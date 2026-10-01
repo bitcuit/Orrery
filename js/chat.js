@@ -320,10 +320,11 @@ function renderChat(preserveScroll=false){
   const t = tok(talkContext());
   const ct = tok(talkHistorySummary()+talkHistoryMessages().map(m=>m.content).join('\n'));
   $('#ctxTok').textContent = (t ? `함께 보낼 분량 ${t} 토큰쯤` : '함께 보낼 것 없음')
-    + (ct ? ` · 대화 ${ct} 토큰쯤` : '');
+    + (ct ? ` · 대화 ${ct} / 한도 ${talkBudget(S.connections.find(c=>c.id===S.activeConn), talkSystemParts(S.chat).join('\n\n')).toLocaleString()} 토큰쯤` : '');
   renderChatTabs();
   renderChatBrowse();
   renderChatActions();
+  $('#talkAutoCompact').checked = talkAutoCompactOn();
   renderChatAttach();
   hydrateChatImages(box);
   renderTalkAssets();
@@ -333,11 +334,13 @@ function renderChat(preserveScroll=false){
   resizeChatInput();
   box.scrollTop = preserveScroll?scrollTop:box.scrollHeight;
 }
-const WRAP_NUDGE_AT = 2500;
-function renderWrapNudge(convoTok){
+// 요약 권유는 자동 정리를 끈 경우에만, 대화가 한도의 70%를 넘을 때 띄운다
+function renderWrapNudge(){
   const el = $('#wrapNudge'); if(!el) return;
-  const ct = convoTok!=null ? convoTok : tok(talkHistorySummary()+talkHistoryMessages().map(m=>m.content).join('\n'));
-  const show = ct >= WRAP_NUDGE_AT && talkHistoryMessages().length >= 4 && !S.chat.nudgeOff;
+  const conn = S.connections.find(c=>c.id===S.activeConn);
+  const ct = talkHistoryMessages().reduce((a,m)=>a+msgTok(m),0);
+  const show = !talkAutoCompactOn() && ct >= talkBudget(conn, talkSystemParts(S.chat).join('\n\n'))*TALK_NUDGE_AT
+    && talkHistoryMessages().length >= 4 && !S.chat.nudgeOff;
   el.hidden = !show;
   if(show) $('#wrapNudgeText').textContent = '대화가 길어졌습니다.';
 }
@@ -416,6 +419,89 @@ $('#talkAssetList').addEventListener('click', e=>{
   if(TALK_LB_OPEN.has(id)) TALK_LB_OPEN.delete(id); else TALK_LB_OPEN.add(id);
   renderTalkAssets();
 });
+/* ---- 대화 분량 ---------------------------------------------------
+   개수가 아니라 토큰 분량으로 보낸다. 한도 = 연결의 컨텍스트 상한(없으면 64,000)에서
+   응답 몫과 시스템 지시(역할·정리·자료)를 뺀 나머지.
+   대화가 그 80%에 닿으면 오래된 쪽을 요약해 '지금까지의 정리'에 합치고,
+   최근 대화(한도의 40%, 최소 4개)는 원문으로 둔다 — 묻지 않고 알아서. */
+const TALK_CONTEXT_DEFAULT=64000, TALK_REPLY_TOKENS=2200, TALK_COMPACT_AT=0.8, TALK_KEEP_SHARE=0.4, TALK_KEEP_MIN=4, TALK_NUDGE_AT=0.7;
+function talkSystemParts(chat){
+  const sys=[];
+  const custom=S.customTalkPrompts && S.customTalkPrompts[chat.role];
+  if(custom && custom.trim()) sys.push(custom.trim());
+  else if(TALK_ROLE[chat.role]) sys.push(TALK_ROLE[chat.role]);
+  sys.push(`${S.opts.lang||'한국어'} 로 답한다.`);
+  const summary=talkHistorySummary();
+  if(summary) sys.push('아래는 지금까지 나눈 대화를 압축한 정리다. 이 맥락 위에서 이어서 대화한다.\n\n'+summary);
+  const ctx=talkContext();
+  if(ctx) sys.push('아래는 상대가 지금 다루고 있는 자료다. 묻지 않은 것까지 통째로 다시 써주지 마라.\n\n'+ctx);
+  return sys;
+}
+// 이미지는 한 장에 1,000토큰쯤, 글 첨부는 글자 수로 어림한다
+function msgTok(m){ return tok(m.content)+(m.files||[]).reduce((a,f)=>a+(f.kind==='image'?1000:Math.ceil((f.size||0)/3)),0); }
+function talkBudget(conn, sysText){
+  const total=(conn&&conn.contextLimit)||TALK_CONTEXT_DEFAULT;
+  const reply=(conn&&conn.maxTokens)||TALK_REPLY_TOKENS;
+  return Math.max(2000, total-reply-tok(sysText||''));
+}
+// 끝에서부터 분량 안에 드는 만큼. 질문 없는 답으로 시작하지 않게 앞을 다듬는다
+function talkHistoryFit(pendingMessage, budget){
+  const all=talkHistoryMessages(pendingMessage), out=[]; let used=0;
+  for(let i=all.length-1;i>=0;i--){
+    const t=msgTok(all[i]); if(out.length && used+t>budget) break;
+    out.unshift(all[i]); used+=t;
+  }
+  while(out.length>1 && out[0].role!=='user') out.shift();
+  return out;
+}
+function talkAutoCompactOn(){ return S.talkAutoCompact!==false; }
+$('#talkAutoCompact').checked = talkAutoCompactOn();
+$('#talkAutoCompact').addEventListener('change', e=>{ S.talkAutoCompact = e.target.checked; save(); renderChat(true); });
+function talkSummaryRequest(convo, merging){
+  return [
+    {role:'system', content:'너는 진행 중인 창작 상담 대화를 이어가기 위한 압축 정리를 만든다. 새 의견이나 제안을 덧붙이지 않는다. '+(S.opts.lang||'한국어')+' 로 쓴다.'},
+    {role:'user', content:(merging?'맨 앞의 [지금까지의 정리]는 이미 정리해 둔 내용이다. 그 내용을 빠뜨리지 말고 뒤의 대화와 합쳐 하나로 다시 정리하라.\n':'')
+      +'아래 대화를 다음 항목으로 정리하라. 각 항목은 짧은 개조식으로, 없는 항목은 빼라.\n- 다룬 주제\n- 정해진 것·합의\n- 검토했지만 접은 것\n- 아직 열린 질문\n\n대화:\n'+convo}
+  ];
+}
+// 새 정리를 앉히고 정리한 원문을 뺀다. 전송에서 제외해 둔 이전 정리는 기록으로 남긴다
+function applyTalkSummary(chat, text, dropped){
+  chat.summaryHistory=(chat.summaryHistory||[]).filter(m=>m.includeHistory===false);
+  if(chat.summary && chat.summaryIncluded===false) chat.summaryHistory.push({id:uid(),content:chat.summary,includeHistory:false});
+  chat.summary=text.trim(); chat.summaryIncluded=true;
+  const drop=new Set(dropped); chat.msgs=chat.msgs.filter(m=>!drop.has(m));
+}
+function talkNeedsCompact(chat, conn, pendingMessage){
+  if(!talkAutoCompactOn() || chat!==S.chat) return false;
+  const budget=talkBudget(conn, talkSystemParts(chat).join('\n\n'));
+  return talkHistoryMessages(pendingMessage).reduce((a,m)=>a+msgTok(m),0) >= budget*TALK_COMPACT_AT;
+}
+async function autoCompactTalk(chat, conn, pendingMessage, job){
+  if(!talkNeedsCompact(chat, conn, pendingMessage)) return false;
+  const all=talkHistoryMessages(pendingMessage);
+  const budget=talkBudget(conn, talkSystemParts(chat).join('\n\n'));
+  // 끝에서부터 남길 몫을 세고, 남는 쪽이 질문으로 시작하게(문답이 갈리지 않게) 자른다
+  let keep=0, used=0;
+  for(let i=all.length-1;i>=0;i--){
+    const t=msgTok(all[i]);
+    if(keep>=TALK_KEEP_MIN && used+t>budget*TALK_KEEP_SHARE) break;
+    used+=t; keep++;
+  }
+  let cut=all.length-keep;
+  while(cut>0 && all[cut] && all[cut].role!=='user') cut--;
+  const old=all.slice(0,cut).filter(m=>m!==pendingMessage);
+  if(old.length<2) return false;
+  const prev=talkHistorySummary();
+  const wired=await Promise.all(old.map(talkWireMessage));
+  const convo=(prev?'[지금까지의 정리]\n'+prev+'\n\n':'')+wired.map((w,i)=>(old[i].role==='user'?'[나] ':'[상대] ')+w.content+(w.images?`\n(이미지 ${w.images.length}장)`:'')).join('\n\n');
+  const out=await callProvider(conn, talkSummaryRequest(convo, !!prev), {temperature:0.3, maxTokens:1500,
+    concurrent:true, onStart:c=>{ job.controller=c; }});
+  if(job.cancelled) throw new Error('__ABORT__');
+  applyTalkSummary(chat, out, old);
+  save();
+  toast(`대화가 길어져 앞부분 ${old.length}개를 자동으로 정리했습니다`);
+  return true;
+}
 async function wrapTalk(){
   if(CHAT_JOBS.has(S.chatId)) return;
   if(S.chat.msgs.some(m=>m.status)) return toast('응답을 받지 못한 메시지를 먼저 다시 보내거나 삭제해 주세요.',1);
@@ -431,19 +517,10 @@ async function wrapTalk(){
   try{
     const convo = talkTranscript(true);
     const before = tok(convo);
-    const out = await callProvider(conn, [
-      {role:'system', content:'너는 진행 중인 창작 상담 대화를 이어가기 위한 압축 정리를 만든다. 새 의견이나 제안을 덧붙이지 않는다. '+(S.opts.lang||'한국어')+' 로 쓴다.'},
-      {role:'user', content:'아래 대화를 다음 항목으로 정리하라. 각 항목은 짧은 개조식으로, 없는 항목은 빼라.\n- 다룬 주제\n- 정해진 것·합의\n- 검토했지만 접은 것\n- 아직 열린 질문\n\n대화:\n'+convo}
-    ], {temperature:0.3, maxTokens:1000,
+    const out = await callProvider(conn, talkSummaryRequest(convo, false), {temperature:0.3, maxTokens:1000,
       concurrent:true, onStart:c=>{ job.controller=c; }});
     if(job.cancelled) throw new Error('__ABORT__');
-    chat.summaryHistory=(chat.summaryHistory||[]).filter(m=>m.includeHistory===false);
-    if(chat.summary && chat.summaryIncluded===false){
-      chat.summaryHistory.push({id:uid(),content:chat.summary,includeHistory:false});
-    }
-    chat.summary = out.trim();
-    chat.summaryIncluded = true;
-    chat.msgs = chat.msgs.filter(m=>!included.includes(m));
+    applyTalkSummary(chat, out, included);
     chat.nudgeOff = false;
     save();
     toast(`대화를 정리했습니다 — ${before} 토큰 → ${tok(out)} 토큰`);
@@ -528,7 +605,7 @@ async function saveChatText(name,text){
   const id=uid();
   if(text.length>CHAT_TEXT_MAX) text=text.slice(0,CHAT_TEXT_MAX)+`\n…(${CHAT_TEXT_MAX.toLocaleString()}자 이후 생략)`;
   await putChatFile(id,{text});
-  return {id,name,kind:'text'};
+  return {id,name,kind:'text',size:text.length};
 }
 // 카드·로어북·프리셋은 재료와 같은 방식으로 글로 푼다. 로어북은 꺼 둔 항목까지 전부.
 async function chatFileAsText(file){
@@ -642,22 +719,15 @@ async function sendChat(retryId){
   if(!retry){ chat.msgs.push(message); inp.value=''; chat.inputDraft=''; CHAT_PENDING.delete(chat.id); renderChatAttach(); }
   try{
   renderChat(); save();
+  // 넘치기 전에 오래된 앞부분을 자동 정리한다. 실패해도 대화는 막지 않고 분량에 맞춰 자른 채 보낸다.
+  // 정리할 게 없으면 기다리지 않고 바로 보낸다
+  try{ if(talkNeedsCompact(chat, conn, message) && await autoCompactTalk(chat, conn, message, job)) renderChat(chat.id!==S.chatId); }
+  catch(err){ if(err.message==='__ABORT__') throw err; log('대화 자동 정리 실패 · 앞부분을 잘라 보냅니다: '+err.message,'err'); }
   // 보낼 내용은 지금 이 자리에서 다 굳힌다 — 기다리는 동안 다른 창으로 옮겨도 흔들리지 않게.
-  const sys = [];
-  const roleKey = chat.role;
-  const customPrompt = S.customTalkPrompts && S.customTalkPrompts[roleKey];
-  if(customPrompt && customPrompt.trim()){
-    sys.push(customPrompt.trim());
-  } else if(TALK_ROLE[roleKey]){
-    sys.push(TALK_ROLE[roleKey]);
-  }
-  sys.push(`{{lang}} 로 답한다.`.replace('{{lang}}', S.opts.lang||'한국어'));
-  const summary=talkHistorySummary();
-  if(summary) sys.push('아래는 지금까지 나눈 대화를 압축한 정리다. 이 맥락 위에서 이어서 대화한다.\n\n'+summary);
-  const ctx = talkContext();
-  if(ctx) sys.push('아래는 상대가 지금 다루고 있는 자료다. 묻지 않은 것까지 통째로 다시 써주지 마라.\n\n'+ctx);
+  const sys = talkSystemParts(chat);
+  // 개수가 아니라 분량으로: 한도 안에 드는 만큼 최근 대화부터 싣는다.
   // 첨부가 있을 때만 파일을 읽느라 기다린다. 글뿐이면 바로 보낸다.
-  const history = talkHistoryMessages(message,24);
+  const history = talkHistoryFit(message, talkBudget(conn, sys.join('\n\n')));
   const msgs = [{role:'system', content: sys.join('\n\n')}].concat(
     history.some(m=>m.files&&m.files.length) ? await Promise.all(history.map(talkWireMessage))
       : history.map(m=>({role:m.role, content:m.content})));
