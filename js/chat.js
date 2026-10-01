@@ -308,7 +308,7 @@ function renderChat(preserveScroll=false){
   } else {
     box.innerHTML = wrapHtml + S.chat.msgs.map((m,i)=>{
       const excluded=talkTurnExcluded(i), completed=talkTurnIndexes(i).every(n=>!S.chat.msgs[n].status);
-      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span></div><div class="msg-md">${mdHtml(m.content)}</div><div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${talkTurnButton('chat-copy',i,'이 메시지 복사',ICON_COPY)}${completed?talkTurnButton('chat-regen',i,'이 문답의 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div>${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span></div>${m.content?`<div class="msg-md">${mdHtml(m.content)}</div>`:''}${talkFilesHtml(m.files)}<div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${talkTurnButton('chat-copy',i,'이 메시지 복사',ICON_COPY)}${completed?talkTurnButton('chat-regen',i,'이 문답의 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div>${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
     }).join('');
   }
   const t = tok(talkContext());
@@ -318,6 +318,8 @@ function renderChat(preserveScroll=false){
   renderChatTabs();
   renderChatBrowse();
   renderChatActions();
+  renderChatAttach();
+  hydrateChatImages(box);
   renderTalkAssets();
   renderWrapNudge(ct);
   const toCard = $('#btnTalkToCard');
@@ -442,6 +444,176 @@ $('#btnTalkWrap').addEventListener('click', ()=>{
   const job=chatJob(S.chatId);
   if(job&&job.kind==='wrap') stopChat(S.chatId); else wrapTalk();
 });
+/* ---- 대화 첨부 ------------------------------------------------
+   내용은 IndexedDB(orrery-files)에 두고 메시지에는 {id,name,kind,mime}만 남긴다 —
+   이미지를 localStorage 에 넣으면 금방 꽉 찬다. IndexedDB 가 없으면 이 창 메모리에만 둔다. */
+const CHAT_FILE_DB='orrery-files', CHAT_TEXT_MAX=200000, CHAT_IMAGE_EDGE=1568, CHAT_ATTACH_MAX=8;
+const CHAT_FILE_MEM=new Map();      // id -> {mime,data} | {text}
+const CHAT_PENDING=new Map();       // chatId -> 보내기 전 첨부 [{id,name,kind,mime}]
+const FILE_ICON='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>';
+let chatFileDb=null;
+function openChatFileDb(){
+  if(!chatFileDb) chatFileDb=new Promise(resolve=>{
+    try{
+      if(!window.indexedDB) return resolve(null);
+      const req=indexedDB.open(CHAT_FILE_DB,1);
+      req.onupgradeneeded=()=>req.result.createObjectStore('files');
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>resolve(null);
+    }catch(_){ resolve(null); }
+  });
+  return chatFileDb;
+}
+async function chatFileStore(mode, fn){
+  const db=await openChatFileDb(); if(!db) return undefined;
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('files',mode), req=fn(tx.objectStore('files'));
+    tx.oncomplete=()=>resolve(req&&req.result); tx.onerror=()=>reject(tx.error);
+  });
+}
+async function putChatFile(id,rec){
+  rec={...rec,at:Date.now()}; CHAT_FILE_MEM.set(id,rec);
+  try{ await chatFileStore('readwrite',st=>st.put(rec,id)); }
+  catch(_){ toast('첨부를 저장하지 못했습니다 · 새로고침하면 사라집니다',1); }
+}
+async function getChatFile(id){
+  if(CHAT_FILE_MEM.has(id)) return CHAT_FILE_MEM.get(id);
+  try{ const rec=await chatFileStore('readonly',st=>st.get(id)); if(rec) CHAT_FILE_MEM.set(id,rec); return rec||null; }
+  catch(_){ return null; }
+}
+// 어느 대화에도 남지 않은 첨부(지운 문답, 보내지 않고 닫은 것)는 시작할 때 지운다.
+// 다른 창에서 아직 보내지 않은 첨부를 건드리지 않게 하루 지난 것만.
+async function gcChatFiles(){
+  const keep=new Set(chatList().flatMap(c=>c.msgs.flatMap(m=>(m.files||[]).map(f=>f.id))));
+  try{ await chatFileStore('readwrite',st=>{
+    const cur=st.openCursor();
+    cur.onsuccess=()=>{ const c=cur.result; if(!c) return; if(!keep.has(c.key) && Date.now()-(c.value?.at||0)>864e5) c.delete(); c.continue(); };
+    return null;
+  }); }catch(_){}
+}
+function blobBase64(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result).split(',')[1]||'');
+    r.onerror=()=>reject(new Error('파일을 읽지 못했습니다.'));
+    r.readAsDataURL(blob);
+  });
+}
+// 긴 변이 1568px 를 넘거나 1.5MB 가 넘으면 줄여서 JPEG 로. 공급자 대부분이 그 이상은 어차피 줄인다.
+async function shrinkImage(file){
+  const mime=/^image\/(png|jpeg|webp|gif)$/.test(file.type)?file.type:'image/png';
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((resolve,reject)=>{
+      const i=new Image(); i.onload=()=>resolve(i); i.onerror=()=>reject(new Error(`${file.name||'이미지'}: 이미지를 열지 못했습니다.`)); i.src=url;
+    });
+    const w=img.naturalWidth, h=img.naturalHeight, scale=Math.min(1,CHAT_IMAGE_EDGE/Math.max(w,h,1));
+    if(scale===1 && file.size<=1.5e6) return {mime, data:await blobBase64(file)};
+    const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w*scale)); c.height=Math.max(1,Math.round(h*scale));
+    const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
+    return {mime:'image/jpeg', data:c.toDataURL('image/jpeg',0.86).split(',')[1]};
+  }finally{ URL.revokeObjectURL(url); }
+}
+async function saveChatText(name,text){
+  const id=uid();
+  if(text.length>CHAT_TEXT_MAX) text=text.slice(0,CHAT_TEXT_MAX)+`\n…(${CHAT_TEXT_MAX.toLocaleString()}자 이후 생략)`;
+  await putChatFile(id,{text});
+  return {id,name,kind:'text'};
+}
+// 카드·로어북·프리셋은 재료와 같은 방식으로 글로 푼다. 로어북은 꺼 둔 항목까지 전부.
+async function chatFileAsText(file){
+  const assets=await sniff(file);
+  const text=assets.map(a=>assetText(a.kind==='lorebook'?{...a,entries:(a.entries||[]).map(e=>({...e,use:true}))}:a)).filter(Boolean).join('\n\n');
+  if(!text.trim()) throw new Error(`${file.name}: 읽을 내용이 없습니다.`);
+  return saveChatText(file.name,text);
+}
+async function readChatAttachment(file){
+  const name=file.name||'붙여넣은 이미지';
+  if(/^image\//.test(file.type) || /\.(png|jpe?g|webp|gif)$/i.test(name)){
+    // 카드 PNG 는 그림이 아니라 카드 내용으로 읽는다. 카드 정보가 없으면 그냥 그림.
+    if(file.type==='image/png' || /\.png$/i.test(name)){
+      const card=await chatFileAsText(file).catch(()=>null);
+      if(card) return card;
+    }
+    const img=await shrinkImage(file), id=uid();
+    await putChatFile(id,img);
+    return {id,name,kind:'image',mime:img.mime};
+  }
+  if(/\.(json|charx|marinara|preset|zip)$/i.test(name)) return chatFileAsText(file);
+  const text=await file.text();
+  if(text.includes('\u0000')||(text.match(/�/g)||[]).length>3)
+    throw new Error(`${name}: 읽을 수 없는 파일입니다. 이미지나 글 파일을 붙여 주세요.`);
+  return saveChatText(name,text);
+}
+async function addChatFiles(files){
+  const chatId=S.chatId, list=CHAT_PENDING.get(chatId)||[];
+  for(const file of files){
+    if(list.length>=CHAT_ATTACH_MAX){ toast(`한 번에 ${CHAT_ATTACH_MAX}개까지 붙일 수 있습니다`,1); break; }
+    try{ list.push(await readChatAttachment(file)); }
+    catch(err){ toast(err.message,1); }
+  }
+  CHAT_PENDING.set(chatId,list);
+  if(S.chatId===chatId) renderChatAttach();
+}
+function chatImageSrc(rec){ return rec&&rec.data?`data:${rec.mime};base64,${rec.data}`:''; }
+function renderChatAttach(){
+  const box=$('#chatAttach'), list=CHAT_PENDING.get(S.chatId)||[];
+  box.hidden=!list.length;
+  box.innerHTML=list.map((f,i)=>`<span class="chat-attach-item">${f.kind==='image'
+      ?`<img data-file="${esc(f.id)}" alt="">`:FILE_ICON}<span class="chat-attach-name">${esc(f.name)}</span>`+
+    `<button type="button" class="chat-attach-del" data-index="${i}" aria-label="${esc(f.name)} 빼기">×</button></span>`).join('');
+  hydrateChatImages(box);
+}
+function talkFilesHtml(files){
+  if(!files||!files.length) return '';
+  return `<div class="msg-files">${files.map(f=>f.kind==='image'
+    ?`<img class="msg-img" data-file="${esc(f.id)}" alt="${esc(f.name)}" title="${esc(f.name)}">`
+    :`<span class="msg-file">${FILE_ICON}${esc(f.name)}</span>`).join('')}</div>`;
+}
+async function hydrateChatImages(root){
+  for(const img of root.querySelectorAll('img[data-file]:not([src])')){
+    const rec=await getChatFile(img.dataset.file);
+    if(rec&&rec.data){ img.src=chatImageSrc(rec); continue; }
+    const miss=document.createElement('span');
+    miss.className='msg-file missing'; miss.textContent=(img.alt||'이미지')+' · 이 브라우저에 없음';
+    img.replaceWith(miss);
+  }
+}
+// 보낼 때: 글 파일은 본문 뒤에 붙이고, 이미지는 images 로 따로 싣는다.
+async function talkWireMessage(m){
+  const out={role:m.role, content:m.content||''};
+  if(!m.files||!m.files.length) return out;
+  const texts=[], images=[];
+  for(const f of m.files){
+    const rec=await getChatFile(f.id);
+    if(!rec){ texts.push(`[첨부 ${f.name}: 이 브라우저에서 찾을 수 없음]`); continue; }
+    if(f.kind==='image') images.push({mime:rec.mime,data:rec.data});
+    else texts.push(`[첨부 파일: ${f.name}]\n${rec.text}`);
+  }
+  out.content=[out.content,...texts].filter(Boolean).join('\n\n');
+  if(images.length) out.images=images;
+  return out;
+}
+$('#chatLog').addEventListener('click',e=>{ const img=e.target.closest('.msg-img'); if(img) img.classList.toggle('zoom'); });
+$('#btnChatAttach').addEventListener('click',()=>$('#chatFileIn').click());
+$('#chatFileIn').addEventListener('change',e=>{ const files=[...e.target.files]; e.target.value=''; addChatFiles(files); });
+$('#chatAttach').addEventListener('click',e=>{
+  const del=e.target.closest('.chat-attach-del'); if(!del) return;
+  const list=CHAT_PENDING.get(S.chatId)||[]; list.splice(Number(del.dataset.index),1);
+  renderChatAttach(); $('#chatIn').focus();
+});
+$('#chatIn').addEventListener('paste',e=>{
+  const files=[...(e.clipboardData?.files||[])];
+  if(!files.length) return;
+  e.preventDefault(); addChatFiles(files);
+});
+$('#chatWrap').addEventListener('dragover',e=>{ if([...(e.dataTransfer?.types||[])].includes('Files')){ e.preventDefault(); $('#chatWrap').classList.add('drop'); } });
+$('#chatWrap').addEventListener('dragleave',e=>{ if(!$('#chatWrap').contains(e.relatedTarget)) $('#chatWrap').classList.remove('drop'); });
+$('#chatWrap').addEventListener('drop',e=>{
+  $('#chatWrap').classList.remove('drop');
+  const files=[...(e.dataTransfer?.files||[])]; if(!files.length) return;
+  e.preventDefault(); addChatFiles(files);
+});
 async function sendChat(retryId){
   const chat=S.chat, inp=$('#chatIn');
   if(CHAT_JOBS.has(chat.id)) return;
@@ -449,14 +621,15 @@ async function sendChat(retryId){
   const retry=typeof retryId==='string' && failed && failed.id===retryId;
   if(failed&&!retry) return toast('실패한 메시지의 다시 보내기를 눌러 주세요. 새 입력은 그대로 남겨 뒀습니다.',1);
   const text=retry?failed.content:inp.value.trim();
-  if(!text) return;
+  const files=retry?(failed.files||[]):[...(CHAT_PENDING.get(chat.id)||[])];
+  if(!text && !files.length) return;
   const conn = S.connections.find(c=>c.id===S.activeConn);
   if(!conn) return toast('먼저 연결을 만들어 주세요',1);
   const job={kind:'send',controller:null,cancelled:false};
   CHAT_JOBS.set(chat.id,job); touchChat(chat);
-  const message=retry?failed:{id:uid(),role:'user',content:text,includeHistory:true};
+  const message=retry?failed:{id:uid(),role:'user',content:text,includeHistory:true,...(files.length?{files}:{})};
   message.includeHistory=true; message.status='pending'; delete message.error;
-  if(!retry){ chat.msgs.push(message); inp.value=''; chat.inputDraft=''; }
+  if(!retry){ chat.msgs.push(message); inp.value=''; chat.inputDraft=''; CHAT_PENDING.delete(chat.id); renderChatAttach(); }
   try{
   renderChat(); save();
   // 보낼 내용은 지금 이 자리에서 다 굳힌다 — 기다리는 동안 다른 창으로 옮겨도 흔들리지 않게.
@@ -473,8 +646,11 @@ async function sendChat(retryId){
   if(summary) sys.push('아래는 지금까지 나눈 대화를 압축한 정리다. 이 맥락 위에서 이어서 대화한다.\n\n'+summary);
   const ctx = talkContext();
   if(ctx) sys.push('아래는 상대가 지금 다루고 있는 자료다. 묻지 않은 것까지 통째로 다시 써주지 마라.\n\n'+ctx);
+  // 첨부가 있을 때만 파일을 읽느라 기다린다. 글뿐이면 바로 보낸다.
+  const history = talkHistoryMessages(message,24);
   const msgs = [{role:'system', content: sys.join('\n\n')}].concat(
-    talkHistoryMessages(message,24).map(m=>({role:m.role, content:m.content})));
+    history.some(m=>m.files&&m.files.length) ? await Promise.all(history.map(talkWireMessage))
+      : history.map(m=>({role:m.role, content:m.content})));
     const out = await callProvider(conn, msgs, {temperature:0.85, maxTokens:2200,
       concurrent:true, onStart:c=>{ job.controller=c; }});
     if(job.cancelled) throw new Error('__ABORT__');

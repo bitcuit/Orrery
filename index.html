@@ -1,4 +1,4 @@
-<!-- ORRERY v1.0.6 · 2026-08-14 -->
+<!-- ORRERY v1.0.7 · 2026-08-14 -->
 <!-- ⚠ styles.css·js 를 고치면 아래 ?v= 값을 함께 올릴 것.
      GitHub Pages 는 10분간 옛 파일을 캐시해서, 올리지 않으면 바뀐 내용이 안 보인다. -->
 <!DOCTYPE html>
@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <title>ORRERY · 세계 · 인물 · 프롬프트</title>
-<link rel="stylesheet" href="styles.css?v=1.0.6">
+<link rel="stylesheet" href="styles.css?v=1.0.7">
 <base target="_blank">
 </head>
 <body class="boot">
@@ -26,7 +26,7 @@
     </svg>
     <div class="brand-inner">
       <h1>ORRERY</h1>
-      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.6</span></span>
+      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.7</span></span>
     </div>
   </div>
   <div class="topctl">
@@ -514,7 +514,10 @@
     </div>
     <div class="chatwrap" id="chatWrap">
       <div class="chatlog" id="chatLog"></div>
+      <div class="chat-attach" id="chatAttach" hidden></div>
       <div class="chatin">
+        <button type="button" class="iconbtn" id="btnChatAttach" title="이미지·파일 붙이기" aria-label="이미지·파일 붙이기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m24.2 15.4-8.5 8.5a5.4 5.4 0 0 1-7.6-7.6l9.2-9.2a3.6 3.6 0 0 1 5.1 5.1l-9.2 9.2a1.8 1.8 0 0 1-2.5-2.5l8.5-8.5" stroke="#e9b654"/></svg></button>
+        <input type="file" id="chatFileIn" multiple hidden accept="image/png,image/jpeg,image/webp,image/gif,.txt,.md,.csv,.json,.yaml,.yml,.charx,.marinara,.preset">
         <textarea id="chatIn" rows="1" aria-label="메시지" placeholder="메시지 입력"></textarea>
         <button class="primary" id="btnSend" title="보내기 (Ctrl+Enter)">보내기</button>
       </div>
@@ -827,15 +830,15 @@
     </div>
   </div>
 </div>
-<script src="prompts.js?v=1.0.6"></script>
+<script src="prompts.js?v=1.0.7"></script>
 <!-- 일반 스크립트를 아래 순서대로 읽어 파일을 직접 열어도 작동합니다. -->
-<script src="js/core.js?v=1.0.6"></script>
-<script src="js/materials.js?v=1.0.6"></script>
-<script src="js/studio.js?v=1.0.6"></script>
-<script src="js/chat.js?v=1.0.6"></script>
-<script src="js/library.js?v=1.0.6"></script>
-<script src="js/settings.js?v=1.0.6"></script>
-<script src="js/workspaces.js?v=1.0.6"></script>
-<script src="js/app.js?v=1.0.6"></script>
+<script src="js/core.js?v=1.0.7"></script>
+<script src="js/materials.js?v=1.0.7"></script>
+<script src="js/studio.js?v=1.0.7"></script>
+<script src="js/chat.js?v=1.0.7"></script>
+<script src="js/library.js?v=1.0.7"></script>
+<script src="js/settings.js?v=1.0.7"></script>
+<script src="js/workspaces.js?v=1.0.7"></script>
+<script src="js/app.js?v=1.0.7"></script>
 </body>
 </html>

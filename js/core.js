@@ -473,11 +473,17 @@ function abortCurrentCall(){
 /* ==================================================================
    2. 프로바이더 — 텍스트 연결
    ================================================================== */
+// 대화에 붙인 이미지는 m.images=[{mime,data(base64)}]로 온다. 없으면 지금처럼 글만 보낸다.
+const dataUrl = i => `data:${i.mime};base64,${i.data}`;
+const oaiContent = m => m.images&&m.images.length
+  ? [...(m.content?[{type:'text',text:m.content}]:[]), ...m.images.map(i=>({type:'image_url',image_url:{url:dataUrl(i)}}))]
+  : m.content;
+const geminiParts = m => [...(m.content?[{text:m.content}]:[]), ...(m.images||[]).map(i=>({inline_data:{mime_type:i.mime,data:i.data}}))];
 const OAI_LIKE = (base, keyHeader) => ({
   base,
   chat(c, msgs, o){
     const sys = msgs.filter(m=>m.role==='system').map(m=>m.content).join('\n\n');
-    const rest = msgs.filter(m=>m.role!=='system');
+    const rest = msgs.filter(m=>m.role!=='system').map(m=>({role:m.role, content:oaiContent(m)}));
     const body = {
       model: c.model,
       messages: sys ? [{role:'system',content:sys}, ...rest] : rest,
@@ -515,7 +521,10 @@ const PROV = {
     nosample:/^claude-(fable|mythos)-|^claude-opus-(5|4-7|4-8)|^claude-sonnet-5/,
     chat(c,msgs,o){
       const sys = msgs.filter(m=>m.role==='system').map(m=>m.content).join('\n\n');
-      const rest = msgs.filter(m=>m.role!=='system').map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.content}));
+      const rest = msgs.filter(m=>m.role!=='system').map(m=>({role:m.role==='assistant'?'assistant':'user',
+        content:m.images&&m.images.length
+          ? [...m.images.map(i=>({type:'image',source:{type:'base64',media_type:i.mime,data:i.data}})), ...(m.content?[{type:'text',text:m.content}]:[])]
+          : m.content}));
       const body = { model:c.model, max_tokens:o.maxTokens||2400,
                      messages: rest.length?rest:[{role:'user',content:' '}] };
       const sampling = !PROV.anthropic.nosample.test(String(c.model||''));
@@ -539,7 +548,7 @@ const PROV = {
     chat(c,msgs,o){
       const sys = msgs.filter(m=>m.role==='system').map(m=>m.content).join('\n\n');
       const contents = msgs.filter(m=>m.role!=='system')
-        .map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+        .map(m=>({role:m.role==='assistant'?'model':'user',parts:geminiParts(m)}));
       const body = { contents: contents.length?contents:[{role:'user',parts:[{text:' '}]}],
         generationConfig:Object.assign({ temperature:o.temperature ?? 0.9, maxOutputTokens:o.maxTokens||2400 },
           o.topP!=null?{topP:o.topP}:{}),
@@ -562,7 +571,7 @@ const PROV = {
     chat(c,msgs,o){
       const sys = msgs.filter(m=>m.role==='system').map(m=>m.content).join('\n\n');
       const contents = msgs.filter(m=>m.role!=='system')
-        .map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+        .map(m=>({role:m.role==='assistant'?'model':'user',parts:geminiParts(m)}));
       const body = { contents, generationConfig:{temperature:o.temperature ?? 0.9, maxOutputTokens:o.maxTokens||2400} };
       if(sys) body.systemInstruction = {parts:[{text:sys}]};
       const loc = c.location||'us-central1';
@@ -588,7 +597,7 @@ const PROV = {
     chat(c,msgs,o){
       return { url:(c.baseUrl||'https://api.cohere.com/v2').replace(/\/$/,'')+'/chat',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+c.apiKey},
-        body:Object.assign({ model:c.model, messages:msgs.map(m=>({role:m.role,content:m.content})),
+        body:Object.assign({ model:c.model, messages:msgs.map(m=>({role:m.role,content:oaiContent(m)})),
                temperature:o.temperature ?? 0.9, max_tokens:o.maxTokens||2400 }, o.topP!=null?{p:o.topP}:{}) };
     },
     parse(j){ const m=j.message; if(!m) return j.text||'';
@@ -637,7 +646,8 @@ async function callProvider(conn, messages, opts){
     if(conn.topP!=null)        o.topP        = conn.topP;
   }
   delete o.connectionOverrides; delete o.concurrent; delete o.onStart;
-  const est = messages.reduce((a,m)=>a+tok(m.content),0);
+  // 이미지 한 장은 대략 1,000토큰으로 어림한다(공급자·크기마다 다름).
+  const est = messages.reduce((a,m)=>a+tok(m.content)+(m.images?m.images.length*1000:0),0);
   if(conn.contextLimit){
     const room = conn.contextLimit - (o.maxTokens||2000);
     if(est > room){

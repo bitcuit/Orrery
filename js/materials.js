@@ -181,11 +181,14 @@ function externalPromptMaterial(j,fname){
   if(!j||typeof j!=='object')return null;
   let parts=[],name=j.name||fname;
   if(j.type==='marinara_preset'&&j.data){
+    // 마리나라는 DB 값을 그대로 내보낸다: 불리언은 "true"/"false" 문자열, 순서는 JSON 문자열.
+    const flag=v=>v===true||v==='true'||v===1;
+    const list=v=>{ if(Array.isArray(v)) return v; try{ const x=JSON.parse(v); return Array.isArray(x)?x:[]; }catch(_){ return []; } };
     const data=j.data,p=data.preset||{},sections=Array.isArray(data.sections)?data.sections:[];
     name=p.name||name;
-    const order=p.sectionOrder||[];
-    parts=[...sections].sort((a,b)=>{const ai=order.indexOf(a.id),bi=order.indexOf(b.id);return (ai<0?1e9:ai)-(bi<0?1e9:bi);}).filter(s=>!s.isMarker).map(s=>({name:s.name,role:s.role,text:s.content,enabled:s.enabled}));
-    for(const key of ['conversationPrompt','gamePrompt'])if(p[key])parts.push({name:key,text:p[key]});
+    const order=list(p.sectionOrder);
+    parts=[...sections].sort((a,b)=>{const ai=order.indexOf(a.id),bi=order.indexOf(b.id);return (ai<0?1e9:ai)-(bi<0?1e9:bi);}).filter(s=>!flag(s.isMarker)).map(s=>({name:s.name,role:s.role,text:s.content,enabled:s.enabled==null||flag(s.enabled)}));
+    for(const [key,label] of [['conversationPrompt','대화 모드 프롬프트'],['gamePrompt','게임 모드 프롬프트']])if(p[key])parts.push({name:label,text:p[key]});
   }else if(Array.isArray(j.prompts)){
     const order=Array.isArray(j.prompt_order)?j.prompt_order.at(-1)?.order:[];
     const prompts=j.prompts.filter(p=>p&&!p.marker);
@@ -235,22 +238,25 @@ function sourceText(){
   if(brief) parts.push('## 구상\n'+brief);
   for(const a of S.assets){
     if(!a.use) continue;
-    if(a.kind==='character'){
-      const f = a.fields;
-      parts.push(`## 캐릭터: ${a.name}\n` +
-        Object.keys(f).map(k=>`### ${k}\n${f[k]}`).join('\n\n'));
-    }else if(a.kind==='lorebook'){
-      const on = a.entries.filter(e=>e.use);
-      if(!on.length) continue;
-      parts.push(`## 설정집: ${a.name}\n` + on.map(e=>{
-        const label = e.comment || (e.keys[0]||'항목');
-        return `### ${label}${e.keys.length?` [${e.keys.join(', ')}]`:''}\n${e.content}`;
-      }).join('\n\n'));
-    }else{
-      parts.push(`## 자료: ${a.name}\n${a.body}`);
-    }
+    const t=assetText(a); if(t) parts.push(t);
   }
   return parts.join('\n\n');
+}
+// 재료 하나를 프롬프트용 글로. 로어북은 켜 둔 항목만, 하나도 없으면 빈 문자열.
+function assetText(a){
+  if(a.kind==='character'){
+    const f = a.fields||{};
+    return `## 캐릭터: ${a.name}\n` + Object.keys(f).map(k=>`### ${k}\n${f[k]}`).join('\n\n');
+  }
+  if(a.kind==='lorebook'){
+    const on = (a.entries||[]).filter(e=>e.use);
+    if(!on.length) return '';
+    return `## 설정집: ${a.name}\n` + on.map(e=>{
+      const keys=e.keys||[], label = e.comment || (keys[0]||'항목');
+      return `### ${label}${keys.length?` [${keys.join(', ')}]`:''}\n${e.content}`;
+    }).join('\n\n');
+  }
+  return `## 자료: ${a.name}\n${a.body}`;
 }
 function activeMode(){
   const by = S.opts.modeBy || (S.opts.modeBy = {world:'new',character:S.opts.mode||'w2c',prompt:'new'});

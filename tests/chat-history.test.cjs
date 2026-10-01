@@ -274,3 +274,38 @@ test('record cards open the preview, keep star and load on the card, and delete 
   assert.equal(a.run('S.library.length'), 0);
   assert.equal(a.$('#libViewModal').hidden, true);
 });
+
+test('Marinara preset exports with string flags keep their real sections in order', t => {
+  const a = boot(t);
+  const env = {type:'marinara_preset',version:1,data:{
+    preset:{name:'P',sectionOrder:JSON.stringify(['s2','s1','m1','s3'])},
+    sections:[{id:'s1',name:'Rules',role:'system',content:'rule text',enabled:'true',isMarker:'false'},
+      {id:'m1',name:'Chat History',content:'',enabled:'true',isMarker:'true'},
+      {id:'s2',name:'Role',role:'system',content:'role text',enabled:'true',isMarker:'false'},
+      {id:'s3',name:'Old',role:'system',content:'old text',enabled:'false',isMarker:'false'}]}};
+  const [m] = a.run(`fromJson(${JSON.stringify(env)},'p')`);
+  assert.deepEqual(m.body.split('\n').filter(l=>l.startsWith('## ')), ['## Role · system','## Rules · system','## Old · system · 비활성 구획']);
+});
+
+test('chat attachments: text files ride along in the message, images go out as provider image parts', async t => {
+  const a = boot(t);
+  a.run("S.connections=[{id:'c',name:'C',provider:'openai',apiKey:'k',model:'m'}];S.activeConn='c';tab('talk')");
+  const bodies = [];
+  a.w.fetch = async (_u,o) => { bodies.push(JSON.parse(o.body)); return {ok:true,status:200,text:async()=>JSON.stringify({choices:[{message:{content:'읽었어요'}}]})}; };
+  await a.run(`addChatFiles([new File(['소금 항구 설정 본문'],'world.txt',{type:'text/plain'})])`);
+  assert.equal(a.$$('#chatAttach .chat-attach-item').length, 1);
+  await a.run('sendChat()');
+  const user = bodies[0].messages.at(-1);
+  assert.match(user.content, /\[첨부 파일: world\.txt\]\n소금 항구 설정 본문/);
+  assert.equal(a.$('#chatAttach').hidden, true);
+  assert.match(a.$('.msg.user .msg-file').textContent, /world\.txt/);
+  const img = {role:'user',content:'이거 봐',images:[{mime:'image/png',data:'AAAA'}]};
+  const oai = a.run(`PROV.openai.chat({model:'m',apiKey:'k'},[${JSON.stringify(img)}],{})`).body.messages[0].content;
+  assert.deepEqual(JSON.parse(JSON.stringify(oai)), [{type:'text',text:'이거 봐'},{type:'image_url',image_url:{url:'data:image/png;base64,AAAA'}}]);
+  const ant = a.run(`PROV.anthropic.chat({model:'claude-sonnet-5',apiKey:'k'},[${JSON.stringify(img)}],{})`).body.messages[0].content;
+  assert.deepEqual(JSON.parse(JSON.stringify(ant))[0], {type:'image',source:{type:'base64',media_type:'image/png',data:'AAAA'}});
+  const gem = a.run(`PROV.gemini.chat({model:'g',apiKey:'k'},[${JSON.stringify(img)}],{})`).body.contents[0].parts;
+  assert.deepEqual(JSON.parse(JSON.stringify(gem))[1], {inline_data:{mime_type:'image/png',data:'AAAA'}});
+  const plain = a.run(`PROV.openai.chat({model:'m',apiKey:'k'},[{role:'user',content:'글만'}],{})`).body.messages[0].content;
+  assert.equal(plain, '글만');
+});

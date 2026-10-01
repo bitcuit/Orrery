@@ -1403,6 +1403,23 @@ body:has(#v-talk.on) .working-note{flex:none}
   font-family:var(--body);font-size:16px;line-height:24px}
 .chatin textarea:focus{background:transparent}
 .chatin #btnSend{flex:none;height:48px;min-height:48px;min-width:80px;font-size:14px}
+.chatin #btnChatAttach{flex:none;width:44px;height:48px;min-height:48px}
+.chatwrap.drop{box-shadow:inset 0 0 0 2px var(--brass-d)}
+/* 보내기 전 첨부 */
+.chat-attach{display:flex;flex-wrap:wrap;gap:6px;margin:0 13px 8px;flex:none}
+.chat-attach[hidden]{display:none}
+.chat-attach-item{display:inline-flex;align-items:center;gap:6px;max-width:220px;padding:4px 4px 4px 6px;border:1px solid var(--line2);border-radius:9px;font-size:12px;color:var(--dim)}
+.chat-attach-item img{width:32px;height:32px;object-fit:cover;border-radius:5px;flex:none}
+.chat-attach-item svg{flex:none}
+.chat-attach-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-attach-del{flex:none;border:0;background:none;min-height:24px;padding:0 6px;color:var(--dim2);cursor:pointer;font-size:14px}
+.chat-attach-del:hover{color:var(--text)}
+/* 보낸 메시지의 첨부 */
+.msg-files{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px;margin-top:8px;white-space:normal}
+.msg-img{display:block;max-width:220px;max-height:180px;border-radius:8px;object-fit:contain;cursor:zoom-in;background:var(--c68)}
+.msg-img.zoom{max-width:100%;max-height:none;cursor:zoom-out}
+.msg-file{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid var(--line2);border-radius:999px;font-size:12px;color:var(--dim)}
+.msg-file.missing{border-style:dashed}
 .ctxbar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .ctxbar label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--c180);cursor:pointer}
 .ctxbar input{width:auto;accent-color:var(--brass)}

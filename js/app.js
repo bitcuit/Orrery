@@ -106,7 +106,7 @@ function bootUI(){
 
 (function init(){
   if(WORKER_WINDOW) return;
-  const had = load();
+  const had = load(); gcChatFiles();
   if(!S.presets.length){ S.presets = builtinPresets(); S.activePreset = 'default'; }
   else {
     const b = builtinPresets();
