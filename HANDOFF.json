@@ -1,10 +1,10 @@
 {
-  "at": "2026-10-01 14:05",
+  "at": "2026-10-01 15:10",
   "by": "claude-code",
-  "doing": "대화를 양식에 맞춰 완성본으로 정리하고, 완성본을 재료처럼 고를 수 있게 함",
-  "where": "js/chat.js 대화 → 완성본 구획 · js/materials.js recordText()",
-  "state": "돌아감",
-  "next": "롤플레이 프리셋 양식 만들기 — 실리태번·리스AI 프리셋 파일 형식부터 확인",
+  "doing": "롤플레이 프리셋 양식을 만들고 구획·마커 배치를 실리태번·마리나라·리스AI 형식으로 내보내게 함",
+  "where": "js/preset-export.js · js/studio.js presetRoleplay()",
+  "state": "미검증",
+  "next": "내보낸 프리셋을 실리태번·마리나라·리스AI에 실제로 가져와 확인하기",
   "blocked": "",
   "session": {
     "id": "c9264113-94d9-4964-96e8-157af1c51a84",

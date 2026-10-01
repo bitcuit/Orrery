@@ -1795,3 +1795,33 @@ html[data-theme="light"] button.build-mode.on{box-shadow:none}
 html[data-theme="light"] .spine li.now .n{box-shadow:0 0 0 3px var(--c81)}
 html[data-theme="light"] .groups button.on .gico{filter:none}
 @media (max-width:480px){.ooc-tools{width:100%}.ooc-tools button.mini{padding-left:0;padding-right:0}}
+
+/* ---------- 롤플레이 프리셋: 내보낼 형식 · 배치 ---------- */
+.rp-export{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:0 0 14px}
+.rp-export[hidden]{display:none}
+.rp-export-choices{display:flex;flex-wrap:wrap;gap:8px}
+.rp-layout{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--s2)}
+.rp-layout[hidden]{display:none}
+.rp-head{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-bottom:10px}
+.rp-head .sp{flex:1}
+.rp-head select{width:auto;min-height:34px;font-size:13px}
+.rp-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.rp-item{display:grid;grid-template-columns:auto auto minmax(90px,max-content) minmax(0,1fr) auto;align-items:center;gap:10px;padding:7px 8px 7px 12px;border-radius:9px;background:var(--c68);font-size:13px}
+.rp-item input{width:auto;accent-color:var(--brass)}
+.rp-kind{font-size:10px;font-weight:600;letter-spacing:.06em;padding:2px 7px;border-radius:999px;border:1px solid var(--line2);color:var(--dim)}
+.rp-item.mk{background:transparent;border:1px dashed var(--line2)}
+.rp-item.mk .rp-kind{color:var(--brass-d);border-color:var(--brass-d)}
+.rp-name{font-weight:600;color:var(--text);white-space:nowrap}
+.rp-where{min-width:0;color:var(--dim2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rp-item.off .rp-name,.rp-item.off .rp-where{opacity:.45;text-decoration:line-through}
+.rp-tools{display:flex;gap:2px}
+.rp-tools button{display:inline-flex;align-items:center;justify-content:center;width:30px;min-width:30px;min-height:30px;padding:0;border:0;background:none;color:var(--dim);cursor:pointer;border-radius:6px;font-size:15px}
+.rp-tools button:hover:not(:disabled){color:var(--text);background:var(--s2h)}
+.rp-tools button:disabled{opacity:.3;cursor:default}
+.rp-del-ph{width:30px}
+.rp-dl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:12px}
+.rp-dl .note{flex-basis:100%;font-size:12px}
+@media (max-width:560px){
+  .rp-item{grid-template-columns:auto auto minmax(0,1fr) auto}
+  .rp-where{display:none}
+}

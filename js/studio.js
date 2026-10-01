@@ -970,6 +970,100 @@ function presetPromptForge(){
 }
 
 
+/* --- 프롬프트 · 롤플레이 프리셋 ---
+   칸 하나가 프리셋의 구획 하나다. 채팅 기록·캐릭터 설명 같은 마커는 모델이 쓰지 않고,
+   결과 아래 '프리셋 배치'에서 순서를 정해 실리태번·마리나라·리스 형식으로 뽑는다. */
+function presetRoleplay(){
+  const P = defaultPreset();
+  P.id = 'rp-preset'; P.name = '롤플레이 프리셋'; P.group = 'prompt'; P.kind = 'prompt'; P.needs='optional'; P.rpPreset = true;
+  P.schema = [
+    {key:'title',     label:'이름',      hint:'프리셋 이름. 짧게 (구획에는 들어가지 않는다)'},
+    {key:'role',      label:'역할',      hint:'모델이 맡는 자리(내레이터·게임 마스터·한 캐릭터)와 시점·인칭. 무엇을 맡지 않는지까지'},
+    {key:'direction', label:'진행 지침', hint:'장면을 어떻게 굴리는가: 사용자 행동을 받는 법, 속도, 사건·갈등을 던지는 기준'},
+    {key:'npc',       label:'NPC 운용',  hint:'주변 인물을 살아 있게 하는 법. 각자의 목적·말투·아는 것의 범위'},
+    {key:'style',     label:'문체',      hint:'시점·문장 길이·묘사 밀도·대사 비율. 나쁜 예와 좋은 예 한 쌍'},
+    {key:'format',    label:'출력 형식', hint:'응답 한 번의 골격과 길이. 상태창·표기 규칙이 있으면 그대로 복사해 쓸 수 있게'},
+    {key:'forbid',    label:'금지 사항', hint:'사용자 대신 말하거나 행동하기 같은 흔한 실패 위주로. 대신 무엇을 할지 함께'}
+  ];
+  P.stages.digest.blocks[1].content =
+`다음은 사용자가 만들고 싶은 롤플레이 프리셋(채팅 앱에 넣는 지시문 묶음)에 대한 설명과 참고 자료다.
+
+--- 자료 시작 ---
+{{source}}
+--- 자료 끝 ---
+
+무엇을 만들어야 하는지 정리하라. 프리셋을 아직 쓰지 마라.
+
+{
+  "goal": "이 프리셋으로 어떤 롤플레이를 하려는가 (장르·분위기·인원)",
+  "seat": "모델이 맡을 자리 (내레이터 / 게임 마스터 / 캐릭터 한 명 / 여러 인물)",
+  "given": ["사용자가 이미 정해놓은 요구"],
+  "open": ["정해지지 않아 프리셋이 결정해야 하는 것"],
+  "failure_modes": ["이런 롤플레이에서 모델이 흔히 망치는 방식 (최대 6개)"]
+}`;
+  P.stages.seed.blocks[1].content =
+`정리된 요구:
+{{digest}}
+
+이 프리셋을 짜는 방향을 {{seedCount}}개 제안하라.
+
+조건
+- 각 방향은 모델에게 주는 주도권이 다를 것 (사용자 따라가기 / 적극적으로 사건 던지기 / 규칙 엄격한 게임 진행 등)
+- 각 방향이 어떤 실패를 막고 대신 무엇을 포기하는지 드러날 것
+{{extraRule}}
+[{"id":"s1","line":"한 문장 요약","hook":"막으려는 실패","angle":"대신 포기하는 것"}]`;
+  P.stages.expand.maxTokens = 4000;
+  P.stages.expand.temperature = 0.75;
+  P.stages.expand.blocks = [
+    {role:'system', content:
+`당신은 롤플레이 채팅 앱에 넣을 프리셋 지시문을 쓰는 사람이다.{{toneRule}}
+각 칸은 프리셋의 구획 하나로 그대로 들어간다. 사람이 읽는 설명서가 아니라 모델이 따르는 지시문이다.
+
+원칙
+- 판정할 수 없는 말("자연스럽게", "몰입감 있게")만 쓰지 마라. 무엇을 하면 되는지 적어라
+- 하지 말라는 말에는 대신 할 것을 붙여라
+- 캐릭터 이름 자리는 {{char}}, 사용자 자리는 {{user}} 로 쓴다. 다른 표기를 쓰지 마라
+- 캐릭터 설명·세계관·채팅 기록은 앱이 따로 넣는다. 구획 안에 그 내용을 지어 넣지 마라
+- 구획끼리 같은 규칙을 되풀이하지 마라
+
+출력은 {{lang}}로. 유효한 JSON 하나만. 코드펜스·설명·머리말 금지.`},
+    {role:'user', content:
+`정리된 요구:
+{{digest}}
+
+고른 방향:
+{{seed}}
+
+참고 자료:
+{{source}}
+
+이 프리셋을 아래 칸으로 완성하라.
+{{schemaSpec}}
+{{extraRule}}
+{"칸이름":"내용"} 형태로만 출력.`}];
+  P.stages.check.blocks[1].content =
+`요구:
+{{digest}}
+
+검사 대상:
+{{card}}
+
+아래만 지적하라. 문장을 다시 쓰지 말 것.
+- 판정할 수 없는 지시
+- 구획끼리 충돌하거나 되풀이하는 규칙
+- 하지 말라고만 하고 대신 할 것을 주지 않은 곳
+- {{char}}·{{user}} 대신 실제 이름이나 다른 표기를 쓴 곳
+- 앱이 넣을 캐릭터 설명·세계관을 구획 안에 지어 넣은 곳
+
+어긋난 곳이 없으면 violations를 빈 배열로 둔다.
+
+{
+  "violations":[{"field":"칸이름","quote":"문제가 되는 부분","issue":"무엇이 문제인가","severity":"high 또는 low","fix":"대체 문안"}],
+  "verdict":"pass 또는 warn 또는 fail"
+}`;
+  return P;
+}
+
 /* --- 출력 칸 끄기 · 양식별 저장 --- */
 function fieldOffFor(P){
   const by=S.opts.fieldOff&&typeof S.opts.fieldOff==='object'?S.opts.fieldOff:(S.opts.fieldOff={});
@@ -992,6 +1086,7 @@ function renderFieldToggles(){
   const off=new Set(fieldOffFor(P));
   $('#fieldToggles').innerHTML=P.schema.map(f=>`<label class="purpose-choice field-choice"><input type="checkbox" value="${esc(f.key)}" ${off.has(f.key)?'':'checked'}><span>${esc(f.label)}</span></label>`).join('');
   $('#fieldToggleCount').textContent=off.size?`${off.size}칸 끔`:'';
+  if(typeof renderRpExportBox==='function') renderRpExportBox();
 }
 /* --- 결함·비밀의 선 · 인물·세계 공정에 붙는 고정 규칙 --- */
 function sensitivityDirection(stage){
@@ -1552,7 +1647,7 @@ function presetGreeting(){
       숨김 상태(off)는 이 브라우저에만 저장됩니다.
    ============================================================ */
 function builtinPresets(){ return [
-  presetPromptForge(), presetPromptcraft(), presetOoc(), presetPromptAudit(),
+  presetPromptForge(), presetRoleplay(), presetPromptcraft(), presetOoc(), presetPromptAudit(),
   presetWorld(), presetWorldBrief(), presetWorldGuide(), presetWorldAudit(),
   defaultPreset(), presetCharEngine(), presetProfileKo(), presetGreeting(), presetDrives(), presetCharAudit(),
   presetSchemaForge()
@@ -1716,7 +1811,8 @@ function activePreset(){
   return S.presets.find(p=>p.id===S.activePreset) || S.presets[0];
 }
 function render(tpl, vars){
-  return String(tpl).replace(/\{\{(\w+)\}\}/g, (m,k)=> (k in vars) ? String(vars[k]??'') : '');
+  // {{char}}·{{user}}는 채팅 앱의 매크로라 지시문에 그대로 남긴다.
+  return String(tpl).replace(/\{\{(\w+)\}\}/g, (m,k)=> (k in vars) ? String(vars[k]??'') : (k==='char'||k==='user') ? m : '');
 }
 function schemaSpec(){
   return activeSchema().map(f=>`- ${f.key} (${f.label})${f.hint?': '+f.hint:''}`).join('\n');
@@ -2736,6 +2832,7 @@ function renderCard(){
     </div>`;
   }).join('');
   renderContinue(); renderConvert(); setSpine(); renderQA();
+  if(typeof renderRpLayout==='function') renderRpLayout();
 }
 $('#cardOut').addEventListener('click', async e=>{
   const fld = e.target.closest('.fld'); if(!fld) return;

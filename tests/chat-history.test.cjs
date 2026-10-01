@@ -336,3 +336,46 @@ test('a finished conversation becomes a completed record in the chosen form, and
   assert.match(a.run('sourceText()'), /## 완성본: 레아/);
   assert.ok(a.run('sourcePicked()'));
 });
+
+test('roleplay preset: layout with markers, reorder and toggle, and exports for SillyTavern, Marinara and RisuAI', t => {
+  const a = boot(t);
+  a.run(`applyGroup('prompt');switchPreset('rp-preset');tab('studio');renderFieldToggles();`);
+  assert.equal(a.$('#rpExportBox').hidden, false);
+  assert.equal(a.run(`render('{{char}} 와 {{user}} · {{missing}}',{})`), '{{char}} 와 {{user}} · ');
+  a.run(`S.project.card={fields:{title:'항구 GM',role:'{{char}}는 게임 마스터다',direction:'사건을 던진다',npc:'',style:'짧게',format:'세 문단',forbid:'{{user}} 대신 말하지 않는다'}};renderCard();`);
+  assert.equal(a.$('#rpLayout').hidden, false);
+  const names = () => [...a.$$('#rpLayout .rp-name')].map(x=>x.textContent);
+  assert.ok(!names().includes('이름'));
+  assert.equal(names()[0], '역할');
+  assert.ok(names().includes('채팅 기록'));
+  // 역할을 한 칸 아래로, 페르소나는 끄기
+  a.$('#rpLayout .rp-item[data-i="0"] .rp-move[data-d="1"]').click();
+  assert.deepEqual(names().slice(0,2), ['진행 지침','역할']);
+  const persona = [...a.$$('#rpLayout .rp-item')].find(r=>r.querySelector('.rp-name').textContent==='페르소나').querySelector('.rp-on');
+  persona.checked=false; persona.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  a.run(`window.out={};dl=(n,t)=>window.out[n]=JSON.parse(t)`);
+  for(const f of ['st','marinara','risu']) a.run(`exportRpPreset('${f}')`);
+  const out = plain(a.run('window.out'));
+  const st = out['항구 GM.json'];
+  const order = st.prompt_order[0];
+  assert.equal(order.character_id, 100001);
+  const custom = st.prompts.filter(p=>!p.marker);
+  assert.ok(custom.every(p=>p.system_prompt===false && p.role==='system'));
+  assert.ok(!custom.some(p=>p.name==='NPC 운용'));          // 빈 구획은 뺀다
+  assert.equal(st.prompts.find(p=>p.identifier==='chatHistory').marker, true);
+  assert.equal(order.order.find(o=>o.identifier==='personaDescription').enabled, false);
+  assert.equal(st.prompts.find(p=>p.identifier===order.order[0].identifier).name, '진행 지침');
+  const mari = out['항구 GM.marinara.json'];
+  assert.equal(mari.type, 'marinara_preset');
+  assert.ok(mari.data.sections.every(s=>typeof s.isMarker==='string' && typeof s.enabled==='string'));
+  assert.equal(mari.data.sections.find(s=>s.identifier==='chat_history').markerConfig, '{"type":"chat_history"}');
+  const risu = out['항구 GM_preset.json'];
+  assert.equal(risu.name, '항구 GM');
+  assert.ok(!risu.promptTemplate.some(p=>p.type==='persona'));   // 끈 마커는 리스에서 빠진다
+  assert.deepEqual(risu.promptTemplate.find(p=>p.type==='chat'), {type:'chat',rangeStart:-1000,rangeEnd:'end',name:'채팅 기록'});
+  // 내보낸 파일을 다시 재료로 읽으면 같은 순서의 구획이 나온다
+  const heads = j => a.run(`fromJson(${JSON.stringify(j)},'x')`)[0].body.split('\n').filter(l=>l.startsWith('## ')).map(l=>l.slice(3).split(' · ')[0]);
+  assert.deepEqual(heads(mari), ['진행 지침','역할','문체','금지 사항','출력 형식']);
+  assert.deepEqual(heads(st), ['진행 지침','역할','문체','금지 사항','출력 형식']);
+  assert.deepEqual(heads(risu), ['진행 지침','역할','문체','금지 사항','출력 형식']);
+});

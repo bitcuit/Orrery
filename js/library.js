@@ -30,7 +30,8 @@ function saveRecord(){
     seedLine, truncated:!!S.project.card.truncated,
     truncatedField:S.project.card.truncatedField||'',
     continuations:clone(S.project.card.continuations||[]),
-    conversion:S.project.card.conversion?clone(S.project.card.conversion):null, updated: Date.now()
+    conversion:S.project.card.conversion?clone(S.project.card.conversion):null, updated: Date.now(),
+    layout:Array.isArray(S.project.card.layout)?clone(S.project.card.layout):undefined
   });
   pruneLib(); save(); renderLib(); touchDraft();
   return rec;
@@ -100,7 +101,7 @@ function loadRecordToStudio(rec){
   if(rec.presetId && S.presets.find(x=>x.id===rec.presetId)) switchPreset(rec.presetId);
   S.project.card = {fields:clone(rec.fields), seed:null, truncated:!!rec.truncated,
     truncatedField:rec.truncatedField||'', continuations:clone(rec.continuations||[]),
-    conversion:rec.conversion?clone(rec.conversion):null};
+    conversion:rec.conversion?clone(rec.conversion):null, ...(Array.isArray(rec.layout)?{layout:clone(rec.layout)}:{})};
   $('#continueNote').value='';
   S.project.libId = rec.id; S.project.locked={};
   S.project.violations=null; S.project.verdict=null; S.project.qa=[];
@@ -261,7 +262,8 @@ function renderModeChooser(){
   $('#briefPanel').classList.toggle('source-first',!!src);
   $('#studioMaterialTitle').textContent=src?src.title:'사용할 재료';
   if(src && !sourcePicked()) $('#nebulaPick').open=true;
-  if(activePreset().id!=='ooc') $('#optBrief').placeholder=MODE_PH[S.opts.group+':'+mode]||(GROUP_UI[S.opts.group]||GROUP_UI.world).ph;
+  if(activePreset().id!=='ooc') $('#optBrief').placeholder=(activePreset().rpPreset&&mode==='new'?'예: 항구 도시가 배경인 게임 마스터형 프리셋. 사건을 자주 던지고, 3인칭 짧은 문장':'')
+    ||MODE_PH[S.opts.group+':'+mode]||(GROUP_UI[S.opts.group]||GROUP_UI.world).ph;
   renderNebulaPicker();
   renderRefineChooser();
 }
