@@ -1828,3 +1828,11 @@ html[data-theme="light"] .groups button.on .gico{filter:none}
   .rp-item{grid-template-columns:auto auto minmax(0,1fr) auto}
   .rp-where{display:none}
 }
+
+/* ---------- 연결 태그 · 공통 지시문 태그 ---------- */
+.c-tag{display:inline-flex;align-items:center;padding:1px 8px;border-radius:999px;border:1px solid var(--line2);font-size:11px;color:var(--brass-d);white-space:nowrap}
+.ctag-list{display:inline-flex;flex-wrap:wrap;gap:4px}
+.ctag-state{font-size:11px;white-space:nowrap;color:var(--dim2)}
+.ctag-state.on{color:var(--good)}
+.ctag-state.skip{color:var(--dim2);text-decoration:line-through}
+

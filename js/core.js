@@ -70,6 +70,7 @@ let S = {
   workspaces: [], activeWorkspaceId:null,
   chats: [], chatId: null,
   customTalkPrompts: {},
+  commonPrefs: {},   // 기본 공통 지시문 이름 → {off, tags} · 모든 양식 공통
   logVerbose: false
 };
 /* 대화창은 여러 개가 나란히 있고 서로 참조하지 않는다.
@@ -312,7 +313,7 @@ function save(){
     localStorage.setItem(KEY, JSON.stringify({
     connections:S.connections, activeConn:S.activeConn,
     presets:S.presets, activePreset:S.activePreset,
-    opts:S.opts, library:S.library, chats:chatList(), chatId:S.chatId, customTalkPrompts:S.customTalkPrompts, logVerbose:S.logVerbose,
+    opts:S.opts, library:S.library, chats:chatList(), chatId:S.chatId, customTalkPrompts:S.customTalkPrompts, commonPrefs:S.commonPrefs, logVerbose:S.logVerbose,
     workspaces:S.workspaces, activeWorkspaceId:S.activeWorkspaceId,
     assetFolders:S.assetFolders,
     assets:S.assets.map(a=>clone(normalizeAssetMetadata(a)))
@@ -351,6 +352,7 @@ function load(){
       S.chatId=S.chats.some(c=>c.id===d.chatId)?d.chatId:S.chats[0].id;
     } else if(d.chat){ S.chats=[normalizeChat(d.chat, S.opts.group)]; S.chatId=S.chats[0].id; }
     if(d.customTalkPrompts) S.customTalkPrompts = d.customTalkPrompts;
+    if(d.commonPrefs && typeof d.commonPrefs==='object' && !Array.isArray(d.commonPrefs)) S.commonPrefs = d.commonPrefs;
     if(d.logVerbose) S.logVerbose = d.logVerbose;
     if(Array.isArray(d.assetFolders)) S.assetFolders=clone(d.assetFolders);
     if(Array.isArray(d.assets)) S.assets=d.assets.map(a=>normalizeAssetMetadata(clone(a)));

@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-01 16:30",
+  "at": "2026-10-01 17:00",
   "by": "claude-code",
-  "doing": "내장 프롬프트 생성기 양식을 새 원본(칸 10개: 배치·턴 리마인더 추가)으로 바꿈",
-  "where": "js/studio.js PROMPT_FORGE · presetPromptForge()",
+  "doing": "기본 공통 지시문을 켜고 끌 수 있게 하고, 연결 태그와 같은 태그의 공통 지시문만 들어가게 함",
+  "where": "js/studio.js activeBuiltinCommons()·tagsMatch() · js/library.js inheritedCommonHtml()",
   "state": "돌아감",
   "next": "내보낸 롤플레이 프리셋을 실리태번·마리나라·리스AI에 실제로 가져와 확인하기",
   "blocked": "",

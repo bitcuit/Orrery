@@ -1797,11 +1797,20 @@ function migrateWorldPreset(p){
   for(const st of Object.values(p.stages||{})) for(const b of st.blocks||[]) if(typeof b.content==='string') b.content=replace(b.content);
   for(const f of p.schema||[]) for(const k of ['label','hint']) if(typeof f[k]==='string') f[k]=replace(f[k]);
 }
+/* --- 공통 지시문 켜기·끄기 · 연결 태그 ---
+   기본 공통 지시문의 켜기와 태그는 S.commonPrefs[이름]에 둔다(모든 양식 공통).
+   태그가 붙은 지시문은 지금 쓰는 연결에 같은 태그가 하나라도 있을 때만 들어간다. 꺼 두면 태그와 상관없이 빠진다. */
+function parseTags(s){ return [...new Set(String(s||'').split(/[,\n]/).map(x=>x.trim().replace(/^#/,'')).filter(Boolean))]; }
+function activeConnTags(){ const c=S.connections.find(x=>x.id===S.activeConn); return new Set((c&&Array.isArray(c.tags))?c.tags:[]); }
+function tagsMatch(tags){ if(!Array.isArray(tags)||!tags.length) return true; const on=activeConnTags(); return tags.some(t=>on.has(t)); }
+function commonPref(name){ const p=(S.commonPrefs||{})[name]; return {off:!!(p&&p.off), tags:Array.isArray(p&&p.tags)?p.tags:[]}; }
+function setCommonPref(name, patch){ if(!S.commonPrefs) S.commonPrefs={}; S.commonPrefs[name]={...commonPref(name),...patch}; }
 function activeBuiltinCommons(v){
   const g = S.opts.group || 'character';
   try{
     return builtinCommonItems()
       .filter(it => it.groups.includes(g))
+      .filter(it => { const p=commonPref(it.name); return !p.off && tagsMatch(p.tags); })
       .filter(it => g!=='world' || (it.name!=='NSFW Override' && (S.opts.nsfw || it.name!=='World NSFW Integration')))
       .map(it => ({ role: it.role, content: render(it.content, v) }));
   }catch(_){ return []; }
@@ -2012,7 +2021,7 @@ async function runStage(stageName, vars, retryOnce){
   if(!st) throw new Error('공정 정의가 없습니다: '+stageName);
   const v = baseVars(Object.assign({ source: sourceText() }, vars||{}));
   const commons = activeBuiltinCommons(v).concat(
-    (P.common||[]).filter(c=>c.enabled && (c.content||'').trim())
+    (P.common||[]).filter(c=>c.enabled && tagsMatch(c.tags) && (c.content||'').trim())
       .map(c=>({role:c.role||'system', content: render(c.content, v)})));
   const msgs = commons.concat(
     st.blocks.map(b=>({role:b.role, content: render(b.content, v)}))
@@ -3304,7 +3313,7 @@ async function doOneShot(){
     card:   '', cast:'', modeNote: modeNote('expand')
   });
   const commons = activeBuiltinCommons(v).concat(
-    (P.common||[]).filter(c=>c.enabled && (c.content||'').trim())
+    (P.common||[]).filter(c=>c.enabled && tagsMatch(c.tags) && (c.content||'').trim())
       .map(c=>({role:c.role||'system', content: render(c.content, v)})));
   const msgs = commons.concat(
     st.blocks.map(b=>({role:b.role, content: render(b.content, v)}))

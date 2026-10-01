@@ -9,6 +9,8 @@ function renderConnSel(){
   const active=connById(S.activeConn);
   $('#connDot').className = 'dot '+(active&&active._ok===true?'ok':active&&active._ok===false?'no':'');
   renderConnectionAction();
+  // 공통 지시문은 지금 연결의 태그에 따라 들어가고 빠지므로 표시를 다시 그린다.
+  if(typeof renderCommon==='function' && $('#commonBox') && !$('#commonBox').contains(document.activeElement)) renderCommon();
 }
 function connCheckHtml(c){
   const last=c._lastTest; if(!last) return '';
@@ -37,6 +39,7 @@ function renderConns(){
         <span class="dot ${c._ok===true?'ok':c._ok===false?'no':''}"></span>
         <span class="cn">${esc(c.name)}</span>
         <span class="c-sum">${esc(p.label||c.provider||'')}${c.model?' · '+esc(c.model):''}</span>
+        ${(c.tags||[]).map(t=>`<span class="c-tag">#${esc(t)}</span>`).join('')}
         ${c.id===S.activeConn ? '<span class="c-use-state" title="현재 생성 작업에 사용하는 연결">쓰는 중</span>' : '<button class="mini ghost c-use">이걸로 쓰기</button>'}
         <button class="mini ghost c-test" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시">확인</button>
         <button class="mini ghost c-dup" title="키·종류·주소는 그대로 두고 새 연결을 만듭니다 · 모델만 바꿔 쓸 때">복제</button>
@@ -67,6 +70,8 @@ function renderConns(){
         <div class="field" style="flex:0 0 150px"><label class="fl">&nbsp;</label>
           <button class="ghost c-models" style="width:100%">모델 목록 받기</button></div>
       </div>
+      <div class="field"><label class="fl">태그 <button type="button" class="qhelp" aria-label="연결 태그란" data-tip="공통 지시문에 같은 태그를 달면, 이 연결을 쓸 때만 그 지시문이 들어갑니다. 쉼표로 여러 개.">?</button></label>
+        <input class="c-tags" value="${esc((c.tags||[]).join(', '))}" placeholder="예: 클로드, 긴 출력"></div>
       <details class="adv conn-advanced" ${c.provider==='custom'||c.provider==='local'?'open':''}>
       <summary>세부 연결 설정 · 주소와 응답 길이</summary>
       <div class="field"><label class="fl">주소 (비우면 기본값)</label>
@@ -110,6 +115,7 @@ $('#connList').addEventListener('click', e=>{
 $('#connList').addEventListener('input', e=>{
   const w = e.target.closest('.conn'); if(!w) return;
   const c = connById(w.dataset.id); if(!c) return;
+  if(e.target.classList.contains('c-tags')){ c.tags = parseTags(e.target.value); save(); if(typeof renderCommon==='function') renderCommon(); return; }
   const m = {'c-name':'name','c-key':'apiKey','c-url':'baseUrl','c-model':'model','c-project':'project','c-location':'location'};
   for(const cls in m) if(e.target.classList.contains(cls)){ c[m[cls]] = e.target.value; if(cls!=='c-name') invalidateConnTest(c,w); save(); if(cls==='c-name') renderConnSel(); }
   const num = {'c-maxtok':'maxTokens','c-ctx':'contextLimit','c-temp':'temperature','c-topp':'topP'};
@@ -211,6 +217,10 @@ function readConnectionBackup(data){
       out[key]=c[key];
     }
     out.name=out.name||PROV[c.provider].label; out.model=out.model||'';
+    if(c.tags!=null){
+      if(!Array.isArray(c.tags) || c.tags.some(t=>typeof t!=='string')) throw new Error('연결 태그 형식이 올바르지 않습니다.');
+      out.tags=parseTags(c.tags.join(','));
+    }
     for(const key of ['maxTokens','contextLimit','temperature','topP']){
       if(c[key]==null) continue;
       if(typeof c[key]!=='number' || !Number.isFinite(c[key]) || c[key]<0)
@@ -266,7 +276,7 @@ function makeBackup(options){
   };
   if(o.connections||o.apiKeys){out.connections=backupConnections(o.apiKeys);out.activeConn=S.activeConn;}
   if(o.presets){out.presets=clone(S.presets);out.activePreset=S.activePreset;out.commonPrompts=clone(builtinCommon());}
-  if(o.settings){out.opts=clone(S.opts);out.customTalkPrompts=clone(S.customTalkPrompts||{});}
+  if(o.settings){out.opts=clone(S.opts);out.customTalkPrompts=clone(S.customTalkPrompts||{});out.commonPrefs=clone(S.commonPrefs||{});}
   if(o.library)out.library=clone(S.library);
   if(o.assets){
     out.assets=S.assets.map(a=>clone(normalizeAssetMetadata(a)));
@@ -322,7 +332,7 @@ $('#dataFile').addEventListener('change', async e=>{
       if(d[key]!=null && (!Array.isArray(d[key]) || d[key].some(v=>!v || typeof v!=='object' || Array.isArray(v))))
         throw new Error('백업의 목록 형식이 올바르지 않습니다.');
     }
-    for(const key of ['opts','workOpts','project','chat','customTalkPrompts']){
+    for(const key of ['opts','workOpts','project','chat','customTalkPrompts','commonPrefs']){
       if(d[key]!=null && (typeof d[key]!=='object' || Array.isArray(d[key])))
         throw new Error('백업의 설정 형식이 올바르지 않습니다.');
     }
@@ -389,6 +399,7 @@ $('#dataFile').addEventListener('change', async e=>{
       } else if(d.chat){ S.chats=[normalizeChat(clone(d.chat),S.opts.group)]; S.chatId=S.chats[0].id; }
     }
     if(d.customTalkPrompts) S.customTalkPrompts=clone(d.customTalkPrompts);
+    if(d.commonPrefs) S.commonPrefs=clone(d.commonPrefs);
     if(d.commonPrompts)localStorage.setItem(COMMON_EXTRA_KEY,JSON.stringify(normCommon(d.commonPrompts)));
     if(S.connections.some(c=>c.id===d.activeConn)) S.activeConn=d.activeConn;
     else if(!S.connections.some(c=>c.id===S.activeConn)) S.activeConn=S.connections[0]?.id||null;

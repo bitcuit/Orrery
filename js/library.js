@@ -591,25 +591,44 @@ const STAGE_LABEL = { digest:'1 · 읽기', seed:'2 · 씨앗 뽑기', cross:'2b
 
 /* --- 공통 지시문 (모든 공정 앞) --- */
 // prompts.js/편집기 반영에서 온 '기본' 공통 지시문을 현재 양식 분류에 맞게 읽기전용으로 보여준다
+// 태그 상태: 태그가 없으면 표시 없음, 있으면 지금 연결과 맞는지
+function commonTagState(tags){
+  if(!Array.isArray(tags)||!tags.length) return '';
+  const on=tagsMatch(tags);
+  return `<span class="ctag-list">${tags.map(t=>`<span class="c-tag">#${esc(t)}</span>`).join('')}</span>`+
+    `<span class="ctag-state ${on?'on':'skip'}">${on?'지금 연결과 맞음':'지금 연결엔 빠짐'}</span>`;
+}
+function commonTagField(cls, tags){
+  return `<div class="field" style="margin:8px 0 0"><label class="fl">태그 · 같은 태그가 있는 연결을 쓸 때만 들어갑니다</label>
+    <input class="${cls}" value="${esc((tags||[]).join(', '))}" placeholder="비우면 항상 · 예: 클로드"></div>`;
+}
 function inheritedCommonHtml(){
   const g = S.opts.group || 'character';
   let items = [];
   try{ items = builtinCommonItems().filter(it => it.groups.includes(g)); }catch(_){ items = []; }
   if(!items.length) return '';
-  const rows = items.map(it=>`
-    <details class="stitem inherited">
+  const rows = items.map(it=>{
+    const pref = commonPref(it.name);
+    return `
+    <details class="stitem inherited ${pref.off?'off':''}" data-name="${esc(it.name)}">
       <summary>
         <span class="chev">▶</span>
-        <span class="inh-badge" title="prompts.js 또는 편집기 '앱에 반영'에서 온 기본 공통 지시문입니다. 이 분류의 모든 양식에 자동으로 들어갑니다. 여기선 못 고치고 prompts.js/편집기에서 관리합니다.">기본</span>
+        <label class="sw" title="${pref.off?'켜기':'끄기'} · 모든 양식에 적용">
+          <input type="checkbox" class="ci-on" ${pref.off?'':'checked'}><i></i>
+        </label>
+        <span class="inh-badge" title="prompts.js 또는 편집기 '앱에 반영'에서 온 기본 공통 지시문입니다. 내용은 prompts.js·편집기에서 고치고, 켜기와 태그는 여기서 정합니다. 모든 양식에 똑같이 적용됩니다.">기본</span>
         <span class="nm">${esc(it.name||'(이름 없음)')}</span>
         ${it.role!=='system' ? `<span class="rolechip">${esc(it.role)}</span>` : ''}
+        ${commonTagState(pref.tags)}
         <span class="meta">${tok(it.content)}tk</span>
       </summary>
       <div class="stbody">
         <div class="field" style="margin:0"><label class="fl">내용 · 읽기 전용 (prompts.js / 편집기에서 관리)</label>
           <textarea rows="${Math.min(14, Math.max(3, it.content.split('\n').length))}" readonly>${esc(it.content)}</textarea></div>
+        ${commonTagField('ci-tags', pref.tags)}
       </div>
-    </details>`).join('');
+    </details>`;
+  }).join('');
   return rows;
 }
 function renderCommon(){
@@ -626,6 +645,7 @@ function renderCommon(){
         </label>
         <span class="nm">${esc(c.name||'(이름 없음)')}</span>
         ${c.role && c.role!=='system' ? `<span class="rolechip">${esc(c.role)}</span>` : ''}
+        ${commonTagState(c.tags)}
         <span class="meta">${tok(c.content||'')}tk</span>
         <span class="rowtools">
           <button class="c-up" title="위로" aria-label="위로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 25.5V6.5M8 14.5l8-8 8 8"/></svg></button>
@@ -638,6 +658,7 @@ function renderCommon(){
           <input class="c-name" value="${esc(c.name||'')}"></div>
         <div class="field" style="margin:0"><label class="fl">내용</label>
           <textarea class="c-body" rows="${Math.min(14, Math.max(3, (c.content||'').split('\n').length))}">${esc(c.content||'')}</textarea></div>
+        ${commonTagField('c-tags', c.tags)}
         <details class="role-adv" ${c.role && c.role!=='system' ? 'open' : ''}>
           <summary>고급 · 역할: <b class="role-now">${esc(c.role||'system')}</b></summary>
           <div style="margin-top:8px;max-width:230px">
@@ -753,6 +774,13 @@ $('#commonBox').addEventListener('click', e=>{
   }
 });
 $('#commonBox').addEventListener('change', e=>{
+  const inh = e.target.closest('.stitem.inherited');
+  if(inh){
+    const name = inh.dataset.name;
+    if(e.target.classList.contains('ci-on')){ setCommonPref(name,{off:!e.target.checked}); save(); renderCommon(); }
+    if(e.target.classList.contains('ci-tags')){ setCommonPref(name,{tags:parseTags(e.target.value)}); save(); renderCommon(); }
+    return;
+  }
   const it = e.target.closest('.stitem'); if(!it) return;
   const c = activePreset().common[+it.dataset.ci]; if(!c) return;
   if(e.target.classList.contains('c-on')){
@@ -760,6 +788,7 @@ $('#commonBox').addEventListener('change', e=>{
     it.classList.toggle('off', !c.enabled);
     save(); return;
   }
+  if(e.target.classList.contains('c-tags')){ c.tags = parseTags(e.target.value); save(); renderCommon(); return; }
   if(e.target.classList.contains('c-role')){
     c.role = e.target.value; save();
     const now = it.querySelector('.role-now'); if(now) now.textContent = c.role;

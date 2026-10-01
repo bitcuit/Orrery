@@ -418,3 +418,38 @@ test('a connection can be duplicated to swap only the model, and its key copied'
   a.$('#connList .conn[data-id="c1"] .c-keycopy').click();
   assert.equal(a.run('window.copied'), 'sk-test');
 });
+
+test('common instructions: built-in ones can be switched off for every form, and tagged ones follow the active connection tags', t => {
+  const a = boot(t);
+  a.run(`window.BUILTIN_COMMON=[{name:'항상',content:'ALWAYS',groups:['all']},{name:'클로드 전용',content:'CLAUDE ONLY',groups:['all']}];
+    S.connections=[{id:'A',name:'A',provider:'anthropic',apiKey:'k',model:'m',tags:['클로드']},{id:'G',name:'G',provider:'gemini',apiKey:'k',model:'g'}];
+    S.activeConn='G';renderConnSel();applyGroup('world');renderCommon();`);
+  const live = () => plain(a.run('activeBuiltinCommons({}).map(c=>c.content)'));
+  assert.deepEqual(live(), ['ALWAYS','CLAUDE ONLY']);
+  // 태그 달기: 클로드 태그가 없는 연결에선 빠진다
+  const tagInput = a.$('#commonBox .stitem.inherited[data-name="클로드 전용"] .ci-tags');
+  tagInput.value = '#클로드'; tagInput.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  assert.deepEqual(live(), ['ALWAYS']);
+  assert.match(a.$('#commonBox .stitem.inherited[data-name="클로드 전용"] .ctag-state').textContent, /빠짐/);
+  // 연결을 A로 바꾸면 같이 켜진다
+  a.$('#connSel').value='A'; a.$('#connSel').dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  assert.deepEqual(live(), ['ALWAYS','CLAUDE ONLY']);
+  assert.match(a.$('#commonBox .stitem.inherited[data-name="클로드 전용"] .ctag-state').textContent, /맞음/);
+  // 끄면 모든 양식에서 빠진다 (분류를 바꿔도)
+  const sw = a.$('#commonBox .stitem.inherited[data-name="항상"] .ci-on');
+  sw.checked = false; sw.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  a.run("applyGroup('character')");
+  assert.deepEqual(live(), ['CLAUDE ONLY']);
+  // 양식별 지시문도 태그를 따른다
+  a.run("activePreset().common=[{id:'x',name:'own',content:'OWN',enabled:true,tags:['제미니']}]");
+  assert.equal(a.run("(activePreset().common||[]).filter(c=>c.enabled&&tagsMatch(c.tags)).length"), 0);
+  // 연결 태그 입력과 백업 왕복
+  a.run("CONN_OPEN.add('G');tab('settings');renderConns()");
+  const ct = a.$('#connList .conn[data-id="G"] .c-tags');
+  ct.value = '제미니, 긴 출력'; ct.dispatchEvent(new a.w.Event('input',{bubbles:true}));
+  assert.deepEqual(plain(a.run("S.connections[1].tags")), ['제미니','긴 출력']);
+  assert.deepEqual(plain(a.run("readConnectionBackup({app:'Orrery',connections:backupConnections(true)})[1].tags")), ['제미니','긴 출력']);
+  const restored = boot(t, a.w.localStorage.getItem('orrery.v1'));
+  assert.equal(restored.run("commonPref('항상').off"), true);
+  assert.deepEqual(plain(restored.run("commonPref('클로드 전용').tags")), ['클로드']);
+});
