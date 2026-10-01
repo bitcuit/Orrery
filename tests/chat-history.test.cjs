@@ -392,3 +392,11 @@ test('user-made forms in the world or character group are offered for organizing
   assert.ok(opts.includes('[세계] 우리 세계 양식'));
   assert.ok(!opts.some(o=>/점검|양식 설계/.test(o)));
 });
+
+test('hook-point guidance goes to characters and worlds with their own text, never to prompt forms', t => {
+  const a = boot(t);
+  const hooks = g => a.run(`applyGroup('${g}');activeBuiltinCommons({}).map(c=>c.content.split(String.fromCharCode(10))[0]).filter(l=>l.includes('후킹포인트'))`);
+  assert.deepEqual(plain(hooks('character')), ['[후킹포인트 설계 — 인물]']);
+  assert.deepEqual(plain(hooks('world')), ['[후킹포인트 설계 — 세계]']);
+  assert.deepEqual(plain(hooks('prompt')), []);
+});
