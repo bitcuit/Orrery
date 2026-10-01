@@ -39,6 +39,7 @@ function renderConns(){
         <span class="c-sum">${esc(p.label||c.provider||'')}${c.model?' · '+esc(c.model):''}</span>
         ${c.id===S.activeConn ? '<span class="c-use-state" title="현재 생성 작업에 사용하는 연결">쓰는 중</span>' : '<button class="mini ghost c-use">이걸로 쓰기</button>'}
         <button class="mini ghost c-test" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시">확인</button>
+        <button class="mini ghost c-dup" title="키·종류·주소는 그대로 두고 새 연결을 만듭니다 · 모델만 바꿔 쓸 때">복제</button>
         <button class="iconbtn danger c-del" title="연결 삭제" aria-label="연결 삭제">${TRASH_SVG}</button>
       </div>
       <div class="conn-body">
@@ -55,7 +56,8 @@ function renderConns(){
       </div>`:''}
       <div class="row">
         ${needsKey?`<div class="field"><label class="fl">${vertex?'액세스 토큰':'API 키'}</label>
-          <input class="c-key" type="password" value="${esc(c.apiKey||'')}" placeholder="${vertex?'gcloud auth print-access-token':'sk-...'}"></div>`:''}
+          <div class="c-keyrow"><input class="c-key" type="password" value="${esc(c.apiKey||'')}" placeholder="${vertex?'gcloud auth print-access-token':'sk-...'}">
+          <button type="button" class="iconbtn c-keycopy" title="${vertex?'토큰':'키'} 복사" aria-label="${vertex?'액세스 토큰':'API 키'} 복사"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg></button></div></div>`:''}
       </div>
       <div class="row">
         <div class="field"><label class="fl">모델</label>
@@ -138,6 +140,15 @@ $('#connList').addEventListener('click', async e=>{
     save(); renderConns(); renderConnSel(); return;
   }
   if(e.target.closest('.c-use')){ S.activeConn = c.id; save(); renderConns(); renderConnSel(); return; }
+  if(e.target.closest('.c-keycopy')){ if(!c.apiKey) return toast('키가 비어 있습니다',1); copy(c.apiKey); return; }
+  if(e.target.closest('.c-dup')){
+    // 확인 상태·받아 둔 모델 목록 말고 설정은 전부 그대로. 모델 칸에 바로 커서를 둔다.
+    const n = clone(c); n.id = uid(); n.name = c.name+' 복사본'; delete n._ok; delete n._lastTest;
+    S.connections.splice(S.connections.indexOf(c)+1, 0, n);
+    CONN_OPEN.add(n.id); save(); renderConns(); renderConnSel();
+    const m = $(`#connList .conn[data-id="${n.id}"] .c-model`); if(m){ m.focus(); m.select(); }
+    toast('복제했습니다 · 모델만 바꾸세요'); return;
+  }
   if(e.target.closest('.c-test')){ await testConn(c, e.target.closest('.c-test')); return; }
   if(e.target.closest('.c-models')){
     const btn = e.target.closest('.c-models');

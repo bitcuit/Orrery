@@ -1163,6 +1163,9 @@ button.refine-mode.on .rn{color:var(--c152)}
   box-shadow:inset 0 1px 0 var(--c24)}
 .conn.on{box-shadow:0 0 0 1px var(--c102), inset 0 1px 0 var(--c24)}
 .conn-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.c-keyrow{display:flex;gap:6px;align-items:center}
+.c-keyrow .c-key{flex:1;min-width:0}
+.c-keyrow .c-keycopy{flex:none}
 .conn.open .conn-h{margin-bottom:11px}
 .conn-h .cn{font-weight:560;flex:none;min-width:0;color:var(--c173)}
 .c-chev{flex:none;background:none;border:0;color:var(--icon-muted);cursor:pointer;

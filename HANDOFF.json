@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-01 15:50",
+  "at": "2026-10-01 16:05",
   "by": "claude-code",
-  "doing": "후킹포인트 공통 지시문을 인물용·세계용으로 나누고 프롬프트 양식에서는 뺌",
-  "where": "prompts.js [6]·[7]",
+  "doing": "연결을 복제해 모델만 바꿔 쓸 수 있게 하고 API 키 복사 단추를 넣음",
+  "where": "js/settings.js renderConns() · c-dup·c-keycopy",
   "state": "돌아감",
   "next": "내보낸 롤플레이 프리셋을 실리태번·마리나라·리스AI에 실제로 가져와 확인하기",
   "blocked": "",

@@ -400,3 +400,21 @@ test('hook-point guidance goes to characters and worlds with their own text, nev
   assert.deepEqual(plain(hooks('world')), ['[후킹포인트 설계 — 세계]']);
   assert.deepEqual(plain(hooks('prompt')), []);
 });
+
+test('a connection can be duplicated to swap only the model, and its key copied', async t => {
+  const a = boot(t);
+  a.run("S.connections=[{id:'c1',name:'Claude',provider:'anthropic',apiKey:'sk-test',model:'claude-sonnet-5',maxTokens:4000,_ok:true}];S.activeConn='c1';CONN_OPEN.add('c1');renderConns()");
+  a.$('#connList .c-dup').click();
+  const list = plain(a.run('S.connections'));
+  assert.equal(list.length, 2);
+  assert.equal(list[1].name, 'Claude 복사본');
+  assert.equal(list[1].apiKey, 'sk-test');
+  assert.equal(list[1].maxTokens, 4000);
+  assert.equal(list[1]._ok, undefined);
+  assert.notEqual(list[1].id, 'c1');
+  assert.equal(a.run('S.activeConn'), 'c1');
+  assert.equal(a.w.document.activeElement, a.$(`#connList .conn[data-id="${list[1].id}"] .c-model`));
+  let copied; a.run('copy=t=>{window.copied=t}');
+  a.$('#connList .conn[data-id="c1"] .c-keycopy').click();
+  assert.equal(a.run('window.copied'), 'sk-test');
+});
