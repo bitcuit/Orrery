@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-01 16:05",
+  "at": "2026-10-01 16:30",
   "by": "claude-code",
-  "doing": "연결을 복제해 모델만 바꿔 쓸 수 있게 하고 API 키 복사 단추를 넣음",
-  "where": "js/settings.js renderConns() · c-dup·c-keycopy",
+  "doing": "내장 프롬프트 생성기 양식을 새 원본(칸 10개: 배치·턴 리마인더 추가)으로 바꿈",
+  "where": "js/studio.js PROMPT_FORGE · presetPromptForge()",
   "state": "돌아감",
   "next": "내보낸 롤플레이 프리셋을 실리태번·마리나라·리스AI에 실제로 가져와 확인하기",
   "blocked": "",
