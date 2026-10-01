@@ -3,7 +3,8 @@
 /* ==================================================================
    9. 대화
    ================================================================== */
-const TALK_ROLE = {
+// 예비값: talk-roles.js 가 없을 때만 쓴다. 상담역을 고칠 땐 talk-roles.js(편집기 '대화 상담역' 탭)를 고칠 것.
+const TALK_ROLE_CODE = {
   world: `당신은 세계관을 함께 다듬는 상담역이다.
 상대가 만든 것을 존중하되 듣기 좋은 말을 하지 않는다. 문제를 짚을 때는 자료의 어느 부분인지 대고, 제안할 때는 바로 쓸 수 있는 문안을 낸다.
 "더 구체적으로", "깊이를 더하면" 같은 막연한 말을 하지 않는다.
@@ -195,7 +196,12 @@ function renderChatBrowse(){
     </div>`;
   }).join('');
 }
-const TALK_ROLE_LABEL={world:'세계관 상담역',char:'인물 상담역',prompt:'프롬프트 상담역',critic:'냉정한 평가자',free:'역할 없음'};
+// 상담역은 talk-roles.js(window.TALK_ROLES)가 기준. 파일에 없는 역할은 위 예비값
+const TALK_ROLE_FILE=(typeof window!=='undefined'&&Array.isArray(window.TALK_ROLES))?window.TALK_ROLES.filter(r=>r&&typeof r.id==='string'&&typeof r.content==='string'):[];
+const TALK_ROLE = Object.assign({}, TALK_ROLE_CODE, ...TALK_ROLE_FILE.map(r=>({[r.id]:r.content})));
+const TALK_ROLE_LABEL=Object.assign({world:'세계관 상담역',char:'인물 상담역',prompt:'프롬프트 상담역',critic:'냉정한 평가자',free:'역할 없음'},
+  ...TALK_ROLE_FILE.filter(r=>r.name).map(r=>({[r.id]:r.name})));
+$$('#talkRole option').forEach(o=>{ if(TALK_ROLE_LABEL[o.value]) o.textContent=TALK_ROLE_LABEL[o.value]; });
 $('#chatBrowse').addEventListener('click', e=>{
   const close=e.target.closest('[data-chat-close]');
   if(close) return closeChat(close.dataset.chatClose);

@@ -1710,13 +1710,42 @@ function presetGreeting(){
    ※ 껐다 켜기: 여기 넣어도 양식 탭의 눈 단추로 작업대 목록에서 숨길 수 있고,
       숨김 상태(off)는 이 브라우저에만 저장됩니다.
    ============================================================ */
-function builtinPresets(){ return [
+// 예비값: builtin-presets.js 가 없을 때만 쓴다. 내장 양식을 고칠 땐 builtin-presets.js(편집기 '양식' 탭)를 고칠 것.
+function builtinPresetsFromCode(){ return [
   presetPromptForge(), presetRoleplay(), presetPromptcraft(), presetOoc(), presetPromptAudit(),
   presetWorld(), presetWorldBrief(), presetWorldGuide(), presetWorldAudit(),
   defaultPreset(), presetCharEngine(), presetProfileKo(), presetGreeting(), presetDrives(), presetCharAudit(),
   presetSchemaForge()
-  // , myHeroPreset()   ← 내가 만든 프리셋 함수를 이 줄처럼 추가
 ]; }
+// 양식 내용의 지문. 키 순서와 _sig·빠진 common 은 무시한다(손댔는지 판정용)
+function presetSig(p){
+  const canon = v => Array.isArray(v) ? '['+v.map(canon).join(',')+']'
+    : v && typeof v==='object' ? '{'+Object.keys(v).filter(k=>k!=='_sig').sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}'
+    : JSON.stringify(v===undefined?null:v);
+  const s = canon({...p, common:p.common||[]});
+  let h = 5381; for(let i=0;i<s.length;i++) h = (h*33 ^ s.charCodeAt(i))>>>0;
+  return h.toString(36)+'.'+s.length;
+}
+// 내장 양식 파일이 바뀌었을 때: 사용자가 손대지 않은 양식(지문이 그대로)은 새 내용으로 바꾸고,
+// 앱에서 고친 양식은 그대로 둔다. 지문이 없던 예전 양식은 지금 내장본과 같으면 지문만 단다.
+function syncBuiltinPresets(b){
+  b.forEach(bp=>{
+    const i = S.presets.findIndex(p=>p.id===bp.id), ex = S.presets[i], bs = presetSig(bp);
+    if(!ex){ S.presets.push({...bp,_sig:bs}); return; }
+    const es = presetSig(ex);
+    if(ex._sig && ex._sig===es && es!==bs) S.presets[i] = {...bp,_sig:bs};
+    else { if(!ex._sig && es===bs) ex._sig = bs; if(!ex.group) ex.group = bp.group; if(!ex.common) ex.common = []; }
+  });
+}
+// 내장 양식은 builtin-presets.js(window.BUILTIN_PRESETS)가 기준. 빠진 단계는 기본값으로 채운다.
+function builtinPresets(){
+  const file=(typeof window!=='undefined'&&Array.isArray(window.BUILTIN_PRESETS))?window.BUILTIN_PRESETS:null;
+  if(!file||!file.length) return builtinPresetsFromCode();
+  return file.filter(p=>p&&typeof p.id==='string'&&Array.isArray(p.schema)).map(p=>{
+    const d=defaultPreset(), x=clone(p);
+    return {...d, ...x, stages:{...d.stages, ...(x.stages||{})}, common:Array.isArray(x.common)?x.common:[]};
+  });
+}
 
 /* ============================================================
    [ 기본 공통 지시문 ]
@@ -1731,7 +1760,10 @@ function normCommon(arr){
   const out = [];
   (Array.isArray(arr)?arr:[]).forEach(x=>{ if(x && typeof x.content==='string' && x.content.trim())
     out.push({ name:x.name||'', content:x.content,
-      groups:(x.groups && x.groups!=='all' && x.groups.length)?x.groups:undefined, role:x.role||undefined }); });
+      groups:(x.groups && x.groups!=='all' && x.groups.length)?x.groups:undefined, role:x.role||undefined,
+      // 파일에 tags·enabled가 없으면 태그 없음·켜짐. 글로 적힌 태그, "false"·0 같은 값도 바로잡는다
+      tags:x.tags!=null?parseTags(Array.isArray(x.tags)?x.tags.join(','):x.tags):[],
+      enabled:!(x.enabled===false||x.enabled===0||/^(false|0)$/i.test(String(x.enabled==null?'':x.enabled).trim())) }); });
   return out;
 }
 function builtinCommon(){
@@ -1801,16 +1833,31 @@ function migrateWorldPreset(p){
    기본 공통 지시문의 켜기와 태그는 S.commonPrefs[이름]에 둔다(모든 양식 공통).
    태그가 붙은 지시문은 지금 쓰는 연결에 같은 태그가 하나라도 있을 때만 들어간다. 꺼 두면 태그와 상관없이 빠진다. */
 function parseTags(s){ return [...new Set(String(s||'').split(/[,\n]/).map(x=>x.trim().replace(/^#/,'')).filter(Boolean))]; }
-function activeConnTags(){ const c=S.connections.find(x=>x.id===S.activeConn); return new Set((c&&Array.isArray(c.tags))?c.tags:[]); }
+// 모델 이름으로 계열 태그를 붙인다. 저장하지 않고 그때그때 계산해서 모델을 바꾸면 따라 바뀐다.
+// 앞에서부터 처음 맞는 하나만 (anthropic/claude-… 같은 경로형 이름도 그대로 맞는다)
+const MODEL_FAMILY = [
+  [/claude/i,'클로드'], [/gemini|gemma/i,'제미나이'], [/gpt|(^|[\/:-])o[134](-|$)/i,'GPT'],
+  [/grok/i,'그록'], [/deepseek/i,'딥시크'], [/mistral|mixtral|magistral|codestral|ministral/i,'미스트랄'],
+  [/llama/i,'라마'], [/qwen|qwq/i,'큐웬'], [/command-|cohere/i,'코히어']
+];
+function modelTags(model){ const hit=MODEL_FAMILY.find(([re])=>re.test(String(model||''))); return hit?[hit[1]]:[]; }
+function connTags(c){ return c ? [...new Set([...(Array.isArray(c.tags)?c.tags:[]), ...modelTags(c.model)])] : []; }
+function activeConnTags(){ return new Set(connTags(S.connections.find(x=>x.id===S.activeConn))); }
 function tagsMatch(tags){ if(!Array.isArray(tags)||!tags.length) return true; const on=activeConnTags(); return tags.some(t=>on.has(t)); }
-function commonPref(name){ const p=(S.commonPrefs||{})[name]; return {off:!!(p&&p.off), tags:Array.isArray(p&&p.tags)?p.tags:[]}; }
-function setCommonPref(name, patch){ if(!S.commonPrefs) S.commonPrefs={}; S.commonPrefs[name]={...commonPref(name),...patch}; }
+// 파일(prompts.js·편집기 반영)의 enabled·tags가 기본값, 앱에서 바꾼 항목만 그 위에 덮는다.
+function commonPref(it){
+  const item = typeof it==='string' ? (builtinCommonItems().find(x=>x.name===it)||{name:it}) : it;
+  const p = (S.commonPrefs||{})[item.name]||{};
+  return { off: 'off' in p ? !!p.off : item.enabled===false,
+           tags: Array.isArray(p.tags) ? p.tags : (Array.isArray(item.tags) ? item.tags : []) };
+}
+function setCommonPref(name, patch){ if(!S.commonPrefs) S.commonPrefs={}; S.commonPrefs[name]={...(S.commonPrefs[name]||{}),...patch}; }
 function activeBuiltinCommons(v){
   const g = S.opts.group || 'character';
   try{
     return builtinCommonItems()
       .filter(it => it.groups.includes(g))
-      .filter(it => { const p=commonPref(it.name); return !p.off && tagsMatch(p.tags); })
+      .filter(it => { const p=commonPref(it); return !p.off && tagsMatch(p.tags); })
       .filter(it => g!=='world' || (it.name!=='NSFW Override' && (S.opts.nsfw || it.name!=='World NSFW Integration')))
       .map(it => ({ role: it.role, content: render(it.content, v) }));
   }catch(_){ return []; }

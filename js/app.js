@@ -107,11 +107,10 @@ function bootUI(){
 (function init(){
   if(WORKER_WINDOW) return;
   const had = load(); gcChatFiles();
-  if(!S.presets.length){ S.presets = builtinPresets(); S.activePreset = 'default'; }
+  if(!S.presets.length){ S.presets = builtinPresets().map(p=>({...p,_sig:presetSig(p)})); S.activePreset = 'default'; }
   else {
     const b = builtinPresets();
-    b.forEach(bp=>{ const ex = S.presets.find(p=>p.id===bp.id);
-      if(!ex) S.presets.push(bp); else { if(!ex.group) ex.group = bp.group; if(!ex.common) ex.common = []; } });
+    syncBuiltinPresets(b);
     S.presets.sort((x,y)=>{
       const ix=b.findIndex(p=>p.id===x.id), iy=b.findIndex(p=>p.id===y.id);
       return (ix<0?99:ix)-(iy<0?99:iy); });

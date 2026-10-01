@@ -608,7 +608,7 @@ function inheritedCommonHtml(){
   try{ items = builtinCommonItems().filter(it => it.groups.includes(g)); }catch(_){ items = []; }
   if(!items.length) return '';
   const rows = items.map(it=>{
-    const pref = commonPref(it.name);
+    const pref = commonPref(it);
     return `
     <details class="stitem inherited ${pref.off?'off':''}" data-name="${esc(it.name)}">
       <summary>
@@ -704,7 +704,8 @@ function builtinCommonItems(){
   return list.filter(x=>x && typeof x.content==='string' && x.content.trim())
     .map((x,i)=>({ name:String(x.name||('지시문 '+(i+1))), content:String(x.content),
       role:(x.role==='user'||x.role==='assistant')?x.role:'system',
-      groups:normalizeGroups(x.groups) }));
+      groups:normalizeGroups(x.groups),
+      tags:Array.isArray(x.tags)?x.tags:[], enabled:x.enabled!==false }));
 }
 function commonExistsIn(P, item){
   return (P.common||[]).some(c=>(c.content||'').trim()===item.content.trim());
@@ -879,7 +880,7 @@ $('#btnPresetDel').addEventListener('click', ()=>{
   S.activePreset = S.presets[0].id; save(); renderPresetSel(); renderSchema(); renderStages();
 });
 $('#btnPresetExport').addEventListener('click', ()=>
-  dl('orrery-preset-'+activePreset().name.replace(/\s+/g,'_')+'.json', JSON.stringify(activePreset(),null,2)));
+  dl('orrery-preset-'+activePreset().name.replace(/\s+/g,'_')+'.json', JSON.stringify(activePreset(),(k,v)=>k==='_sig'?undefined:v,2)));
 
 // 기본 양식 불러오기 — 지금 목록에 없는 내장 기본 양식을 골라 다시 추가
 function missingBuiltins(){
@@ -906,7 +907,7 @@ $('#restoreConfirm').addEventListener('click', ()=>{
   const pick = new Set($$('#restoreList .r-add').filter(c=>c.checked).map(c=>c.dataset.id));
   if(!pick.size){ $('#restoreModal').hidden = true; return; }
   const add = builtinPresets().filter(b=>pick.has(b.id));
-  add.forEach(b=>{ if(!b.common) b.common=[]; S.presets.push(b); });
+  add.forEach(b=>{ if(!b.common) b.common=[]; S.presets.push({...b,_sig:presetSig(b)}); });
   // 원래 내장 순서를 최대한 유지
   const order = builtinPresets().map(b=>b.id);
   S.presets.sort((x,y)=>{ const ix=order.indexOf(x.id), iy=order.indexOf(y.id); return (ix<0?99:ix)-(iy<0?99:iy); });

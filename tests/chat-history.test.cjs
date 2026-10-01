@@ -453,3 +453,55 @@ test('common instructions: built-in ones can be switched off for every form, and
   assert.equal(restored.run("commonPref('항상').off"), true);
   assert.deepEqual(plain(restored.run("commonPref('클로드 전용').tags")), ['클로드']);
 });
+
+test('the app reads common instructions without tags or enabled as untagged and on, and corrects malformed values', t => {
+  const a = boot(t);
+  const got = plain(a.run(`normCommon([{name:'a',content:'x'},{name:'b',content:'y',tags:'클로드',enabled:'false'},{name:'c',content:'z',enabled:0}]).map(x=>[x.tags,x.enabled])`));
+  assert.deepEqual(got, [[[],true],[['클로드'],false],[[],false]]);
+});
+
+test('model names add a family tag automatically, which common instructions follow', t => {
+  const a = boot(t);
+  const fam = m => plain(a.run(`modelTags(${JSON.stringify(m)})`));
+  assert.deepEqual(fam('claude-sonnet-5'), ['클로드']);
+  assert.deepEqual(fam('anthropic/claude-sonnet-4.5'), ['클로드']);
+  assert.deepEqual(fam('gemini-2.5-pro'), ['제미나이']);
+  assert.deepEqual(fam('google/gemini-2.5-pro'), ['제미나이']);
+  assert.deepEqual(fam('gpt-4o'), ['GPT']);
+  assert.deepEqual(fam('o3-mini'), ['GPT']);
+  assert.deepEqual(fam('chatgpt-4o-latest'), ['GPT']);
+  assert.deepEqual(fam('grok-4'), ['그록']);
+  assert.deepEqual(fam('deepseek-chat'), ['딥시크']);
+  assert.deepEqual(fam('open-mistral-nemo'), ['미스트랄']);
+  assert.deepEqual(fam('command-a-03-2025'), ['코히어']);
+  assert.deepEqual(fam('venice-uncensored'), []);
+  a.run(`window.BUILTIN_COMMON=[{name:'클로드 전용',content:'C',tags:['클로드'],groups:['all']}];
+    S.connections=[{id:'x',name:'x',provider:'openrouter',apiKey:'k',model:'anthropic/claude-sonnet-4.5'}];S.activeConn='x';applyGroup('world');CONN_OPEN.add('x');renderConns();`);
+  assert.deepEqual(plain(a.run('activeBuiltinCommons({}).map(c=>c.content)')), ['C']);
+  assert.match(a.$('#connList .c-tag.auto').textContent, /클로드/);
+  const model = a.$('#connList .c-model'); model.value='gemini-2.5-pro'; model.dispatchEvent(new a.w.Event('input',{bubbles:true}));
+  assert.deepEqual(plain(a.run('activeBuiltinCommons({}).map(c=>c.content)')), []);
+  assert.match(a.$('#connList .c-tag.auto').textContent, /제미나이/);
+});
+
+test('built-in forms come from builtin-presets.js and talk roles from talk-roles.js; untouched saved forms follow file changes, edited ones stay', t => {
+  const a = boot(t);
+  assert.ok(a.run('Array.isArray(window.BUILTIN_PRESETS) && window.BUILTIN_PRESETS.length>10'));
+  assert.ok(a.run("builtinPresets().some(p=>p.id==='prompt-forge') && TALK_ROLE.world.length>0"));
+  assert.equal(a.$('#talkRole option[value="critic"]').textContent, a.run('TALK_ROLE_LABEL.critic'));
+  // 처음 시작한 상태에서 모든 내장 양식은 지문을 갖는다
+  assert.ok(a.run('S.presets.every(p=>p._sig===presetSig(p))'));
+  // 앱에서 default 를 고친다
+  a.run("S.presets.find(p=>p.id==='default').name='내가 고친 기본 카드'");
+  // 파일이 바뀐다: world·default 이름이 바뀐 새 내장본
+  a.run("window.BUILTIN_PRESETS=window.BUILTIN_PRESETS.map(p=>p.id==='world'?{...p,name:'세계관 설계 v2'}:p.id==='default'?{...p,name:'기본 카드 v2'}:p);syncBuiltinPresets(builtinPresets())");
+  assert.equal(a.run("S.presets.find(p=>p.id==='world').name"), '세계관 설계 v2');
+  assert.equal(a.run("S.presets.find(p=>p.id==='default').name"), '내가 고친 기본 카드');
+  // 지문이 없던 예전 양식: 내장본과 같으면 지문만 달고, 다르면 건드리지 않는다
+  a.run("const w=S.presets.find(p=>p.id==='world');delete w._sig;syncBuiltinPresets(builtinPresets())");
+  assert.ok(a.run("!!S.presets.find(p=>p.id==='world')._sig"));
+  // 양식 내보내기에는 지문이 섞이지 않는다
+  a.run("switchPreset('world');window.__out=null;dl=(n,t)=>window.__out=t");
+  a.$('#btnPresetExport')?.click();
+  if (a.run('window.__out')) assert.ok(!a.run('window.__out').includes('_sig'));
+});

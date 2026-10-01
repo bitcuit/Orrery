@@ -12,6 +12,12 @@ function renderConnSel(){
   // 공통 지시문은 지금 연결의 태그에 따라 들어가고 빠지므로 표시를 다시 그린다.
   if(typeof renderCommon==='function' && $('#commonBox') && !$('#commonBox').contains(document.activeElement)) renderCommon();
 }
+// 직접 단 태그 + 모델 이름에서 나온 자동 태그(점선)
+function connTagChips(c){
+  const own=new Set(c.tags||[]);
+  return [...own].map(t=>`<span class="c-tag">#${esc(t)}</span>`).join('')
+    + modelTags(c.model).filter(t=>!own.has(t)).map(t=>`<span class="c-tag auto" title="모델 이름에서 자동으로 붙은 태그">#${esc(t)}</span>`).join('');
+}
 function connCheckHtml(c){
   const last=c._lastTest; if(!last) return '';
   const at=new Date(last.at||Date.now()).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
@@ -39,7 +45,7 @@ function renderConns(){
         <span class="dot ${c._ok===true?'ok':c._ok===false?'no':''}"></span>
         <span class="cn">${esc(c.name)}</span>
         <span class="c-sum">${esc(p.label||c.provider||'')}${c.model?' · '+esc(c.model):''}</span>
-        ${(c.tags||[]).map(t=>`<span class="c-tag">#${esc(t)}</span>`).join('')}
+        <span class="c-tagview">${connTagChips(c)}</span>
         ${c.id===S.activeConn ? '<span class="c-use-state" title="현재 생성 작업에 사용하는 연결">쓰는 중</span>' : '<button class="mini ghost c-use">이걸로 쓰기</button>'}
         <button class="mini ghost c-test" title="실제 API를 1회 호출합니다 · 짧은 입력 · 응답 최대 24토큰 · 업체가 알려준 실제 사용량 표시">확인</button>
         <button class="mini ghost c-dup" title="키·종류·주소는 그대로 두고 새 연결을 만듭니다 · 모델만 바꿔 쓸 때">복제</button>
@@ -70,7 +76,7 @@ function renderConns(){
         <div class="field" style="flex:0 0 150px"><label class="fl">&nbsp;</label>
           <button class="ghost c-models" style="width:100%">모델 목록 받기</button></div>
       </div>
-      <div class="field"><label class="fl">태그 <button type="button" class="qhelp" aria-label="연결 태그란" data-tip="공통 지시문에 같은 태그를 달면, 이 연결을 쓸 때만 그 지시문이 들어갑니다. 쉼표로 여러 개.">?</button></label>
+      <div class="field"><label class="fl">태그 <button type="button" class="qhelp" aria-label="연결 태그란" data-tip="공통 지시문에 같은 태그를 달면, 이 연결을 쓸 때만 그 지시문이 들어갑니다. 쉼표로 여러 개. 클로드·제미나이·GPT 같은 계열 태그는 모델 이름에서 자동으로 붙습니다(점선).">?</button></label>
         <input class="c-tags" value="${esc((c.tags||[]).join(', '))}" placeholder="예: 클로드, 긴 출력"></div>
       <details class="adv conn-advanced" ${c.provider==='custom'||c.provider==='local'?'open':''}>
       <summary>세부 연결 설정 · 주소와 응답 길이</summary>
@@ -115,9 +121,11 @@ $('#connList').addEventListener('click', e=>{
 $('#connList').addEventListener('input', e=>{
   const w = e.target.closest('.conn'); if(!w) return;
   const c = connById(w.dataset.id); if(!c) return;
-  if(e.target.classList.contains('c-tags')){ c.tags = parseTags(e.target.value); save(); if(typeof renderCommon==='function') renderCommon(); return; }
+  if(e.target.classList.contains('c-tags')){ c.tags = parseTags(e.target.value); save(); w.querySelector('.c-tagview').innerHTML=connTagChips(c); if(typeof renderCommon==='function') renderCommon(); return; }
   const m = {'c-name':'name','c-key':'apiKey','c-url':'baseUrl','c-model':'model','c-project':'project','c-location':'location'};
   for(const cls in m) if(e.target.classList.contains(cls)){ c[m[cls]] = e.target.value; if(cls!=='c-name') invalidateConnTest(c,w); save(); if(cls==='c-name') renderConnSel(); }
+  // 모델이 바뀌면 자동 태그와 공통 지시문 상태가 따라 바뀐다
+  if(e.target.classList.contains('c-model')){ w.querySelector('.c-tagview').innerHTML=connTagChips(c); if(typeof renderCommon==='function') renderCommon(); }
   const num = {'c-maxtok':'maxTokens','c-ctx':'contextLimit','c-temp':'temperature','c-topp':'topP'};
   for(const cls in num) if(e.target.classList.contains(cls)){
     const v = e.target.value.trim();

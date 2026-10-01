@@ -1,10 +1,10 @@
 {
-  "at": "2026-10-01 17:00",
+  "at": "2026-10-01 19:30",
   "by": "claude-code",
-  "doing": "기본 공통 지시문을 켜고 끌 수 있게 하고, 연결 태그와 같은 태그의 공통 지시문만 들어가게 함",
-  "where": "js/studio.js activeBuiltinCommons()·tagsMatch() · js/library.js inheritedCommonHtml()",
-  "state": "돌아감",
-  "next": "내보낸 롤플레이 프리셋을 실리태번·마리나라·리스AI에 실제로 가져와 확인하기",
+  "doing": "내장 양식·상담역을 파일로 떼고, 모델 이름 자동 태그와 편집기 확장을 넣어 커밋함 (prompts.js 제외)",
+  "where": "builtin-presets.js · talk-roles.js · js/studio.js syncBuiltinPresets() · prompt-editor.html(git 제외)",
+  "state": "미검증",
+  "next": "편집기에서 파일 연결 후 파일에 반영이 실제 파일을 고치는지 크롬에서 확인",
   "blocked": "",
   "session": {
     "id": "c9264113-94d9-4964-96e8-157af1c51a84",

@@ -1836,3 +1836,4 @@ html[data-theme="light"] .groups button.on .gico{filter:none}
 .ctag-state.on{color:var(--good)}
 .ctag-state.skip{color:var(--dim2);text-decoration:line-through}
 
+.c-tag.auto{border-style:dashed;color:var(--dim)}
