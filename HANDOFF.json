@@ -1,9 +1,9 @@
 {
-  "at": "2026-10-01 15:10",
+  "at": "2026-10-01 15:25",
   "by": "claude-code",
-  "doing": "롤플레이 프리셋 양식을 만들고 구획·마커 배치를 실리태번·마리나라·리스AI 형식으로 내보내게 함",
-  "where": "js/preset-export.js · js/studio.js presetRoleplay()",
-  "state": "미검증",
+  "doing": "사용자가 만든 세계·인물 양식도 대화 완성본 정리에 쓸 수 있게 함",
+  "where": "js/chat.js talkRecordPresets() · js/library.js 새 양식 만들기",
+  "state": "돌아감",
   "next": "내보낸 프리셋을 실리태번·마리나라·리스AI에 실제로 가져와 확인하기",
   "blocked": "",
   "session": {

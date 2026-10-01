@@ -379,3 +379,16 @@ test('roleplay preset: layout with markers, reorder and toggle, and exports for 
   assert.deepEqual(heads(st), ['진행 지침','역할','문체','금지 사항','출력 형식']);
   assert.deepEqual(heads(risu), ['진행 지침','역할','문체','금지 사항','출력 형식']);
 });
+
+test('user-made forms in the world or character group are offered for organizing a conversation', t => {
+  const a = boot(t);
+  a.run("applyGroup('world');tab('prompts');window.prompt=()=>'우리 세계 양식'");
+  a.$('#btnPresetBlank').click();
+  const made = plain(a.run("S.presets.find(p=>p.name==='우리 세계 양식')"));
+  assert.equal(made.group, 'world');
+  assert.equal(made.kind, 'world');
+  a.run("tab('talk');S.chat.role='world';S.chat.msgs=[{id:'u',role:'user',content:'정하자',includeHistory:true},{id:'b',role:'assistant',content:'좋아요',includeHistory:true}];openTalkRecord()");
+  const opts = [...a.$$('#talkRecordPreset option')].map(o=>o.textContent);
+  assert.ok(opts.includes('[세계] 우리 세계 양식'));
+  assert.ok(!opts.some(o=>/점검|양식 설계/.test(o)));
+});

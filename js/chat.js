@@ -775,12 +775,15 @@ $('#btnTalkToAsset').addEventListener('click', ()=>{
 /* ---- 대화 → 완성본 -------------------------------------------
    대화에서 확정된 것만 골라 양식 칸에 옮겨 성도(완성본)에 저장한다. */
 let TALK_RECORD_BUSY=false;
-function talkRecordPresets(){ return S.presets.filter(p=>['character','world'].includes(p.kind)&&Array.isArray(p.schema)&&p.schema.length); }
+// 세계·인물 분류의 양식이면 사용자가 만든 것도 쓴다. 점검 보고서·양식 설계는 완성본이 아니라 뺀다.
+function talkRecordPresets(){
+  return S.presets.filter(p=>['character','world'].includes(p.group)&&!['report','schema'].includes(p.kind)&&Array.isArray(p.schema)&&p.schema.length);
+}
 function openTalkRecord(){
   if(!talkHistoryMessages().length && !talkHistorySummary()) return toast('정리할 대화가 없습니다',1);
   const list=talkRecordPresets(), sel=$('#talkRecordPreset');
   const want=S.chat.role==='char'?'character':S.chat.role==='world'?'world':null;
-  const pick=(want&&list.find(p=>p.kind===want))||list.find(p=>p.id===S.activePreset)||list[0];
+  const pick=(want&&list.find(p=>p.group===want))||list.find(p=>p.id===S.activePreset)||list[0];
   sel.innerHTML=list.map(p=>`<option value="${esc(p.id)}" ${p===pick?'selected':''}>[${esc(GROUP_LABEL[p.group]||'')}] ${esc(p.name)}</option>`).join('');
   renderTalkRecordNote();
   $('#talkRecordModal').hidden=false; sel.focus();

@@ -834,7 +834,9 @@ $('#btnPresetBlank').addEventListener('click', ()=>{
   const p = defaultPreset();
   p.id = uid(); p.name = name;
   p.schema = [{key:'body', label:'본문', hint:'여기에 원하는 지시를 적으세요'}];
-  p.group = S.opts.group; S.presets.push(p); switchPreset(p.id);
+  // 만든 분류에 맞는 종류로. 인물이 아니면 캐릭터 카드 내보내기가 뜨지 않게.
+  p.group = S.opts.group; p.kind = {world:'world',character:'character',prompt:'prompt'}[S.opts.group]||'character';
+  S.presets.push(p); switchPreset(p.id);
   toast('만들었습니다 — 아래에서 칸과 지시문을 고치세요');
 });
 $('#btnPresetRename').addEventListener('click', ()=>{
