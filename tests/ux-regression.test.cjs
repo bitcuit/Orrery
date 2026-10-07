@@ -26,6 +26,7 @@ function boot(t, storage = {}) {
     const file = script.getAttribute('src').split('?')[0];
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   }
+  vm.runInContext('RETRY_DELAYS=[5,5]', context);   // 시험에서는 다시 시도 대기를 아주 짧게
   t.after(() => { w.close(); assert.deepEqual(errors, []); });
   return { w, run, $: selector => w.document.querySelector(selector) };
 }
@@ -165,7 +166,8 @@ function connection(app, extra = {}) {
   app.run(`S.connections=[${JSON.stringify({ id:'test', name:'Test', provider:'openai', apiKey:'test-only', model:'test-model', ...extra })}]; S.activeConn='test'; renderConnSel();`);
 }
 function response(content, ok = true) {
-  return { ok, status: ok ? 200 : 503, text: async () => JSON.stringify(ok
+  // 실패는 다시 시도해도 안 되는 오류(400)로 흉내 낸다. 503 같은 일시적 오류는 앱이 알아서 다시 시도한다
+  return { ok, status: ok ? 200 : 400, text: async () => JSON.stringify(ok
     ? { choices:[{ message:{ content } }] } : { error:{ message:content } }) };
 }
 function pendingFetch(app) {

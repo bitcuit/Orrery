@@ -349,6 +349,32 @@ function talkDeleteTurn(index){
   S.chat.msgs.splice(idxs[0], idxs.length);
   save(); renderChat();
 }
+/* ---- 긴 대화 화면 · 받는 중인 답 · 잘린 답 ---------------------------- */
+const CHAT_WINDOW=new Map(), CHAT_WINDOW_STEP=120;   // 대화창별로 지금 그리는 메시지 수
+// 받는 중인 답은 데이터에 넣지 않고 화면에만 그린다. 다 받으면 진짜 메시지가 된다
+function talkStreamHtml(draft, job){
+  return `<div class="msg bot streaming"><div class="msg-heading"><span class="who">${job.continuing?'상대 · 이어서 쓰는 중':'상대'}</span></div>`
+    +`<div class="msg-md">${draft?mdHtml(draft):'<span class="note">답을 받는 중…</span>'}</div></div>`;
+}
+const TALK_CUT_LABEL={length:'길이 제한으로 여기서 잘렸습니다', stopped:'중지해서 여기까지 받았습니다', broken:'연결이 끊겨 여기까지 받았습니다'};
+function talkCutHtml(m, i){
+  if(!m.cut || !TALK_CUT_LABEL[m.cut]) return '';
+  const last = i===S.chat.msgs.length-1 && !CHAT_JOBS.has(S.chatId);
+  return `<div class="chat-cut"><span>${TALK_CUT_LABEL[m.cut]}</span>${last?`<button type="button" class="mini ghost chat-continue" data-message-index="${i}">이어서 쓰기</button>`:''}</div>`;
+}
+function talkStreamUpdate(chat, job, text){
+  job.draft = text;
+  if(chat.id!==S.chatId || job.paint) return;
+  job.paint = setTimeout(()=>{ try{
+    job.paint = null;
+    if(chat.id!==S.chatId || job.draft==null) return;
+    const el = $('#chatLog .msg.streaming .msg-md'), log = $('#chatLog');
+    if(!el){ renderChat(true); return; }
+    const atBottom = log.scrollTop+log.clientHeight >= log.scrollHeight-60;
+    el.innerHTML = job.draft ? mdHtml(job.draft) : '<span class="note">답을 받는 중…</span>';
+    if(atBottom) log.scrollTop = log.scrollHeight;
+  }catch(_){ /* 창이 이미 닫혔으면 그만 */ } }, 60);
+}
 function renderChat(preserveScroll=false){
   // 새로고침 등으로 끊긴 요청은 지금 보고 있지 않은 대화창에도 남는다.
   chatList().forEach(c=>{ if(CHAT_JOBS.has(c.id)) return;
@@ -368,10 +394,15 @@ function renderChat(preserveScroll=false){
     // 같은 자료를 연달아 보냈으면 짧게 적으려고 직전 내 메시지의 자료를 기억해 둔다
     let lastSent=null;
     const prevSent=S.chat.msgs.map(m=>{ if(m.role!=='user') return null; const p=lastSent; lastSent=m.sent?JSON.stringify(m.sent):null; return p; });
-    box.innerHTML = wrapHtml + S.chat.msgs.map((m,i)=>{
+    // 긴 대화는 최근 것만 그린다. 위의 단추로 앞쪽을 더 펼친다
+    const limit=CHAT_WINDOW.get(S.chat.id)||CHAT_WINDOW_STEP, start=Math.max(0, S.chat.msgs.length-limit);
+    const moreHtml=start?`<button type="button" class="mini ghost chat-more">이전 메시지 ${start}개 더 보기</button>`:'';
+    const job=CHAT_JOBS.get(S.chat.id), draft=job&&job.kind==='send'&&job.draft!=null ? job.draft : null;
+    box.innerHTML = wrapHtml + moreHtml + S.chat.msgs.slice(start).map((m,j)=>{
+      const i=j+start;
       const excluded=talkTurnExcluded(i), completed=talkTurnIndexes(i).every(n=>!S.chat.msgs[n].status);
-      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span></div>${m.content?`<div class="msg-md">${mdHtml(m.content)}</div>`:''}${talkFilesHtml(m.files)}${m.role==='user'?talkSentHtml(m.sent, prevSent[i]):''}<div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${talkTurnButton('chat-copy',i,'이 메시지 복사',ICON_COPY)}${completed?talkTurnButton('chat-regen',i,'이 문답의 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div>${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
-    }).join('');
+      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span></div>${m.content?`<div class="msg-md">${mdHtml(m.content)}</div>`:''}${talkFilesHtml(m.files)}${m.role==='user'?talkSentHtml(m.sent, prevSent[i]):talkCutHtml(m,i)}<div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${talkTurnButton('chat-copy',i,'이 메시지 복사',ICON_COPY)}${completed?talkTurnButton('chat-regen',i,'이 문답의 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div>${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'&&draft===null?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
+    }).join('') + (draft!==null ? talkStreamHtml(draft, job) : '');
   }
   const t = tok(talkContext());
   const ct = tok(talkHistorySummary()+talkHistoryMessages().map(m=>m.content).join('\n'));
@@ -481,7 +512,7 @@ $('#talkAssetList').addEventListener('click', e=>{
    응답 몫과 시스템 지시(역할·정리·자료)를 뺀 나머지.
    대화가 그 80%에 닿으면 오래된 쪽을 요약해 '지금까지의 정리'에 합치고,
    최근 대화(한도의 40%, 최소 4개)는 원문으로 둔다 — 묻지 않고 알아서. */
-const TALK_CONTEXT_DEFAULT=64000, TALK_REPLY_TOKENS=2200, TALK_COMPACT_AT=0.8, TALK_KEEP_SHARE=0.4, TALK_KEEP_MIN=4, TALK_NUDGE_AT=0.7;
+const TALK_CONTEXT_DEFAULT=64000, TALK_REPLY_TOKENS=4096, TALK_COMPACT_AT=0.8, TALK_KEEP_SHARE=0.4, TALK_KEEP_MIN=4, TALK_NUDGE_AT=0.7;
 function talkSystemParts(chat){
   const sys=[];
   const custom=S.customTalkPrompts && S.customTalkPrompts[chat.role];
@@ -528,15 +559,16 @@ function applyTalkSummary(chat, text, dropped){
   chat.summary=text.trim(); chat.summaryIncluded=true;
   const drop=new Set(dropped); chat.msgs=chat.msgs.filter(m=>!drop.has(m));
 }
-function talkNeedsCompact(chat, conn, pendingMessage){
+function talkReplyTokens(conn){ return (conn&&conn.maxTokens)||TALK_REPLY_TOKENS; }
+function talkNeedsCompact(chat, conn, pendingMessage, shrink=1){
   if(!talkAutoCompactOn() || chat!==S.chat) return false;
-  const budget=talkBudget(conn, talkSystemParts(chat).join('\n\n'));
+  const budget=talkBudget(conn, talkSystemParts(chat).join('\n\n'))*shrink;
   return talkHistoryMessages(pendingMessage).reduce((a,m)=>a+msgTok(m),0) >= budget*TALK_COMPACT_AT;
 }
-async function autoCompactTalk(chat, conn, pendingMessage, job){
-  if(!talkNeedsCompact(chat, conn, pendingMessage)) return false;
+async function autoCompactTalk(chat, conn, pendingMessage, job, shrink=1){
+  if(!talkNeedsCompact(chat, conn, pendingMessage, shrink)) return false;
   const all=talkHistoryMessages(pendingMessage);
-  const budget=talkBudget(conn, talkSystemParts(chat).join('\n\n'));
+  const budget=talkBudget(conn, talkSystemParts(chat).join('\n\n'))*shrink;
   // 끝에서부터 남길 몫을 세고, 남는 쪽이 질문으로 시작하게(문답이 갈리지 않게) 자른다
   let keep=0, used=0;
   for(let i=all.length-1;i>=0;i--){
@@ -548,13 +580,27 @@ async function autoCompactTalk(chat, conn, pendingMessage, job){
   while(cut>0 && all[cut] && all[cut].role!=='user') cut--;
   const old=all.slice(0,cut).filter(m=>m!==pendingMessage);
   if(old.length<2) return false;
-  const prev=talkHistorySummary();
+  // 정리할 앞부분이 크면 요약 요청도 한도를 넘는다. 한도에 맞는 묶음으로 나눠 차례로 요약하고,
+  // 앞 묶음의 정리를 다음 묶음이 이어받는다. 혼자서도 한도를 넘는 메시지는 잘라 넣는다.
+  const total=(conn&&conn.contextLimit)||TALK_CONTEXT_DEFAULT, SUM_REPLY=1500, OVERHEAD=600;
   const wired=await Promise.all(old.map(talkWireMessage));
-  const convo=(prev?'[지금까지의 정리]\n'+prev+'\n\n':'')+wired.map((w,i)=>(old[i].role==='user'?'[나] ':'[상대] ')+w.content+(w.images?`\n(이미지 ${w.images.length}장)`:'')).join('\n\n');
-  const out=await callProvider(conn, talkSummaryRequest(convo, !!prev), {temperature:0.3, maxTokens:1500,
-    concurrent:true, onStart:c=>{ job.controller=c; }});
-  if(job.cancelled) throw new Error('__ABORT__');
-  applyTalkSummary(chat, out, old);
+  const lines=wired.map((w,i)=>(old[i].role==='user'?'[나] ':'[상대] ')+w.content+(w.images?`\n(이미지 ${w.images.length}장)`:''));
+  let summary=talkHistorySummary(), i=0;
+  while(i<lines.length){
+    const room=Math.max(1000, total-SUM_REPLY-OVERHEAD-tok(summary));
+    const chunk=[]; let used=0;
+    while(i<lines.length){
+      let line=lines[i]; const t=tok(line);
+      if(chunk.length && used+t>room) break;
+      if(t>room) line=line.slice(0, room)+'\n…(길어서 뒷부분 생략)';
+      chunk.push(line); used+=Math.min(t,room); i++;
+    }
+    const convo=(summary?'[지금까지의 정리]\n'+summary+'\n\n':'')+chunk.join('\n\n');
+    summary=(await callProvider(conn, talkSummaryRequest(convo, !!summary), {temperature:0.3, maxTokens:SUM_REPLY,
+      concurrent:true, onStart:c=>{ job.controller=c; }})).trim();
+    if(job.cancelled) throw new Error('__ABORT__');
+  }
+  applyTalkSummary(chat, summary, old);
   save();
   toast(`대화가 길어져 앞부분 ${old.length}개를 자동으로 정리했습니다`);
   return true;
@@ -781,33 +827,80 @@ async function sendChat(retryId){
   message.includeHistory=true; message.status='pending'; delete message.error;
   if(!retry){ chat.msgs.push(message); inp.value=''; chat.inputDraft=''; CHAT_PENDING.delete(chat.id); renderChatAttach(); }
   try{
-  renderChat(); save();
-  // 넘치기 전에 오래된 앞부분을 자동 정리한다. 실패해도 대화는 막지 않고 분량에 맞춰 자른 채 보낸다.
-  // 정리할 게 없으면 기다리지 않고 바로 보낸다
-  try{ if(talkNeedsCompact(chat, conn, message) && await autoCompactTalk(chat, conn, message, job)) renderChat(chat.id!==S.chatId); }
-  catch(err){ if(err.message==='__ABORT__') throw err; log('대화 자동 정리 실패 · 앞부분을 잘라 보냅니다: '+err.message,'err'); }
-  // 보낼 내용은 지금 이 자리에서 다 굳힌다 — 기다리는 동안 다른 창으로 옮겨도 흔들리지 않게.
-  const sys = talkSystemParts(chat);
-  const sent = talkSentSnapshot(chat);
-  if(sent) message.sent = sent; else delete message.sent;
-  // 개수가 아니라 분량으로: 한도 안에 드는 만큼 최근 대화부터 싣는다.
-  // 첨부가 있을 때만 파일을 읽느라 기다린다. 글뿐이면 바로 보낸다.
-  const history = talkHistoryFit(message, talkBudget(conn, sys.join('\n\n')));
-  const msgs = [{role:'system', content: sys.join('\n\n')}].concat(
-    history.some(m=>m.files&&m.files.length) ? await Promise.all(history.map(talkWireMessage))
-      : history.map(m=>({role:m.role, content:m.content})));
-    const out = await callProvider(conn, msgs, {temperature:0.85, maxTokens:2200,
-      concurrent:true, onStart:c=>{ job.controller=c; }});
-    if(job.cancelled) throw new Error('__ABORT__');
+    renderChat(); save();
+    let out='', cut=false;
+    // 입력 한도 초과로 되돌아오면 대화 몫을 절반으로 낮춰 앞부분을 더 정리하고 한 번 더 보낸다
+    for(let shrink=1;;shrink/=2){
+      try{
+        // 넘치기 전에 오래된 앞부분을 자동 정리한다. 실패해도 대화는 막지 않고 분량에 맞춰 자른 채 보낸다.
+        // 정리할 게 없으면 기다리지 않고 바로 보낸다
+        try{ if(talkNeedsCompact(chat, conn, message, shrink) && await autoCompactTalk(chat, conn, message, job, shrink)) renderChat(chat.id!==S.chatId); }
+        catch(err){ if(err.message==='__ABORT__') throw err; log('대화 자동 정리 실패 · 앞부분을 잘라 보냅니다: '+err.message,'err'); }
+        // 보낼 내용은 지금 이 자리에서 다 굳힌다 — 기다리는 동안 다른 창으로 옮겨도 흔들리지 않게.
+        const sys = talkSystemParts(chat);
+        const sent = talkSentSnapshot(chat);
+        if(sent) message.sent = sent; else delete message.sent;
+        // 개수가 아니라 분량으로: 한도 안에 드는 만큼 최근 대화부터 싣는다.
+        // 첨부가 있을 때만 파일을 읽느라 기다린다. 글뿐이면 바로 보낸다.
+        const history = talkHistoryFit(message, talkBudget(conn, sys.join('\n\n'))*shrink);
+        const msgs = [{role:'system', content: sys.join('\n\n')}].concat(
+          history.some(m=>m.files&&m.files.length) ? await Promise.all(history.map(talkWireMessage))
+            : history.map(m=>({role:m.role, content:m.content})));
+        job.draft = ''; renderChat(chat.id!==S.chatId);   // 보내자마자 '받는 중' 말풍선
+        out = await callProvider(conn, msgs, {temperature:0.85, maxTokens:talkReplyTokens(conn), concurrent:true,
+          onStart:c=>{ job.controller=c; }, onDelta:t=>talkStreamUpdate(chat, job, t), onMeta:m=>{ cut=!!m.truncated; }});
+        break;
+      }catch(err){
+        if(shrink===1 && err.message!=='__ABORT__' && !String(err.partial||'').trim() && CONTEXT_OVERFLOW_RE.test(err.message)){
+          job.draft = null; log('입력 한도를 넘어 앞부분을 더 정리하고 다시 보냅니다','err'); continue;
+        }
+        throw err;
+      }
+    }
     delete message.status; delete message.error;
-    chat.msgs.push({id:uid(),role:'assistant',content:out.trim(),includeHistory:true});
+    chat.msgs.push({id:uid(),role:'assistant',content:out.trim(),includeHistory:true,...(cut?{cut:'length'}:{})});
   }catch(err){
-    message.status='failed'; message.error=err.message==='__ABORT__'?'요청을 중지했습니다. 메시지는 보관돼 있습니다.':err.message;
+    const partial=String(err.partial||'').trim();
+    if(partial){
+      // 중지했거나 도중에 끊겨도 받은 데까지는 답으로 남기고, '이어서 쓰기'로 마저 받는다
+      delete message.status; delete message.error;
+      chat.msgs.push({id:uid(),role:'assistant',content:partial,includeHistory:true,cut:err.message==='__ABORT__'?'stopped':'broken'});
+    } else {
+      message.status='failed'; message.error=err.message==='__ABORT__'?'요청을 중지했습니다. 메시지는 보관돼 있습니다.':err.message;
+    }
     if(err.message!=='__ABORT__') showErr(err);
   }
   // 보고 있지 않은 대화창이 끝났으면 지금 읽는 자리를 흔들지 않는다.
-  finally{ CHAT_JOBS.delete(chat.id); save(); renderChat(chat.id!==S.chatId); }
+  finally{ job.draft=null; CHAT_JOBS.delete(chat.id); save(); renderChat(chat.id!==S.chatId); }
 }
+// 잘린(길이 제한·중지·끊김) 마지막 답을 그 자리에서 마저 받는다. 받은 글은 같은 답 뒤에 붙인다
+async function continueChat(index){
+  const chat=S.chat, msg=chat.msgs[index];
+  if(CHAT_JOBS.has(chat.id) || !msg || msg.role!=='assistant' || !msg.cut || index!==chat.msgs.length-1) return;
+  const conn=S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) return toast('먼저 연결을 만들어 주세요',1);
+  const job={kind:'send',controller:null,cancelled:false,continuing:true,draft:''};
+  CHAT_JOBS.set(chat.id,job); touchChat(chat);
+  let more='', cut=false;
+  try{
+    renderChat();
+    const sys=talkSystemParts(chat);
+    const history=talkHistoryFit(null, talkBudget(conn, sys.join('\n\n')));
+    const msgs=[{role:'system',content:sys.join('\n\n')}].concat(
+      history.some(m=>m.files&&m.files.length) ? await Promise.all(history.map(talkWireMessage)) : history.map(m=>({role:m.role,content:m.content})),
+      [{role:'user',content:'(바로 앞 답이 중간에 끊겼다. 끊긴 지점에서 그대로 이어서 써라. 앞부분을 되풀이하거나 요약하지 말고, 머리말 없이 이어지는 글만 써라.)'}]);
+    more=await callProvider(conn, msgs, {temperature:0.85, maxTokens:talkReplyTokens(conn), concurrent:true,
+      onStart:c=>{ job.controller=c; }, onDelta:t=>talkStreamUpdate(chat, job, t), onMeta:m=>{ cut=!!m.truncated; }});
+    msg.content=talkJoin(msg.content, more); if(cut) msg.cut='length'; else delete msg.cut;
+  }catch(err){
+    const partial=String(err.partial||'').trim();
+    if(partial){ msg.content=talkJoin(msg.content, partial); msg.cut=err.message==='__ABORT__'?'stopped':'broken'; }
+    if(err.message!=='__ABORT__') showErr(err);
+  }
+  finally{ job.draft=null; CHAT_JOBS.delete(chat.id); save(); renderChat(chat.id!==S.chatId); }
+}
+// 끊긴 문장 중간이면 그대로 붙이고, 문단 끝이면 줄을 바꾼다
+function talkJoin(a, b){ a=String(a||''); b=String(b||''); return /[\s]$/.test(a) || /^[\s]/.test(b) ? a+b : a+(/[.!?。」』"')\]]$/.test(a.trim())?'\n\n':'')+b; }
 function stopChat(id){
   const job=CHAT_JOBS.get(id); if(!job) return;
   job.cancelled=true;
@@ -840,6 +933,14 @@ $('#chatLog').addEventListener('click',e=>{
       ? button.dataset.summary===summary : button.dataset.messageIndex===messageIndex)?.focus({preventScroll:true});
     return;
   }
+  if(e.target.closest('.chat-more')){
+    // 앞쪽을 더 펼쳐도 지금 읽던 자리는 그대로 둔다
+    const box=$('#chatLog'), fromBottom=box.scrollHeight-box.scrollTop;
+    CHAT_WINDOW.set(S.chat.id, (CHAT_WINDOW.get(S.chat.id)||CHAT_WINDOW_STEP)+CHAT_WINDOW_STEP);
+    renderChat(true); box.scrollTop=box.scrollHeight-fromBottom; return;
+  }
+  const cont=e.target.closest('.chat-continue');
+  if(cont) return continueChat(Number(cont.dataset.messageIndex));
   const copyBtn=e.target.closest('.chat-copy');
   if(copyBtn){ const m=S.chat.msgs[Number(copyBtn.dataset.messageIndex)]; if(m) copy(m.content); return; }
   const regen=e.target.closest('.chat-regen');

@@ -23,6 +23,7 @@ function boot(t, saved = '{}') {
     const file = script.getAttribute('src').split('?')[0];
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, {filename:file});
   }
+  vm.runInContext('RETRY_DELAYS=[5,5]', context);   // 시험에서는 다시 시도 대기를 아주 짧게
   t.after(() => { w.close(); assert.deepEqual(errors, []); });
   return {w,run,$:selector=>w.document.querySelector(selector),$$:selector=>w.document.querySelectorAll(selector)};
 }
@@ -516,23 +517,31 @@ test('chat history is sent by token budget instead of a 24-message cap', async t
   assert.equal(requests[0].messages.length, 1+41);   // 시스템 + 40개 + 새 질문, 잘림 없음
 });
 
-test('when the conversation nears the connection limit, older turns are summarized automatically and recent ones stay verbatim', async t => {
+test('when the conversation nears the connection limit, older turns are summarized automatically (in chunks that fit) and recent ones stay verbatim', async t => {
   const a = boot(t);
-  const requests = stubReplies(a, ['- 정해진 것: 항구 도시', '이어서 답합니다']);
-  a.run("S.connections[0].contextLimit=8000");
-  const long = '가'.repeat(1500);   // 메시지마다 500토큰쯤
+  a.run("S.connections=[{id:'test',name:'Test',provider:'openai',apiKey:'k',model:'m',contextLimit:8000}];S.activeConn='test'");
+  const requests = []; let n = 0;
+  a.w.fetch = async (_u,o) => {
+    const body = JSON.parse(o.body); requests.push(body);
+    const isSummary = /압축 정리/.test(body.messages[0].content);
+    const content = isSummary ? '- 정해진 것: 항구 도시 '+(++n) : '이어서 답합니다';
+    return {ok:true,status:200,text:async()=>JSON.stringify({choices:[{message:{content}}]})};
+  };
+  const long = '가'.repeat(1500);   // 메시지마다 1,500토큰쯤 (한국어는 글자당 한 토큰으로 어림)
   a.run(`S.chat.msgs=Array.from({length:16},(_,i)=>({id:'m'+i,role:i%2?'assistant':'user',content:'${long} '+i,includeHistory:true}));renderChat();`);
   a.$('#chatIn').value='다음 질문'; await a.run('sendChat()');
-  assert.equal(requests.length, 2);
-  assert.match(JSON.stringify(requests[0].messages), /압축 정리/);
-  assert.equal(a.run('S.chat.summary'), '- 정해진 것: 항구 도시');
+  const sums = requests.filter(r=>/압축 정리/.test(r.messages[0].content));
+  assert.ok(sums.length >= 2, '한도에 맞게 나눠 여러 번 요약');
+  for (const r of sums) assert.ok(a.run(`tok(${JSON.stringify(r.messages.map(m=>m.content).join(''))})`) <= 8000-1500, '요약 요청마다 한도 안');
+  assert.match(sums[1].messages[1].content, /\[지금까지의 정리\][\s\S]*항구 도시 1/);   // 앞 묶음 요약을 이어받음
+  assert.equal(a.run('S.chat.summary'), '- 정해진 것: 항구 도시 '+n);
   const kept = plain(a.run('S.chat.msgs.map(m=>m.id||"")'));
   assert.ok(!kept.includes('m0'));                 // 오래된 앞부분은 정리됨
   assert.ok(kept.includes('m15'));                 // 최근 것은 원문 그대로
-  assert.equal(a.run("S.chat.msgs.find(m=>m.id===S.chat.msgs.filter(x=>x.role==='user'&&x.id&&x.id.startsWith('m'))[0]?.id)?.role"), 'user');
-  const sys = requests[1].messages[0].content;
-  assert.match(sys, /지금까지 나눈 대화를 압축한 정리[\s\S]*항구 도시/);
-  assert.equal(requests[1].messages[1].role, 'user');  // 남은 대화는 질문으로 시작
+  const last = requests.at(-1);
+  assert.match(last.messages[0].content, /지금까지 나눈 대화를 압축한 정리[\s\S]*항구 도시/);
+  assert.equal(last.messages[1].role, 'user');      // 남은 대화는 질문으로 시작
+  assert.equal(a.run("S.chat.msgs.at(-1).content"), '이어서 답합니다');
 });
 
 test('with auto summary off, the oldest turns are trimmed to fit and the summary nudge appears', async t => {
@@ -589,4 +598,127 @@ test('my message shows which materials went with it, briefly when unchanged', as
   // 칩을 누르면 그 재료를 크게 본다
   a.$('.msg.user .sent-chip[data-id="a1"]').click();
   assert.equal(a.$('#assetViewModal').hidden, false);
+});
+
+/* ---- 채팅 앱처럼 길게: 스트리밍 · 잘림 · 이어서 쓰기 · 다시 시도 · 긴 화면 ---- */
+const { TextEncoder: NodeTextEncoder, TextDecoder: NodeTextDecoder } = require('node:util');
+function sse(chunks, signal, hangAt = -1) {
+  const enc = new NodeTextEncoder(); let i = 0, rejectRead = null;
+  const abortErr = () => Object.assign(new Error('aborted'), { name:'AbortError' });
+  if (signal) signal.addEventListener('abort', () => rejectRead && rejectRead(abortErr()));
+  return { ok:true, status:200, headers:{ get:()=>null }, body:{ getReader:()=>({ read:()=>new Promise((res, rej) => {
+    if (signal && signal.aborted) return rej(abortErr());
+    rejectRead = rej;
+    if (i === hangAt) return;                       // 여기서 멈춰 중지를 기다린다
+    setTimeout(() => i >= chunks.length ? res({ done:true }) : res({ done:false, value:enc.encode(chunks[i++]) }), 5);
+  }) }) } };
+}
+const oai = (text, finish) => 'data: ' + JSON.stringify({ choices:[{ delta:{ content:text }, finish_reason:finish||null }] }) + '\n\n';
+function streamApp(t) {
+  const a = boot(t);
+  a.w.TextDecoder = NodeTextDecoder;
+  a.run("S.connections=[{id:'c',name:'C',provider:'openai',apiKey:'k',model:'gpt-4o'}];S.activeConn='c';tab('talk');renderChat();");
+  return a;
+}
+const tick = ms => new Promise(r => setTimeout(r, ms));
+const json = (status, obj) => ({ ok:status<400, status, headers:{ get:()=>null }, text:async()=>JSON.stringify(obj) });
+
+test('replies stream into the chat as they arrive and become a normal message at the end', async t => {
+  const a = streamApp(t);
+  const bodies = [];
+  a.w.fetch = async (_u, o) => { bodies.push(JSON.parse(o.body)); return sse([oai('소금기 '), oai('어린 '), oai('항구입니다.', 'stop'), 'data: [DONE]\n\n'], o.signal); };
+  a.$('#chatIn').value = '분위기?';
+  const job = a.run('sendChat()');
+  await tick(14);
+  assert.ok(a.$('#chatLog .msg.streaming'), '받는 중 말풍선');
+  await job;
+  assert.equal(bodies[0].stream, true);
+  assert.equal(bodies[0].max_tokens, 4096);
+  assert.equal(a.$('#chatLog .msg.streaming'), null);
+  assert.equal(a.run('S.chat.msgs.at(-1).content'), '소금기 어린 항구입니다.');
+  assert.equal(a.run('S.chat.msgs.at(-1).cut'), undefined);
+});
+
+test('a reply cut by the length limit is marked and can be continued in place', async t => {
+  const a = streamApp(t);
+  const bodies = []; let n = 0;
+  a.w.fetch = async (_u, o) => { bodies.push(JSON.parse(o.body));
+    return ++n === 1 ? sse([oai('첫 문단은 여기까지'), oai('', 'length')], o.signal) : sse([oai(' 이어지는 뒷부분.', 'stop')], o.signal); };
+  a.$('#chatIn').value = '길게'; await a.run('sendChat()');
+  assert.equal(a.run('S.chat.msgs.at(-1).cut'), 'length');
+  assert.match(a.$('#chatLog .chat-cut').textContent, /길이 제한/);
+  a.$('#chatLog .chat-continue').click();
+  for (let i = 0; i < 40 && a.run('CHAT_JOBS.size'); i++) await tick(10);
+  assert.match(bodies[1].messages.at(-1).content, /끊긴 지점에서 그대로 이어서/);
+  assert.equal(bodies[1].messages.at(-2).role, 'assistant');
+  assert.equal(a.run('S.chat.msgs.length'), 2);
+  assert.equal(a.run('S.chat.msgs.at(-1).content'), '첫 문단은 여기까지 이어지는 뒷부분.');
+  assert.equal(a.run('S.chat.msgs.at(-1).cut'), undefined);
+});
+
+test('stopping mid-stream keeps what arrived as the answer, marked as stopped', async t => {
+  const a = streamApp(t);
+  a.w.fetch = async (_u, o) => sse([oai('여기까지 '), oai('받았다')], o.signal, 2);
+  a.$('#chatIn').value = '질문';
+  const job = a.run('sendChat()');
+  await tick(40);
+  a.run('stopChat(S.chatId)');
+  await job;
+  assert.equal(a.run('S.chat.msgs[0].status'), undefined);
+  assert.equal(a.run('S.chat.msgs.at(-1).content'), '여기까지 받았다');
+  assert.equal(a.run('S.chat.msgs.at(-1).cut'), 'stopped');
+});
+
+test('a context-length error makes the chat trim harder and send once more; transient errors are retried', async t => {
+  const a = streamApp(t);
+  const long = '가'.repeat(3000);
+  a.run("S.chat.msgs=Array.from({length:12},(_,i)=>({id:'m'+i,role:i%2?'assistant':'user',content:'" + long + " '+i,includeHistory:true}));renderChat();");
+  const bodies = []; let sends = 0;
+  a.w.fetch = async (_u, o) => {
+    const b = JSON.parse(o.body); bodies.push(b);
+    if (/압축 정리/.test(b.messages[0].content)) return json(200, { choices:[{ message:{ content:'- 정리됨' } }] });
+    sends++;
+    if (sends === 1) return json(400, { error:{ message:"This model's maximum context length is 8192 tokens" } });
+    if (sends === 2) return json(503, { error:{ message:'busy' } });
+    return sse([oai('되었다', 'stop')], o.signal);
+  };
+  a.$('#chatIn').value = '다음'; await a.run('sendChat()');
+  const real = bodies.filter(b => !/압축 정리/.test(b.messages[0].content));
+  assert.ok(bodies.some(b => /압축 정리/.test(b.messages[0].content)), '한도 초과 뒤 앞부분 정리');
+  assert.equal(real.length, 3, '한도 초과 → 다시 보냄(503) → 다시 시도');
+  assert.ok(real.at(-1).messages.length < real[0].messages.length, '두 번째부터는 더 줄여서');
+  assert.equal(a.run('S.chat.msgs.at(-1).content'), '되었다');
+});
+
+test('long chats render only the latest messages with a button to show earlier ones', t => {
+  const a = streamApp(t);
+  a.run("S.chat.msgs=Array.from({length:300},(_,i)=>({id:'m'+i,role:i%2?'assistant':'user',content:'말 '+i,includeHistory:true}));renderChat();");
+  assert.equal(a.w.document.querySelectorAll('#chatLog .msg:not(.wrap)').length, 120);
+  assert.match(a.$('#chatLog .chat-more').textContent, /180개/);
+  a.$('#chatLog .chat-more').click();
+  assert.equal(a.w.document.querySelectorAll('#chatLog .msg:not(.wrap)').length, 240);
+  assert.equal(a.$('#chatLog .msg.user [data-message-index]').dataset.messageIndex, '60');
+});
+
+test('Claude and Gemini stream pieces are read, including length cut-offs', t => {
+  const a = streamApp(t);
+  const claude = ['event: content_block_delta','data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"안"}}','data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"녕"}}','data: {"type":"message_delta","delta":{"stop_reason":"max_tokens"}}'].join('\n');
+  const gem = ['data: {"candidates":[{"content":{"parts":[{"text":"하"}]}}]}','data: {"candidates":[{"content":{"parts":[{"text":"이"}]},"finishReason":"MAX_TOKENS"}]}'].join('\n');
+  const read = (prov, text) => plain(a.run('(()=>{let cut=false;const out=sseText(' + JSON.stringify(text) + ', PROV.' + prov + ', ()=>{}, ()=>{cut=true});return [out,cut];})()'));
+  assert.deepEqual(read('anthropic', claude), ['안녕', true]);
+  assert.deepEqual(read('gemini', gem), ['하이', true]);
+  assert.match(a.run("PROV.gemini.chat({model:'g',apiKey:'k'},[{role:'user',content:'x'}],{stream:true}).url"), /:streamGenerateContent\?alt=sse&key=/);
+  assert.equal(a.run("PROV.anthropic.chat({model:'claude-sonnet-5',apiKey:'k'},[{role:'user',content:'x'}],{stream:true}).body.stream"), true);
+  assert.equal(a.run("tok('안녕하세요')"), 5);
+});
+
+test('saving warns once when browser storage passes 80%', t => {
+  const a = boot(t);
+  const toasts = [];
+  a.run('window.__t=[];const _t=toast;toast=(m,b)=>{window.__t.push(m);}');
+  a.run("STORAGE_OTHERS=4300000;STORAGE_OTHERS_AT=Date.now();STORAGE_WARNED=false;save();save();");
+  const msgs = a.run('window.__t').filter(m=>/저장 공간/.test(m));
+  assert.equal(msgs.length, 1);
+  a.run("STORAGE_OTHERS=0;save();");
+  assert.equal(a.run('STORAGE_WARNED'), false);
 });

@@ -23,6 +23,7 @@ function boot(t, saved = '{}') {
     const file = script.getAttribute('src').split('?')[0];
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, {filename:file});
   }
+  vm.runInContext('RETRY_DELAYS=[5,5]', context);   // 시험에서는 다시 시도 대기를 아주 짧게
   t.after(() => { w.close(); assert.deepEqual(errors, []); });
   return {w,run,$:selector=>w.document.querySelector(selector)};
 }

@@ -1857,3 +1857,10 @@ button.iconbtn.labeled .ic{width:20px;height:20px}
 button.mini.ghost{border-color:var(--c34)}
 /* 양식 도구 줄은 선택 상자 아래 한 줄로 */
 .preset-tools{flex:1 1 100%}
+
+/* ---------- 받는 중인 답 · 잘린 답 · 긴 대화 ---------- */
+.msg.streaming .msg-md::after{content:'';display:inline-block;width:7px;height:1.05em;margin-left:2px;vertical-align:-2px;background:var(--brass-d);animation:caret-blink 1s steps(1) infinite}
+@keyframes caret-blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.msg.streaming .msg-md::after{animation:none}}
+.chat-cut{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;white-space:normal;font-size:12px;color:var(--dim2)}
+.chat-more{align-self:center;margin:4px 0 8px}

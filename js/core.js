@@ -52,7 +52,11 @@ function mdHtml(src){
   return out.map(p=>p.b||p.t.replace(/^\n+|\n+$/g,'')).join('');
 }
 const uid = () => Math.random().toString(36).slice(2,10);
-const tok = s => Math.ceil(String(s||'').length/3);
+// 토큰 어림. 한국어·일본어·한자는 글자 하나가 한 토큰 가까이 되므로 따로 센다
+// (예전 '글자 ÷ 3'은 한국어를 크게 적게 세서 긴 대화가 모델 한도를 넘을 수 있었다).
+// 모델마다 다르니 넉넉하게(많게) 잡는다 — 적게 세면 한도 초과 오류가 난다.
+const CJK_RE = /[ᄀ-ᇿ぀-ヿ㄰-㆏㐀-䶿一-鿿가-힯豈-﫿]/g;
+const tok = s => { s = String(s||''); const cjk = (s.match(CJK_RE)||[]).length; return Math.ceil(cjk + (s.length-cjk)/3.5); };
 const clone = o => JSON.parse(JSON.stringify(o));
 
 const KEY = 'orrery.v1';
@@ -307,21 +311,45 @@ function setSaveState(msg, kind, persist){
   el.textContent=msg||''; el.className='save-state '+(kind||''); el.hidden=!msg;
   if(msg&&!persist) SAVE_STATE_TIMER=setTimeout(()=>{ el.hidden=true; },1400);
 }
+/* --- 저장 공간 ---
+   크롬 기준 이 앱이 쓸 수 있는 localStorage 는 약 520만 글자(2026-10 크롬에서 직접 채워 잼).
+   80%를 넘으면 한 번 알린다. 다른 키들은 무거우니 1분에 한 번만 다시 센다. */
+const STORAGE_ROOM = 5200000, STORAGE_WARN_AT = 0.8;
+let STORAGE_OTHERS = null, STORAGE_OTHERS_AT = 0, STORAGE_WARNED = false;
+function storageUsed(mainLen){
+  if(STORAGE_OTHERS===null || Date.now()-STORAGE_OTHERS_AT > 60000){
+    let n=0;
+    try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k!==KEY) n+=k.length+(localStorage.getItem(k)||'').length; } }catch(_){}
+    STORAGE_OTHERS=n; STORAGE_OTHERS_AT=Date.now();
+  }
+  return STORAGE_OTHERS + KEY.length + mainLen;
+}
+function checkStorageRoom(mainLen){
+  const used = storageUsed(mainLen), share = used/STORAGE_ROOM;
+  if(share < STORAGE_WARN_AT){ STORAGE_WARNED=false; return share; }
+  if(!STORAGE_WARNED){
+    STORAGE_WARNED=true;
+    log(`브라우저 저장 공간 ${Math.round(share*100)}% 사용 (${used.toLocaleString()} / 약 ${STORAGE_ROOM.toLocaleString()}자)`,'err');
+    toast(`저장 공간을 ${Math.round(share*100)}% 썼습니다 · 전체 백업을 만들고, 다 쓴 대화창이나 재료를 지워 주세요`,1);
+  }
+  return share;
+}
 function save(){
   if(WORKER_WINDOW) return true;
   if(typeof syncActiveWorkspace==='function') syncActiveWorkspace();
   normalizeAssetFolders();
   try{ if(typeof persistOwnedWorkspaces==='function') persistOwnedWorkspaces();
     if(typeof persistSharedRecords==='function') persistSharedRecords();
-    localStorage.setItem(KEY, JSON.stringify({
+    const payload = JSON.stringify({
     connections:S.connections, activeConn:S.activeConn,
     presets:S.presets, activePreset:S.activePreset,
     opts:S.opts, library:S.library, chats:chatList(), chatId:S.chatId, customTalkPrompts:S.customTalkPrompts, commonPrefs:S.commonPrefs, talkAutoCompact:S.talkAutoCompact, logVerbose:S.logVerbose,
     workspaces:S.workspaces, activeWorkspaceId:S.activeWorkspaceId,
     assetFolders:S.assetFolders,
     assets:S.assets.map(a=>clone(normalizeAssetMetadata(a)))
-  }));
-    SAVE_FAILED=false; setSaveState('자동 저장됨','ok'); return true;
+  });
+    localStorage.setItem(KEY, payload);
+    SAVE_FAILED=false; setSaveState('자동 저장됨','ok'); checkStorageRoom(payload.length); return true;
   }catch(e){
     log('저장 실패 — 브라우저 저장 공간이 부족하거나 로컬 저장이 막혔습니다. 전체 백업을 만들어 두세요.','err');
     setSaveState('저장 실패 · 백업 필요','err',true);
@@ -497,6 +525,7 @@ const OAI_LIKE = (base, keyHeader) => ({
       max_tokens: o.maxTokens || 2400
     };
     if(o.topP != null) body.top_p = o.topP;
+    if(o.stream) body.stream = true;
     return {
       url: (c.baseUrl || base).replace(/\/$/,'') + '/chat/completions',
       headers: Object.assign({'Content-Type':'application/json'},
@@ -509,6 +538,10 @@ const OAI_LIKE = (base, keyHeader) => ({
     if(!ch) return '';
     return (ch.message && (ch.message.content ?? ch.message.reasoning_content)) || ch.text || '';
   },
+  // 길이 제한으로 잘렸는가 · 스트리밍 조각 하나
+  finish(j){ const ch = j.choices && j.choices[0]; return !!ch && ch.finish_reason==='length'; },
+  delta(ev){ const ch = ev.choices && ev.choices[0]; if(!ch) return {};
+    return { text:(ch.delta && ch.delta.content) || '', cut:ch.finish_reason==='length' }; },
   models(c){
     return { url:(c.baseUrl||base).replace(/\/$/,'')+'/models',
       headers: c.apiKey ? (keyHeader ? keyHeader(c) : {Authorization:'Bearer '+c.apiKey}) : {},
@@ -539,12 +572,20 @@ const PROV = {
         if(o.topP != null) body.top_p = o.topP;
       }
       if(sys) body.system = sys;
+      if(o.stream) body.stream = true;
       return { url:(c.baseUrl||'https://api.anthropic.com/v1').replace(/\/$/,'')+'/messages',
         headers:{'Content-Type':'application/json','x-api-key':c.apiKey,
                  'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
         body };
     },
     parse(j){ return (j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join(''); },
+    finish(j){ return j.stop_reason==='max_tokens'; },
+    delta(ev){
+      if(ev.type==='content_block_delta' && ev.delta && ev.delta.type==='text_delta') return {text:ev.delta.text};
+      if(ev.type==='message_delta') return {cut: !!(ev.delta && ev.delta.stop_reason==='max_tokens')};
+      if(ev.type==='error') return {error:(ev.error && ev.error.message) || '응답 도중 오류'};
+      return {};
+    },
     models(c){ return { url:(c.baseUrl||'https://api.anthropic.com/v1').replace(/\/$/,'')+'/models',
       headers:{'x-api-key':c.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       parse:j=>(j.data||[]).map(m=>m.id) }; } },
@@ -563,11 +604,14 @@ const PROV = {
           .map(x=>({category:x,threshold:'BLOCK_NONE'})) };
       if(sys) body.systemInstruction = {parts:[{text:sys}]};
       const b=(c.baseUrl||'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/,'');
-      return { url:`${b}/models/${encodeURIComponent(c.model)}:generateContent?key=${encodeURIComponent(c.apiKey)}`,
+      return { url:`${b}/models/${encodeURIComponent(c.model)}:${o.stream?'streamGenerateContent?alt=sse&':'generateContent?'}key=${encodeURIComponent(c.apiKey)}`,
         headers:{'Content-Type':'application/json'}, body };
     },
     parse(j){ const cd=(j.candidates||[])[0]; if(!cd) return '';
       return ((cd.content&&cd.content.parts)||[]).map(p=>p.text||'').join(''); },
+    finish(j){ const cd=(j.candidates||[])[0]; return !!cd && cd.finishReason==='MAX_TOKENS'; },
+    delta(ev){ const cd=(ev.candidates||[])[0]; if(!cd) return {};
+      return { text:((cd.content&&cd.content.parts)||[]).map(p=>p.text||'').join(''), cut:cd.finishReason==='MAX_TOKENS' }; },
     models(c){ const b=(c.baseUrl||'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/,'');
       return { url:`${b}/models?key=${encodeURIComponent(c.apiKey)}`, headers:{},
         parse:j=>(j.models||[]).map(m=>String(m.name).replace(/^models\//,'')) }; } },
@@ -632,6 +676,60 @@ const PROV = {
 const PROV_ORDER = ['openai','anthropic','gemini','vertex','openrouter','nanogpt','mistral',
                     'cohere','xai','together','venice','pollinations','local','custom'];
 
+/* --- 스트리밍 응답 읽기 (SSE: "data: {…}" 줄) ---
+   조각마다 공급자의 delta() 로 글을 뽑아 누적하고 onDelta 로 알린다.
+   중지하거나 끊기면 받은 데까지(partial)를 오류에 실어 보낸다. */
+function sseLine(line, p, st){
+  line = line.replace(/\r$/,'');
+  if(!line.startsWith('data:')) return;
+  const data = line.slice(5).trim(); if(!data || data==='[DONE]') return;
+  let ev; try{ ev = JSON.parse(data); }catch(_){ return; }
+  const d = p.delta(ev) || {};
+  if(d.error) throw new Error(d.error);
+  if(d.cut) st.onCut();
+  const u = responseUsage(ev); if(u) st.onUsage(u);
+  if(d.text){ st.out += d.text; if(st.onDelta) st.onDelta(st.out); }
+}
+async function readSSE(body, p, onDelta, onUsage, onCut){
+  const reader = body.getReader(), dec = new TextDecoder(), st = {out:'', onDelta, onUsage, onCut};
+  let buf = '';
+  try{
+    for(;;){
+      const {value, done} = await reader.read(); if(done) break;
+      buf += dec.decode(value, {stream:true});
+      let i; while((i = buf.indexOf('\n')) >= 0){ sseLine(buf.slice(0,i), p, st); buf = buf.slice(i+1); }
+    }
+    if(buf) sseLine(buf, p, st);
+  }catch(e){
+    if(e.name==='AbortError') throw Object.assign(new Error('__ABORT__'), {partial:st.out});
+    throw Object.assign(e, {partial:st.out});
+  }
+  return st.out;
+}
+function sseText(text, p, onUsage, onCut){
+  const st = {out:'', onDelta:null, onUsage, onCut};
+  text.split('\n').forEach(line=>sseLine(line, p, st));
+  return st.out;
+}
+
+/* --- 다시 시도 ---
+   429(요청 과다)·5xx·529(과부하)와 네트워크 끊김만. 서버가 Retry-After 를 주면 따르되 20초까지. */
+const RETRY_STATUS = new Set([408,425,429,500,502,503,504,529]);
+let RETRY_DELAYS = [1500, 4000];
+function retryWait(res, attempt){
+  const ra = res && res.headers && res.headers.get && Number(res.headers.get('retry-after'));
+  return Math.min(20000, ra>0 ? ra*1000 : RETRY_DELAYS[attempt]);
+}
+function abortableSleep(ms, signal){
+  return new Promise((resolve,reject)=>{
+    if(signal && signal.aborted) return reject(Object.assign(new Error('aborted'),{name:'AbortError'}));
+    const t = setTimeout(resolve, ms);
+    if(signal) signal.addEventListener('abort', ()=>{ clearTimeout(t); reject(Object.assign(new Error('aborted'),{name:'AbortError'})); }, {once:true});
+  });
+}
+// 모델 입력 한도를 넘었다는 오류인지 (공급자마다 문구가 다르다)
+const CONTEXT_OVERFLOW_RE = /context.?length|maximum context|context window|prompt is too long|too many tokens|input token count|exceeds? the (?:model'?s? )?(?:context|maximum)|context_length_exceeded|컨텍스트 상한을 넘습니다/i;
+
 /* --- 호출 --- */
 async function callProvider(conn, messages, opts){
   // concurrent 요청은 전역 한 자리를 쓰지 않는다 — 대화창마다 따로 오갈 수 있게.
@@ -652,6 +750,11 @@ async function callProvider(conn, messages, opts){
     if(conn.topP!=null)        o.topP        = conn.topP;
   }
   delete o.connectionOverrides; delete o.concurrent; delete o.onStart;
+  // 스트리밍: 부르는 쪽이 onDelta 를 주고 공급자가 조각 읽기를 지원할 때만. 아니면 지금처럼 한 번에 받는다
+  const onDelta = typeof o.onDelta==='function' && typeof p.delta==='function' ? o.onDelta : null;
+  const onMeta = typeof o.onMeta==='function' ? o.onMeta : null;
+  delete o.onDelta; delete o.onMeta;
+  if(onDelta) o.stream = true;
   // 이미지 한 장은 대략 1,000토큰으로 어림한다(공급자·크기마다 다름).
   const est = messages.reduce((a,m)=>a+tok(m.content)+(m.images?m.images.length*1000:0),0);
   if(conn.contextLimit){
@@ -682,9 +785,20 @@ async function callProvider(conn, messages, opts){
   if(S.logVerbose) log(messages.map(m=>`[${m.role}]\n${m.content}`).join('\n---\n'));
   let res, txt;
   try{
-    res = await fetch(req.url, { method:'POST', headers:req.headers,
-      body: JSON.stringify(req.body), signal: controller.signal });
-    txt = await res.text();
+    // 일시적 오류(요청 과다·서버 오류·네트워크 끊김)는 잠깐 기다렸다 두 번까지 다시 시도한다
+    for(let attempt=0;;attempt++){
+      let netErr=null;
+      try{
+        res = await fetch(req.url, { method:'POST', headers:req.headers,
+          body: JSON.stringify(req.body), signal: controller.signal });
+        // 스트리밍이면 본문은 아래에서 조각으로 읽는다
+        txt = (onDelta && res.ok && res.body && res.body.getReader) ? undefined : await res.text();
+      }catch(e){ if(e.name==='AbortError') throw e; netErr=e; }
+      if(!(netErr || RETRY_STATUS.has(res.status)) || attempt>=RETRY_DELAYS.length){ if(netErr) throw netErr; break; }
+      const wait = retryWait(netErr?null:res, attempt);
+      log(`${netErr?'연결 끊김':res.status} · ${Math.round(wait/1000)}초 뒤 다시 시도 (${attempt+1}/${RETRY_DELAYS.length})`,'err');
+      await abortableSleep(wait, controller.signal);
+    }
   }catch(e){
     if(e.name==='AbortError') throw new Error('__ABORT__');
     log('연결 실패: '+e.message,'err');
@@ -703,10 +817,19 @@ async function callProvider(conn, messages, opts){
     try{ const j=JSON.parse(txt); detail = (j.error&&(j.error.message||j.error))||j.message||detail; }catch(_){}
     throw new Error(`${res.status} · ${detail}`);
   }
-  let j; try{ j = JSON.parse(txt); }catch(e){ throw new Error('응답이 JSON이 아닙니다: '+txt.slice(0,200)); }
-  usage = responseUsage(j);
+  let out = '', cut = false;
+  if(txt===undefined){
+    out = await readSSE(res.body, p, onDelta, u=>{ usage=u; }, ()=>{ cut=true; });
+  } else {
+    let j=null; try{ j = JSON.parse(txt); }catch(_){}
+    if(j){ usage = responseUsage(j); out = p.parse(j) || ''; cut = !!(p.finish && p.finish(j)); }
+    else if(onDelta && /^\s*data:/m.test(txt)) out = sseText(txt, p, u=>{ usage=u; }, ()=>{ cut=true; });   // 스트림을 통째로 받은 경우
+    else throw new Error('응답이 JSON이 아닙니다: '+txt.slice(0,200));
+    if(onDelta && out) onDelta(out);
+  }
   if(solo) LAST_USAGE = usage;
-  const out = p.parse(j) || '';
+  if(onMeta) onMeta({truncated:cut});
+  if(cut) log('응답이 길이 제한에 걸려 잘렸습니다','err');
   log(`← ${out.length}자${usage?' · '+usageLabel(usage):''} · ${((Date.now()-t0)/1000).toFixed(1)}초`,'ok');
   if(S.logVerbose) log(out);
   if(!out.trim()) throw new Error('모델이 빈 응답을 돌려줬습니다. (필터에 걸렸거나 토큰이 모자랐을 수 있습니다)');
