@@ -2817,7 +2817,7 @@ $('#seedOut').addEventListener('click', e=>{
     const had = !!(s.assetId&&assetById(s.assetId));
     seedToAsset(s); renderSeeds();
     if(act.dataset.act==='asset'){ toast(had?'이미 재료에 있어서 다시 켰습니다':'재료에 넣었습니다'); return; }
-    S.chat.ctx.assets=true; $('#ctxAssets').checked=true;
+    S.chat.ctx.assets=true; $('#ctxAssets').checked=true; setChatPick('assets', s.assetId, true);
     const role={world:'world',character:'char',prompt:'prompt'}[S.opts.group];
     if(role && $('#talkRole').querySelector(`option[value="${role}"]`)){ S.chat.role=role; $('#talkRole').value=role; updateTalkRoleUI(); }
     save(); tab('talk'); toast('이 후보를 재료로 넣고 대화 탭으로 왔습니다');
@@ -3602,10 +3602,11 @@ $('#btnMakePreset').addEventListener('click', ()=>{
 
 $('#btnToAsset').addEventListener('click', ()=>{
   if(!S.project.card||!canChangeWork()) return;
-  const P = activePreset();
-  S.assets.push({ id:uid(), kind:'text',
+  const P = activePreset(), id = uid();
+  S.assets.push({ id, kind:'text',
     name: guessName(S.project.card.fields) + ' (' + P.name + ')',
     body: fieldsToText(S.project.card.fields), purposes:[S.opts.group], tags:[], use:true });
+  setChatPick('assets', id, true);   // 지금 대화창에도 바로 쓰이게
   renderAssets(); materialChanged(); renderChat(true); toast('재료에 넣었습니다 — 다른 양식에서 이어서 쓸 수 있습니다');
 });
 $('#btnDlText').addEventListener('click', ()=>
@@ -3653,8 +3654,10 @@ $('#btnDlBook').addEventListener('click', e=>{
   if(!entries.length) throw new Error('항목을 만들지 못했습니다.');
   const nm = (S.project.card.fields.title || '세계').replace(/[\\/:*?"<>|]/g,'_');
   dl(nm+'-lorebook.json', JSON.stringify(toWorldInfo(entries),null,2));
-  S.assets.push({ id:uid(), kind:'lorebook', name:nm+' (여기서 만든 것)',
+  const bookId = uid();
+  S.assets.push({ id:bookId, kind:'lorebook', name:nm+' (여기서 만든 것)',
     entries: entries.map((x,i)=>({...x, id:'e'+i+uid(), enabled:true, use:true})), purposes:['world'], tags:[], use:true });
+  setChatPick('assets', bookId, true);   // 지금 대화창에도 바로 쓰이게
   renderAssets(); materialChanged(); renderChat(true);
   toast(entries.length+'개 항목 — 내려받고 재료에도 넣었습니다');
   });

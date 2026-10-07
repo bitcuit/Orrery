@@ -123,16 +123,18 @@ test('sending chat to materials persists across reload and refreshes the context
   assert.equal(asset.use, true);
   assert.equal(a.w.document.querySelectorAll('#talkAssetList .t-use').length, 1);
   assert.equal(a.$('#talkAssetList .t-use').dataset.id, asset.id);
-  assert.equal(a.$('#talkAssetList .t-use').checked, true);
-  assert.match(a.$('#talkAssetCount').textContent, /1\/1/);
-  assert.notEqual(a.$('#ctxTok').textContent, tokenLabelBefore);
-  assert.match(a.$('#ctxTok').textContent, new RegExp(String(a.run('tok(talkContext())'))));
+  // 지금 대화를 재료로 만든 것이라 같은 대화창에는 고르지 않는다(대화가 두 번 들어가지 않게).
+  // 작업대·다른 대화창에서 쓰는 용도
+  assert.equal(a.$('#talkAssetList .t-use').checked, false);
+  assert.match(a.$('#talkAssetCount').textContent, /0\/1/);
+  assert.equal(a.$('#ctxTok').textContent, tokenLabelBefore);
+  assert.match(a.$('#ctxTok').textContent, /함께 보낼 것 없음/);
   assert.equal(a.$('#ctxAssets').disabled, false);
   const restored = boot(t, a.w.localStorage.getItem('orrery.v1'));
   assert.equal(restored.run('S.assets.length'), 1);
   assert.equal(restored.run('S.assets[0].id'), asset.id);
   assert.equal(restored.run('S.assets[0].body'), asset.body);
-  assert.equal(restored.$('#talkAssetList .t-use').checked, true);
+  assert.equal(restored.$('#talkAssetList .t-use').checked, false);
 });
 
 test('sending chat to materials refuses to change state while another task is active', t => {
@@ -548,4 +550,43 @@ test('with auto summary off, the oldest turns are trimmed to fit and the summary
   assert.equal(sent[0].role, 'user');
   assert.equal(sent.at(-1).content, '다음');
   assert.equal(a.run('S.chat.msgs.length'), 18);   // 원문은 지워지지 않는다
+});
+
+test('each chat keeps its own materials, separate from the workbench, and old chats inherit the current selection once', async t => {
+  const a = boot(t);
+  a.run(`S.assets=[{id:'a1',kind:'text',name:'항구',body:'소금 항구',use:true,purposes:[],tags:[]},{id:'a2',kind:'text',name:'길드',body:'물 길드',use:false,purposes:[],tags:[]}];
+    S.chats=[normalizeChat({id:'c1',name:'첫 대화',msgs:[],ctx:{assets:true}},'world')];S.chatId='c1';tab('talk');renderChat();`);
+  // 예전 대화창: 지금 켜 둔 재료(a1)를 이어받는다
+  assert.deepEqual(plain(a.run('chatPicks().assets')), ['a1']);
+  // 대화창에서 a2를 골라도 작업대 선택(use)은 그대로
+  const box = a.$('#talkAssetList .t-use[data-id="a2"]'); box.checked=true; box.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  assert.equal(a.run("S.assets.find(x=>x.id==='a2').use"), false);
+  assert.match(a.run('talkContext()'), /물 길드/);
+  // 새 대화창은 빈 채로 시작하고, 앞 대화창의 선택은 그대로 남는다
+  a.run("window.prompt=()=>'두 번째';newChat()");
+  assert.deepEqual(plain(a.run('chatPicks().assets')), []);
+  assert.doesNotMatch(a.run('talkContext()'), /소금 항구|물 길드/);
+  assert.deepEqual(plain(a.run("chatPicks(S.chats.find(c=>c.id==='c1')).assets")), ['a1','a2']);
+  // 저장 후 다시 열어도 대화창별로 남는다
+  const b = boot(t, a.w.localStorage.getItem('orrery.v1'));
+  assert.deepEqual(plain(b.run("chatPicks(S.chats.find(c=>c.id==='c1')).assets")), ['a1','a2']);
+});
+
+test('my message shows which materials went with it, briefly when unchanged', async t => {
+  const a = boot(t);
+  const requests = stubReplies(a, ['답1','답2','답3']);
+  a.run(`S.assets=[{id:'a1',kind:'text',name:'소금 항구',body:'소금 항구 설정',use:true,purposes:[],tags:[]}];
+    S.chats=[normalizeChat({id:'c1',msgs:[],ctx:{assets:true},picks:{assets:['a1'],records:[]}},'world')];S.chatId='c1';tab('talk');renderChat();`);
+  for (const q of ['첫 질문','두 번째']) { a.$('#chatIn').value=q; await a.run('sendChat()'); }
+  const sent = [...a.w.document.querySelectorAll('.msg.user .msg-sent')].map(x=>x.textContent.trim());
+  assert.match(sent[0], /함께 보낸 자료[\s\S]*소금 항구/);
+  assert.match(sent[1], /자료 그대로 · 1개/);
+  assert.match(JSON.stringify(requests[0].messages[0]), /소금 항구 설정/);
+  // 자료를 빼고 보내면 표시도 빠진다
+  const box = a.$('#talkAssetList .t-use[data-id="a1"]'); box.checked=false; box.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  a.$('#chatIn').value='세 번째'; await a.run('sendChat()');
+  assert.equal(a.run("S.chat.msgs.filter(m=>m.role==='user').at(-1).sent"), undefined);
+  // 칩을 누르면 그 재료를 크게 본다
+  a.$('.msg.user .sent-chip[data-id="a1"]').click();
+  assert.equal(a.$('#assetViewModal').hidden, false);
 });

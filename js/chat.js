@@ -23,12 +23,65 @@ const TALK_ROLE_CODE = {
 다만 상대의 의도 자체를 취향으로 깎지는 않는다. 그 의도 안에서 무엇이 안 되고 있는지를 본다.`,
   free: ``
 };
-function talkContext(){
-  const c = S.chat.ctx, parts = [];
-  if(c.assets){ const t = sourceText(); if(t.trim()) parts.push('[재료]\n'+t); }
+/* ---- 대화창별 재료 ------------------------------------------------
+   대화창마다 고른 재료·완성본을 따로 가진다(작업대의 재료 선택과도 별개).
+   picks 가 없는 예전 대화창은 처음 열 때 지금 앱에서 켜 둔 재료를 이어받는다.
+   로어북 안의 항목 켜기·끄기는 재료 자체의 값이라 모든 곳이 같이 쓴다. */
+function chatPicks(chat){
+  chat = chat||S.chat;
+  if(!chat.picks || typeof chat.picks!=='object')
+    chat.picks = {assets:S.assets.filter(a=>a.use).map(a=>a.id), records:S.library.filter(r=>r.use).map(r=>r.id)};
+  if(!Array.isArray(chat.picks.assets)) chat.picks.assets=[];
+  if(!Array.isArray(chat.picks.records)) chat.picks.records=[];
+  return chat.picks;
+}
+function chatPicked(kind, id, chat){ return chatPicks(chat)[kind].includes(id); }
+function setChatPick(kind, id, on, chat){
+  const list=chatPicks(chat)[kind], i=list.indexOf(id);
+  if(on && i<0) list.push(id);
+  if(!on && i>=0) list.splice(i,1);
+}
+function chatMaterials(chat){
+  const p=chatPicks(chat);
+  return { assets:S.assets.filter(a=>p.assets.includes(a.id)), records:S.library.filter(r=>p.records.includes(r.id)) };
+}
+function chatSourceText(chat){
+  const parts=[], brief=curBrief().trim(), m=chatMaterials(chat);
+  if(brief) parts.push('## 구상\n'+brief);
+  m.assets.forEach(a=>{ const t=assetText(a); if(t) parts.push(t); });
+  m.records.forEach(r=>{ const t=recordText(r); if(t) parts.push(t); });
+  return parts.join('\n\n');
+}
+function talkContext(chat){
+  chat = chat||S.chat;
+  const c = chat.ctx, parts = [];
+  if(c.assets){ const t = chatSourceText(chat); if(t.trim()) parts.push('[재료]\n'+t); }
   if(c.digest && S.project.digest) parts.push('[정리한 내용]\n'+JSON.stringify(S.project.digest,null,1));
   if(c.card && S.project.card) parts.push('[지금 만든 것]\n'+JSON.stringify(S.project.card.fields,null,1));
   return parts.join('\n\n');
+}
+// 보낼 때 함께 간 자료를 메시지에 남긴다(이름은 그때 이름으로)
+function talkSentSnapshot(chat){
+  const c=chat.ctx, out={};
+  if(c.assets){
+    const m=chatMaterials(chat);
+    const items=[...m.assets.filter(a=>assetText(a)).map(a=>({k:'a',id:a.id,name:a.name||'이름 없음'})),
+                 ...m.records.filter(r=>recordText(r)).map(r=>({k:'r',id:r.id,name:r.name||'이름 없음'}))];
+    if(items.length) out.items=items;
+    if(curBrief().trim()) out.brief=true;
+  }
+  if(c.digest && S.project.digest) out.digest=true;
+  if(c.card && S.project.card) out.card=activePreset().name;
+  return Object.keys(out).length ? out : null;
+}
+function talkSentHtml(sent, prevKey){
+  if(!sent) return '';
+  const n=(sent.items||[]).length+(sent.brief?1:0)+(sent.digest?1:0)+(sent.card?1:0);
+  if(JSON.stringify(sent)===prevKey) return `<div class="msg-sent same">자료 그대로 · ${n}개</div>`;
+  const chips=[...(sent.items||[]).map(x=>`<button type="button" class="sent-chip" data-k="${x.k}" data-id="${esc(x.id)}" title="크게 보기">${esc(x.name)}</button>`),
+    sent.brief?'<span class="sent-chip plain">구상</span>':'', sent.digest?'<span class="sent-chip plain">정리한 내용</span>':'',
+    sent.card?`<span class="sent-chip plain">지금 만든 것 · ${esc(sent.card)}</span>`:''].join('');
+  return `<div class="msg-sent"><span class="sent-label">함께 보낸 자료</span>${chips}</div>`;
 }
 /* 대화창마다 요청 하나씩, 서로 동시에 오간다.
    chatId -> {kind:'send'|'wrap', controller} */
@@ -312,9 +365,12 @@ function renderChat(preserveScroll=false){
   if(!S.chat.msgs.length && !wrapHtml){
     box.innerHTML = '<div class="empty"><b>아직 아무 말도 안 했습니다</b>만든 것을 보여주고 물어보세요.</div>';
   } else {
+    // 같은 자료를 연달아 보냈으면 짧게 적으려고 직전 내 메시지의 자료를 기억해 둔다
+    let lastSent=null;
+    const prevSent=S.chat.msgs.map(m=>{ if(m.role!=='user') return null; const p=lastSent; lastSent=m.sent?JSON.stringify(m.sent):null; return p; });
     box.innerHTML = wrapHtml + S.chat.msgs.map((m,i)=>{
       const excluded=talkTurnExcluded(i), completed=talkTurnIndexes(i).every(n=>!S.chat.msgs[n].status);
-      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span></div>${m.content?`<div class="msg-md">${mdHtml(m.content)}</div>`:''}${talkFilesHtml(m.files)}<div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${talkTurnButton('chat-copy',i,'이 메시지 복사',ICON_COPY)}${completed?talkTurnButton('chat-regen',i,'이 문답의 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div>${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span></div>${m.content?`<div class="msg-md">${mdHtml(m.content)}</div>`:''}${talkFilesHtml(m.files)}${m.role==='user'?talkSentHtml(m.sent, prevSent[i]):''}<div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${talkTurnButton('chat-copy',i,'이 메시지 복사',ICON_COPY)}${completed?talkTurnButton('chat-regen',i,'이 문답의 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div>${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
     }).join('');
   }
   const t = tok(talkContext());
@@ -367,25 +423,25 @@ function talkAssetRow(a){
   // 로어북은 항목 단위로 펼쳐 개별 선택
   if(a.kind==='lorebook' && (a.entries||[]).length){
     const on = a.entries.filter(e=>e.use).length, open = TALK_LB_OPEN.has(a.id);
-    const head = `<label class="nebula-row"><input type="checkbox" class="t-use" data-id="${a.id}" ${a.use?'checked':''}>
+    const head = `<label class="nebula-row"><input type="checkbox" class="t-use" data-id="${a.id}" ${chatPicked('assets',a.id)?'checked':''}>
       <span>${esc(a.name)}</span><span class="sp"></span>
       <button type="button" class="lb-toggle" data-id="${a.id}">${on}/${a.entries.length} 항목 ${open?'▴':'▾'}</button></label>`;
     const entries = a.entries.map((en,i)=>`
-      <label class="nebula-row lb-entry"><input type="checkbox" class="t-entry" data-id="${a.id}" data-ei="${i}" ${en.use?'checked':''} ${a.use?'':'disabled'}>
+      <label class="nebula-row lb-entry"><input type="checkbox" class="t-entry" data-id="${a.id}" data-ei="${i}" ${en.use?'checked':''} ${chatPicked('assets',a.id)?'':'disabled'}>
         <span>${esc(en.comment||en.key||(en.keys&&en.keys.join(', '))||'항목 '+(i+1))}</span><span class="sp"></span><span class="note">${tok(en.content||'')} 토큰쯤</span></label>`).join('');
     return `<div class="lb-pick" data-id="${a.id}">${head}<div class="lb-entries" ${open?'':'hidden'}>${entries}</div></div>`;
   }
-  return `<label class="nebula-row"><input type="checkbox" class="t-use" data-id="${a.id}" ${a.use?'checked':''}>
+  return `<label class="nebula-row"><input type="checkbox" class="t-use" data-id="${a.id}" ${chatPicked('assets',a.id)?'checked':''}>
       <span>${esc(a.name)}</span><span class="sp"></span><span class="note">${kindLabel} · ${assetTok(a)} 토큰쯤</span></label>`;
 }
 function renderTalkAssets(){
   const box = $('#talkAssetList'), assetCount = $('#talkAssetCount'); if(!box) return;
-  const c=S.chat.ctx||{}, materialText=sourceText(), digestText=S.project.digest?JSON.stringify(S.project.digest):'';
+  const c=S.chat.ctx||{}, materialText=chatSourceText(S.chat), digestText=S.project.digest?JSON.stringify(S.project.digest):'';
   const cardText=S.project.card?JSON.stringify(S.project.card.fields||{}):'';
-  const n = S.assets.filter(a=>a.use).length + S.library.filter(r=>r.use).length, total=S.assets.length+S.library.length;
+  const picks=chatPicks(), n = picks.assets.filter(id=>assetById(id)).length + picks.records.filter(id=>S.library.some(r=>r.id===id)).length, total=S.assets.length+S.library.length;
   assetCount.textContent = total ? `선택 ${n}/${total}개` : '성운이 비어 있습니다';
   const recRows=S.library.length?'<div class="pick-section">완성본</div>'+[...S.library].sort((a,b)=>(b.updated||b.at)-(a.updated||a.at)).map(r=>`
-    <label class="nebula-row"><input type="checkbox" class="t-rec" data-id="${r.id}" ${r.use?'checked':''}>
+    <label class="nebula-row"><input type="checkbox" class="t-rec" data-id="${r.id}" ${chatPicked('records',r.id)?'checked':''}>
       <span>${esc(r.name||'이름 없음')}</span><span class="sp"></span><span class="note">${esc(GROUP_LABEL[r.group]||'')} · ${esc(r.presetName||'')}</span></label>`).join(''):'';
   box.innerHTML = total ? S.assets.map(talkAssetRow).join('')+recRows
     : '<div class="note">재료 탭에서 파일이나 글을 먼저 넣어 주세요.</div>';
@@ -401,11 +457,12 @@ function renderTalkAssets(){
   $('#talkMaterialPick').hidden=!c.assets;
 }
 $('#talkAssetList').addEventListener('change', e=>{
-  if(e.target.classList.contains('t-rec')){ setRecordUse(e.target.dataset.id, e.target.checked); renderChat(); return; }
+  // 대화창별 선택: 작업대의 재료 선택은 건드리지 않는다
+  if(e.target.classList.contains('t-rec')){ setChatPick('records', e.target.dataset.id, e.target.checked); save(); renderChat(); return; }
   if(e.target.classList.contains('t-use')){
-    const a = assetById(e.target.dataset.id); if(!a) return;
-    a.use = e.target.checked;
-    renderAssets(); materialChanged(); renderChat();
+    if(!assetById(e.target.dataset.id)) return;
+    setChatPick('assets', e.target.dataset.id, e.target.checked);
+    save(); renderChat();
   } else if(e.target.classList.contains('t-entry')){
     const a = assetById(e.target.dataset.id); if(!a || !a.entries) return;
     const en = a.entries[+e.target.dataset.ei]; if(!en) return;
@@ -433,7 +490,7 @@ function talkSystemParts(chat){
   sys.push(`${S.opts.lang||'한국어'} 로 답한다.`);
   const summary=talkHistorySummary();
   if(summary) sys.push('아래는 지금까지 나눈 대화를 압축한 정리다. 이 맥락 위에서 이어서 대화한다.\n\n'+summary);
-  const ctx=talkContext();
+  const ctx=talkContext(chat);
   if(ctx) sys.push('아래는 상대가 지금 다루고 있는 자료다. 묻지 않은 것까지 통째로 다시 써주지 마라.\n\n'+ctx);
   return sys;
 }
@@ -681,7 +738,13 @@ async function talkWireMessage(m){
   if(images.length) out.images=images;
   return out;
 }
-$('#chatLog').addEventListener('click',e=>{ const img=e.target.closest('.msg-img'); if(img) img.classList.toggle('zoom'); });
+$('#chatLog').addEventListener('click',e=>{
+  const img=e.target.closest('.msg-img'); if(img){ img.classList.toggle('zoom'); return; }
+  const chip=e.target.closest('.sent-chip[data-id]'); if(!chip) return;
+  const id=chip.dataset.id;
+  if(chip.dataset.k==='r'){ if(S.library.some(r=>r.id===id)) openLibView(id); else toast('지금은 성도에 없는 완성본입니다',1); }
+  else if(assetById(id)) openAssetView(id); else toast('지금은 재료에 없는 자료입니다',1);
+});
 $('#btnChatAttach').addEventListener('click',()=>$('#chatFileIn').click());
 $('#chatFileIn').addEventListener('change',e=>{ const files=[...e.target.files]; e.target.value=''; addChatFiles(files); });
 $('#chatAttach').addEventListener('click',e=>{
@@ -725,6 +788,8 @@ async function sendChat(retryId){
   catch(err){ if(err.message==='__ABORT__') throw err; log('대화 자동 정리 실패 · 앞부분을 잘라 보냅니다: '+err.message,'err'); }
   // 보낼 내용은 지금 이 자리에서 다 굳힌다 — 기다리는 동안 다른 창으로 옮겨도 흔들리지 않게.
   const sys = talkSystemParts(chat);
+  const sent = talkSentSnapshot(chat);
+  if(sent) message.sent = sent; else delete message.sent;
   // 개수가 아니라 분량으로: 한도 안에 드는 만큼 최근 대화부터 싣는다.
   // 첨부가 있을 때만 파일을 읽느라 기다린다. 글뿐이면 바로 보낸다.
   const history = talkHistoryFit(message, talkBudget(conn, sys.join('\n\n')));

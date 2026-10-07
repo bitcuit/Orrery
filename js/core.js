@@ -78,7 +78,7 @@ let S = {
    S.chat 은 그중 '지금 보고 있는 것' 하나를 가리키는 이름일 뿐이다. */
 function emptyChat(group, name){
   return { id:uid(), name:name||'', updated:Date.now(), role:group==='character'?'char':(group||'world'),
-    msgs:[], ctx:{assets:true, digest:true, card:false},
+    msgs:[], ctx:{assets:true, digest:true, card:false}, picks:{assets:[], records:[]},
     summary:'', summaryHistory:[], summaryIncluded:true, inputDraft:'', nudgeOff:false };
 }
 function normalizeChat(c, group){
@@ -87,6 +87,8 @@ function normalizeChat(c, group){
   const out=Object.assign(base, c);
   out.id=typeof c.id==='string'&&c.id?c.id:base.id;
   out.ctx=Object.assign({assets:true,digest:true,card:false}, c.ctx||{});
+  // 대화창별 재료가 없던 예전 대화창은 처음 열 때 지금 켜 둔 재료를 이어받는다(chatPicks)
+  if(!c.picks) delete out.picks;
   out.msgs=Array.isArray(c.msgs)?c.msgs:[];
   out.summaryHistory=Array.isArray(c.summaryHistory)?c.summaryHistory:[];
   return out;

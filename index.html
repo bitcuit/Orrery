@@ -1,4 +1,4 @@
-<!-- ORRERY v1.0.16 · 2026-08-14 -->
+<!-- ORRERY v1.0.17 · 2026-08-14 -->
 <!-- ⚠ styles.css·js 를 고치면 아래 ?v= 값을 함께 올릴 것.
      GitHub Pages 는 10분간 옛 파일을 캐시해서, 올리지 않으면 바뀐 내용이 안 보인다. -->
 <!DOCTYPE html>
@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <title>ORRERY · 세계 · 인물 · 프롬프트</title>
-<link rel="stylesheet" href="styles.css?v=1.0.16">
+<link rel="stylesheet" href="styles.css?v=1.0.17">
 <base target="_blank">
 </head>
 <body class="boot">
@@ -26,7 +26,7 @@
     </svg>
     <div class="brand-inner">
       <h1>ORRERY</h1>
-      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.16</span></span>
+      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.17</span></span>
     </div>
   </div>
   <div class="topctl">
@@ -93,9 +93,9 @@
     <div class="panel-h" style="margin:4px 0 14px">
       <p class="hint" id="matHint" style="margin:0"></p>
       <span class="sp"></span>
-      <button class="iconbtn" id="btnPaste" title="직접 붙여넣기" aria-label="직접 붙여넣기">
+      <button class="iconbtn labeled" id="btnPaste" title="직접 붙여넣기" aria-label="직접 붙여넣기">
         <svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="8" y="7.4" width="16" height="18.6" rx="2.8"/><path d="M12.7 7.4v-.9a1.8 1.8 0 0 1 1.8-1.8h3a1.8 1.8 0 0 1 1.8 1.8v.9"/><circle cx="12.5" cy="13.6" r="1" fill="#e9b654" stroke="none"/><path d="M15.6 13.6h4.4"/><circle cx="12.5" cy="17.6" r="1" fill="#e9b654" stroke="none"/><path d="M15.6 17.6h4.4"/><path d="M12.5 21.6h7.5" opacity=".55"/></svg>
-      </button>
+      <span>붙여넣기</span></button>
     </div>
     <div id="drop">
       <svg class="dropic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg>
@@ -462,6 +462,18 @@
           <option value="critic">냉정한 평가자</option>
           <option value="free">역할 없음</option>
         </select></div>
+    <details class="nebula-pick talk-context-pick" id="talkPick" open>
+      <summary>보낼 자료 · <span id="talkPickCount">선택 0개</span></summary>
+      <div class="talk-context-options">
+        <label class="talk-context-option"><input type="checkbox" id="ctxAssets" checked><span><b>재료</b><small id="ctxAssetsMeta">고른 재료와 구상</small></span></label>
+        <label class="talk-context-option"><input type="checkbox" id="ctxDigest" checked><span><b>정리한 내용</b><small id="ctxDigestMeta">아직 정리한 내용 없음</small></span></label>
+        <label class="talk-context-option"><input type="checkbox" id="ctxCard"><span><b>지금 만든 것</b><small id="ctxCardMeta">아직 만든 결과 없음</small></span></label>
+      </div>
+      <div class="talk-material-pick" id="talkMaterialPick">
+        <div class="talk-material-head"><span class="fl">재료</span><span class="note" id="talkAssetCount"></span></div>
+        <div class="nebula-list" id="talkAssetList"></div>
+      </div>
+    </details>
       <label class="ooc-inline talk-compact"><input type="checkbox" id="talkAutoCompact" checked><span>길어지면 앞부분 자동 정리</span>
         <button type="button" class="qhelp" aria-label="자동 정리란" data-tip="대화가 연결의 컨텍스트 한도(없으면 64,000토큰)에 가까워지면, 오래된 앞부분을 요약해 '지금까지의 정리'에 합치고 최근 대화는 원문으로 둡니다. 정리할 때 API를 한 번 더 부릅니다. 끄면 한도를 넘는 앞부분은 잘려 보내지지 않습니다.">?</button></label>
     <details class="adv" id="talkRoleEdit">
@@ -480,18 +492,7 @@
         </div>
       </div>
     </details>
-    <details class="nebula-pick talk-context-pick" id="talkPick" open>
-      <summary>보낼 내용 · <span id="talkPickCount">선택 0개</span></summary>
-      <div class="talk-context-options">
-        <label class="talk-context-option"><input type="checkbox" id="ctxAssets" checked><span><b>작업 재료</b><small id="ctxAssetsMeta">고른 재료와 구상</small></span></label>
-        <label class="talk-context-option"><input type="checkbox" id="ctxDigest" checked><span><b>정리한 내용</b><small id="ctxDigestMeta">아직 정리한 내용 없음</small></span></label>
-        <label class="talk-context-option"><input type="checkbox" id="ctxCard"><span><b>지금 만든 것</b><small id="ctxCardMeta">아직 만든 결과 없음</small></span></label>
-      </div>
-      <div class="talk-material-pick" id="talkMaterialPick">
-        <div class="talk-material-head"><span class="fl">재료</span><span class="note" id="talkAssetCount"></span></div>
-        <div class="nebula-list" id="talkAssetList"></div>
-      </div>
-    </details>
+
     </div>
   </details>
   </aside>
@@ -499,10 +500,10 @@
     <div class="panel-h">
       <h2>대화</h2>
       <span class="sp"></span>
-      <button class="iconbtn danger" id="btnTalkClear" title="대화 비우기" aria-label="대화 비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
-      <button class="iconbtn" id="btnTalkToRecord" title="완성본으로 정리" aria-label="완성본으로 정리"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="8" y="6.5" width="16" height="19" rx="2.6"/><path d="M12 12.5h8M12 16.5h8M12 20.5h5" stroke="#e9b654"/></svg></button>
-      <button class="iconbtn" id="btnTalkToAsset" title="보내는 대화 재료로" aria-label="보내는 대화 재료로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
-      <button class="iconbtn" id="btnTalkCopy" title="대화 전체 복사" aria-label="대화 전체 복사"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg></button>
+      <button class="iconbtn danger labeled" id="btnTalkClear" title="대화 비우기" aria-label="대화 비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg><span>비우기</span></button>
+      <button class="iconbtn labeled" id="btnTalkToRecord" title="완성본으로 정리" aria-label="완성본으로 정리"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="8" y="6.5" width="16" height="19" rx="2.6"/><path d="M12 12.5h8M12 16.5h8M12 20.5h5" stroke="#e9b654"/></svg><span>완성본으로</span></button>
+      <button class="iconbtn labeled" id="btnTalkToAsset" title="보내는 대화 재료로" aria-label="보내는 대화 재료로"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg><span>재료로</span></button>
+      <button class="iconbtn labeled" id="btnTalkCopy" title="대화 전체 복사" aria-label="대화 전체 복사"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg><span>복사</span></button>
     </div>
     <div class="ctxbar">
       <span class="note" id="ctxTok"></span>
@@ -543,8 +544,8 @@
     <div class="panel-h">
       <h2>기록</h2>
       <span class="sp"></span>
-      <button class="iconbtn" id="btnLibExport" title="전체 내보내기" aria-label="전체 내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg></button>
-      <button class="iconbtn danger" id="btnLibClear" title="비우기 — 고정 안 한 것만" aria-label="비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
+      <button class="iconbtn labeled" id="btnLibExport" title="전체 내보내기" aria-label="전체 내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg><span>내보내기</span></button>
+      <button class="iconbtn danger labeled" id="btnLibClear" title="비우기 — 고정 안 한 것만" aria-label="비우기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg><span>비우기</span></button>
     </div>
     <p class="hint">기록은 최대 200개까지 보관합니다. 넘으면 ★ 고정하지 않은 오래된 것부터 정리합니다.</p>
     <div class="row" style="align-items:flex-end">
@@ -572,16 +573,16 @@
     <p class="hint"><code>{{이름}}</code>은 실행할 때 값으로 바뀝니다.</p>
     <div class="row">
       <div class="field"><label class="fl">양식</label><select id="presetSel"></select></div>
-      <div class="field"><label class="fl">&nbsp;</label>
+      <div class="field preset-tools">
         <div class="bar" style="margin:0">
-          <button class="iconbtn" id="btnPresetNew" title="복제" aria-label="복제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn" id="btnPresetBlank" title="새로 만들기" aria-label="새로 만들기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn" id="btnPresetRename" title="이름 바꾸기" aria-label="이름 바꾸기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m18.2 7.3 6.5 6.5L11 27.5H4.5V21Z"/><path d="m15.6 10 6.5 6.5" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn" id="btnPresetOff" title="작업대에서 숨기기" aria-label="작업대에서 숨기기"><svg class="ic ic-eye" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3.5 16S8 8.5 16 8.5 28.5 16 28.5 16 24 23.5 16 23.5 3.5 16 3.5 16Z"/><circle cx="16" cy="16" r="3.4" stroke="#e9b654"/></svg><svg class="ic ic-eyeoff" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6.5 11.5S4.5 14 3.5 16c0 0 4.5 7.5 12.5 7.5 1.9 0 3.6-.4 5.1-1M12.2 9c1.2-.3 2.5-.5 3.8-.5 8 0 12.5 7.5 12.5 7.5-.8 1.3-1.8 2.7-3 3.9"/><path d="M13.6 13.6a3.4 3.4 0 0 0 4.8 4.8" stroke="#e9b654"/><path d="M5 5l22 22" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn" id="btnPresetExport" title="내보내기" aria-label="내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn" id="btnPresetImport" title="Orrery 양식 가져오기" aria-label="가져오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg></button>
-          <button class="iconbtn" id="btnPresetRestore" title="기본 양식 불러오기 (지운 기본 양식 다시 추가)" aria-label="기본 양식 불러오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 7.5v6.4h-6.4"/><path d="M25.6 13.9A10 10 0 1 0 26 18.6"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/></svg></button>
-          <button class="iconbtn danger" id="btnPresetDel" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg></button>
+          <button class="iconbtn labeled" id="btnPresetNew" title="복제" aria-label="복제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M12 10.4V9.2a2.2 2.2 0 0 1 2.2-2.2h8.6A2.2 2.2 0 0 1 25 9.2v8.6a2.2 2.2 0 0 1-2.2 2.2h-1.2"/><rect x="7" y="12" width="13" height="13" rx="2.4" stroke="#e9b654"/></svg><span>복제</span></button>
+          <button class="iconbtn labeled" id="btnPresetBlank" title="새로 만들기" aria-label="새로 만들기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg><span>새 양식</span></button>
+          <button class="iconbtn labeled" id="btnPresetRename" title="이름 바꾸기" aria-label="이름 바꾸기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m18.2 7.3 6.5 6.5L11 27.5H4.5V21Z"/><path d="m15.6 10 6.5 6.5" stroke="#e9b654"/></svg><span>이름</span></button>
+          <button class="iconbtn labeled" id="btnPresetOff" title="작업대에서 숨기기" aria-label="작업대에서 숨기기"><svg class="ic ic-eye" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M3.5 16S8 8.5 16 8.5 28.5 16 28.5 16 24 23.5 16 23.5 3.5 16 3.5 16Z"/><circle cx="16" cy="16" r="3.4" stroke="#e9b654"/></svg><svg class="ic ic-eyeoff" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6.5 11.5S4.5 14 3.5 16c0 0 4.5 7.5 12.5 7.5 1.9 0 3.6-.4 5.1-1M12.2 9c1.2-.3 2.5-.5 3.8-.5 8 0 12.5 7.5 12.5 7.5-.8 1.3-1.8 2.7-3 3.9"/><path d="M13.6 13.6a3.4 3.4 0 0 0 4.8 4.8" stroke="#e9b654"/><path d="M5 5l22 22" stroke="#e9b654"/></svg><span>숨기기</span></button>
+          <button class="iconbtn labeled" id="btnPresetExport" title="내보내기" aria-label="내보내기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 18.6V6.8" stroke="#e9b654"/><path d="m11.6 11.2 4.4-4.4 4.4 4.4" stroke="#e9b654"/></svg><span>내보내기</span></button>
+          <button class="iconbtn labeled" id="btnPresetImport" title="Orrery 양식 가져오기" aria-label="가져오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.4 20.2v2.4a3 3 0 0 0 3 3h11.2a3 3 0 0 0 3-3v-2.4"/><path d="M16 6.8v11.8" stroke="#e9b654"/><path d="m11.6 14.2 4.4 4.4 4.4-4.4" stroke="#e9b654"/></svg><span>가져오기</span></button>
+          <button class="iconbtn labeled" id="btnPresetRestore" title="기본 양식 불러오기 (지운 기본 양식 다시 추가)" aria-label="기본 양식 불러오기"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M26.5 7.5v6.4h-6.4"/><path d="M25.6 13.9A10 10 0 1 0 26 18.6"/><circle cx="16" cy="16" r="1.9" fill="#e9b654" stroke="none"/></svg><span>기본 양식</span></button>
+          <button class="iconbtn danger labeled" id="btnPresetDel" title="삭제" aria-label="삭제"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.6 9.7h16.8"/><path d="M12.8 9.7V8.2a1.8 1.8 0 0 1 1.8-1.8h2.8a1.8 1.8 0 0 1 1.8 1.8v1.5"/><path d="m9.8 9.7.9 14.1a2.4 2.4 0 0 0 2.4 2.2h5.8a2.4 2.4 0 0 0 2.4-2.2l.9-14.1"/><path d="M13.7 13.7v8.1M18.3 13.7v8.1" stroke="#e9b654"/></svg><span>삭제</span></button>
         </div>
       </div>
     </div>
@@ -594,7 +595,7 @@
       <h2>공통 지시문</h2>
       <span class="sp"></span>
       <button class="ghost mini" id="btnLoadCommon" title="앱 기본 공통 지시문 불러오기">불러오기</button>
-      <button class="iconbtn" id="btnAddCommon" title="구획 추가" aria-label="구획 추가"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
+      <button class="iconbtn labeled" id="btnAddCommon" title="구획 추가" aria-label="구획 추가"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg><span>지시문 추가</span></button>
     </div>
     <p class="hint">아래 <b>기본</b> 항목은 prompts.js(또는 편집기 반영)에서 와서 모든 양식에 들어갑니다. 스위치로 끄거나, 태그를 달면 같은 태그가 있는 연결을 쓸 때만 들어갑니다.</p>
     <div id="commonBox" class="stlist"></div>
@@ -604,7 +605,7 @@
     <div class="panel-h">
       <h2>출력 칸</h2>
       <span class="sp"></span>
-      <button class="iconbtn" id="btnAddField" title="칸 추가" aria-label="칸 추가"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg></button>
+      <button class="iconbtn labeled" id="btnAddField" title="칸 추가" aria-label="칸 추가"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7.5 16h17"/><path d="M16 7.5v17" stroke="#e9b654"/></svg><span>칸 추가</span></button>
     </div>
     <p class="hint">여기 적힌 것이 곧 결과물의 칸이자, 잠금·재굴림 단위입니다.</p>
     <div id="schemaBox" class="stlist"></div>
@@ -855,18 +856,18 @@
     </div>
   </div>
 </div>
-<script src="prompts.js?v=1.0.16"></script>
-<script src="builtin-presets.js?v=1.0.16"></script>
-<script src="talk-roles.js?v=1.0.16"></script>
+<script src="prompts.js?v=1.0.17"></script>
+<script src="builtin-presets.js?v=1.0.17"></script>
+<script src="talk-roles.js?v=1.0.17"></script>
 <!-- 일반 스크립트를 아래 순서대로 읽어 파일을 직접 열어도 작동합니다. -->
-<script src="js/core.js?v=1.0.16"></script>
-<script src="js/materials.js?v=1.0.16"></script>
-<script src="js/studio.js?v=1.0.16"></script>
-<script src="js/preset-export.js?v=1.0.16"></script>
-<script src="js/chat.js?v=1.0.16"></script>
-<script src="js/library.js?v=1.0.16"></script>
-<script src="js/settings.js?v=1.0.16"></script>
-<script src="js/workspaces.js?v=1.0.16"></script>
-<script src="js/app.js?v=1.0.16"></script>
+<script src="js/core.js?v=1.0.17"></script>
+<script src="js/materials.js?v=1.0.17"></script>
+<script src="js/studio.js?v=1.0.17"></script>
+<script src="js/preset-export.js?v=1.0.17"></script>
+<script src="js/chat.js?v=1.0.17"></script>
+<script src="js/library.js?v=1.0.17"></script>
+<script src="js/settings.js?v=1.0.17"></script>
+<script src="js/workspaces.js?v=1.0.17"></script>
+<script src="js/app.js?v=1.0.17"></script>
 </body>
 </html>

@@ -1,14 +1,15 @@
 {
-  "at": "2026-10-01 20:20",
+  "at": "2026-10-07 22:39",
   "by": "claude-code",
-  "doing": "대화를 24개 제한 대신 토큰 분량으로 보내고, 한도의 80%에 닿으면 앞부분을 자동 정리하게 함",
-  "where": "js/chat.js talkHistoryFit()·autoCompactTalk()",
+  "doing": "대화창마다 재료를 따로 고르고 내 메시지에 함께 보낸 자료를 보이게 함, 단추에 글자를 붙이고 글자 대비를 높임",
+  "where": "js/chat.js chatPicks()·talkSentHtml() · index.html 교신 왼쪽 칸 · styles.css 끝부분",
   "state": "돌아감",
-  "next": "실제 연결로 긴 대화를 해 보며 자동 정리 시점과 요약 품질 확인",
+  "next": "다른 화면(재료·작업대)의 작은 글자와 흐린 단추도 같은 기준으로 정리",
   "blocked": "",
   "session": {
     "id": "c9264113-94d9-4964-96e8-157af1c51a84",
     "title": "",
     "tool": "claude-code"
-  }
+  },
+  "test": "교신에서 대화창 두 개에 서로 다른 재료를 골라 보내고, 각 메시지 아래 \"함께 보낸 자료\"가 그 대화창 재료로 나오는지"
 }

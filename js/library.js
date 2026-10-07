@@ -110,10 +110,11 @@ function loadRecordToStudio(rec){
 }
 function recordToMaterial(rec){
   if(!rec||!rec.fields||!canChangeWork()) return;
-  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset();
-  S.assets.push({ id:uid(), kind:'text',
+  const P = S.presets.find(x=>x.id===rec.presetId) || activePreset(), id = uid();
+  S.assets.push({ id, kind:'text',
     name: (rec.name||'기록') + ' (' + (rec.presetName||P.name) + ')',
     body: fieldsToText(rec.fields, P), purposes:[rec.group||'character'], tags:[], use:true });
+  setChatPick('assets', id, true);   // 지금 대화창에도 바로 쓰이게
   renderAssets(); materialChanged(); renderChat(true); toast('재료에 넣었습니다 — 다른 양식에서 이어서 쓸 수 있습니다');
 }
 
@@ -543,7 +544,7 @@ function renderSchema(){
           <input class="s-hint" value="${esc(f.hint||'')}"></div>
       </div>
     </details>`).join('')
-    || '<div class="empty" style="padding:20px"><b>칸이 없습니다</b>위 + 로 추가하세요.</div>';
+    || '<div class="empty" style="padding:20px"><b>칸이 없습니다</b>위 칸 추가로 넣으세요.</div>';
   $('#schemaBox').querySelectorAll('.stitem').forEach(el=>{
     el.addEventListener('toggle', ()=>{
       const i = +el.dataset.i;
@@ -673,8 +674,8 @@ function renderCommon(){
       </div>
     </details>`).join('');
   const emptyMsg = (!ownHtml && !inherited)
-    ? '<div class="empty" style="padding:18px"><b>추가한 지시문이 없습니다</b>+ 로 필요한 구획을 추가하세요.</div>'
-    : (!ownHtml ? '<p class="note" style="margin:8px 0 0">이 양식만의 공통 지시문은 아직 없습니다. + 로 추가할 수 있어요.</p>' : '');
+    ? '<div class="empty" style="padding:18px"><b>추가한 지시문이 없습니다</b>지시문 추가로 필요한 구획을 넣으세요.</div>'
+    : (!ownHtml ? '<p class="note" style="margin:8px 0 0">이 양식만의 공통 지시문은 아직 없습니다. 지시문 추가로 넣을 수 있습니다.</p>' : '');
   $('#commonBox').innerHTML = inherited + ownHtml + emptyMsg;
   $('#commonBox').querySelectorAll('.stitem:not(.inherited)').forEach(el=>{
     el.addEventListener('toggle', ()=>{
