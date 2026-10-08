@@ -311,6 +311,87 @@ function setSaveState(msg, kind, persist){
   el.textContent=msg||''; el.className='save-state '+(kind||''); el.hidden=!msg;
   if(msg&&!persist) SAVE_STATE_TIMER=setTimeout(()=>{ el.hidden=true; },1400);
 }
+/* --- 대화 저장소 (IndexedDB) -------------------------------------------
+   대화 본문(메시지·정리)은 IndexedDB 'orrery-data' 에 대화창 하나씩 둔다. localStorage 에는
+   대화창 이름·역할·고른 재료 같은 가벼운 정보만 남긴다(localStorage 는 앱 전체가 약 520만 글자뿐).
+   예전처럼 localStorage 에 본문까지 있던 대화는 처음 열 때 IndexedDB 로 옮긴다.
+   IndexedDB 를 못 쓰면 예전처럼 localStorage 에 다 둔다. */
+const CHAT_DB='orrery-data', CHAT_STORE='chats';
+const CHAT_HEAVY=['msgs','summary','summaryHistory'];   // IndexedDB 로 가는 칸
+let CHAT_IDB=null, CHATS_READY=true, CHAT_STORE_MODE='local';   // 'local' | 'idb'
+let LOADED_CHAT_STORE='local', CHAT_SYNC_TIMER=null;
+const CHAT_WRITTEN=new Map();   // 대화창 id → 마지막으로 쓴 JSON (바뀐 것만 다시 쓰려고)
+function chatDb(){
+  if(!CHAT_IDB) CHAT_IDB=new Promise(resolve=>{
+    try{
+      if(typeof indexedDB==='undefined' || !indexedDB) return resolve(null);
+      const q=indexedDB.open(CHAT_DB,1);
+      q.onupgradeneeded=()=>q.result.createObjectStore(CHAT_STORE,{keyPath:'id'});
+      q.onsuccess=()=>resolve(q.result); q.onerror=()=>resolve(null); q.onblocked=()=>resolve(null);
+    }catch(_){ resolve(null); }
+  });
+  return CHAT_IDB;
+}
+function chatTx(db, mode, fn){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(CHAT_STORE,mode), r=fn(tx.objectStore(CHAT_STORE));
+    tx.oncomplete=()=>resolve(r&&r.result); tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error);
+  });
+}
+function chatMeta(c){ const m={...c}; CHAT_HEAVY.forEach(k=>delete m[k]); return m; }
+// 시작할 때 한 번: localStorage 의 대화창 정보와 IndexedDB 의 본문을 합친다. 예전 저장이면 옮긴다.
+async function hydrateChats(){
+  const db=await chatDb();
+  if(!db){ CHAT_STORE_MODE='local'; CHATS_READY=true; return false; }
+  try{
+    if(LOADED_CHAT_STORE==='idb'){
+      const rows=await chatTx(db,'readonly',st=>st.getAll()) || [];
+      const byId=new Map(rows.map(r=>[r.id,r])), metaIds=new Set(chatList().map(c=>c.id));
+      S.chats=chatList().map(c=>{ const r=byId.get(c.id); return r ? normalizeChat({...r, ...chatMeta(c)}, S.opts.group) : c; });
+      S.chats.forEach(c=>{ if(byId.has(c.id)) CHAT_WRITTEN.set(c.id, JSON.stringify(c)); });
+      const lost=S.chats.filter(c=>!byId.has(c.id)).length;
+      if(lost) log(`대화 본문을 찾지 못한 대화창 ${lost}개`,'err');
+      const orphans=rows.filter(r=>!metaIds.has(r.id)).map(r=>r.id);   // 지운 대화창의 남은 본문
+      if(orphans.length) await chatTx(db,'readwrite',st=>{ orphans.forEach(id=>st.delete(id)); return null; });
+    } else {
+      // 예전 저장: 본문까지 localStorage 에 있다 → IndexedDB 로 옮긴다
+      const list=chatList();
+      await chatTx(db,'readwrite',st=>{ list.forEach(c=>st.put(JSON.parse(JSON.stringify(c)))); return null; });
+      list.forEach(c=>CHAT_WRITTEN.set(c.id, JSON.stringify(c)));
+      if(list.some(c=>c.msgs.length)) log(`대화창 ${list.length}개를 IndexedDB 로 옮겼습니다`,'ok');
+    }
+    CHAT_STORE_MODE='idb'; CHATS_READY=true;
+    save();   // localStorage 에서 본문을 빼 공간을 비운다
+    return true;
+  }catch(e){
+    log('대화 저장소(IndexedDB)를 열지 못해 예전처럼 저장합니다: '+e.message,'err');
+    CHAT_STORE_MODE='local'; CHATS_READY=true; return false;
+  }
+}
+// 바뀐 대화창만 IndexedDB 에 쓰고 지운 대화창은 뺀다. 저장이 잦아 0.3초 모아서 쓴다
+function scheduleChatSync(){
+  if(CHAT_STORE_MODE!=='idb' || !CHATS_READY) return;
+  clearTimeout(CHAT_SYNC_TIMER); CHAT_SYNC_TIMER=setTimeout(syncChats, 300);
+}
+async function syncChats(){
+  clearTimeout(CHAT_SYNC_TIMER); CHAT_SYNC_TIMER=null;
+  if(CHAT_STORE_MODE!=='idb' || !CHATS_READY) return;
+  const db=await chatDb(); if(!db) return;
+  const live=new Set(chatList().map(c=>c.id)), puts=[];
+  chatList().forEach(c=>{ const s=JSON.stringify(c); if(CHAT_WRITTEN.get(c.id)!==s) puts.push([c.id,s]); });
+  const gone=[...CHAT_WRITTEN.keys()].filter(id=>!live.has(id));
+  if(!puts.length && !gone.length) return;
+  try{
+    await chatTx(db,'readwrite',st=>{ puts.forEach(([,s])=>st.put(JSON.parse(s))); gone.forEach(id=>st.delete(id)); return null; });
+    puts.forEach(([id,s])=>CHAT_WRITTEN.set(id,s)); gone.forEach(id=>CHAT_WRITTEN.delete(id));
+  }catch(e){ log('대화를 저장하지 못했습니다: '+e.message,'err'); setSaveState('대화 저장 실패 · 백업 필요','err',true); }
+}
+// 창을 닫거나 다른 탭으로 갈 때는 기다리지 않고 바로 쓴다
+if(typeof document!=='undefined'){
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden' && CHAT_SYNC_TIMER) syncChats(); });
+  window.addEventListener('pagehide', ()=>{ if(CHAT_SYNC_TIMER) syncChats(); });
+}
+
 /* --- 저장 공간 ---
    크롬 기준 이 앱이 쓸 수 있는 localStorage 는 약 520만 글자(2026-10 크롬에서 직접 채워 잼).
    80%를 넘으면 한 번 알린다. 다른 키들은 무거우니 1분에 한 번만 다시 센다. */
@@ -343,13 +424,15 @@ function save(){
     const payload = JSON.stringify({
     connections:S.connections, activeConn:S.activeConn,
     presets:S.presets, activePreset:S.activePreset,
-    opts:S.opts, library:S.library, chats:chatList(), chatId:S.chatId, customTalkPrompts:S.customTalkPrompts, commonPrefs:S.commonPrefs, talkAutoCompact:S.talkAutoCompact, logVerbose:S.logVerbose,
+    opts:S.opts, library:S.library, chatStore:CHAT_STORE_MODE,
+    // IndexedDB 에 두면 여기에는 대화창 정보만(본문은 IndexedDB)
+    chats:CHAT_STORE_MODE==='idb' ? chatList().map(chatMeta) : chatList(), chatId:S.chatId, customTalkPrompts:S.customTalkPrompts, commonPrefs:S.commonPrefs, talkAutoCompact:S.talkAutoCompact, logVerbose:S.logVerbose,
     workspaces:S.workspaces, activeWorkspaceId:S.activeWorkspaceId,
     assetFolders:S.assetFolders,
     assets:S.assets.map(a=>clone(normalizeAssetMetadata(a)))
   });
     localStorage.setItem(KEY, payload);
-    SAVE_FAILED=false; setSaveState('자동 저장됨','ok'); checkStorageRoom(payload.length); return true;
+    SAVE_FAILED=false; setSaveState('자동 저장됨','ok'); checkStorageRoom(payload.length); scheduleChatSync(); return true;
   }catch(e){
     log('저장 실패 — 브라우저 저장 공간이 부족하거나 로컬 저장이 막혔습니다. 전체 백업을 만들어 두세요.','err');
     setSaveState('저장 실패 · 백업 필요','err',true);
@@ -378,6 +461,9 @@ function load(){
     if(d.library) S.library = d.library.map(r=>Object.assign({
       star:false, group:'character', presetName:'', updated:r.at||Date.now() }, r));
     if(typeof loadSharedRecords==='function')loadSharedRecords();
+    // 대화 본문을 IndexedDB 에 두는 저장이면 본문은 시작 뒤 hydrateChats() 가 채운다
+    LOADED_CHAT_STORE = d.chatStore==='idb' ? 'idb' : 'local';
+    if(LOADED_CHAT_STORE==='idb'){ CHAT_STORE_MODE='idb'; CHATS_READY=false; }
     if(Array.isArray(d.chats)&&d.chats.length){
       S.chats=d.chats.map(c=>normalizeChat(c, S.opts.group));
       S.chatId=S.chats.some(c=>c.id===d.chatId)?d.chatId:S.chats[0].id;

@@ -388,7 +388,9 @@ function renderChat(preserveScroll=false){
     const excluded=m.includeHistory===false;
     return `<div class="msg bot wrap${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.current?'지금까지의 정리':'이전 정리'}</span></div><div class="msg-md">${mdHtml(m.content)}</div><div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${talkHistoryButton(excluded,`data-summary="${esc(m.id)}"`,'이 요약')}</div></div>`;
   }).join('');
-  if(!S.chat.msgs.length && !wrapHtml){
+  if(!CHATS_READY){
+    box.innerHTML = '<div class="empty"><b>대화를 불러오는 중입니다</b></div>';
+  } else if(!S.chat.msgs.length && !wrapHtml){
     box.innerHTML = '<div class="empty"><b>아직 아무 말도 안 했습니다</b>만든 것을 보여주고 물어보세요.</div>';
   } else {
     // 같은 자료를 연달아 보냈으면 짧게 적으려고 직전 내 메시지의 자료를 기억해 둔다
@@ -606,6 +608,7 @@ async function autoCompactTalk(chat, conn, pendingMessage, job, shrink=1){
   return true;
 }
 async function wrapTalk(){
+  if(!CHATS_READY) return toast('대화를 불러오는 중입니다',1);
   if(CHAT_JOBS.has(S.chatId)) return;
   if(S.chat.msgs.some(m=>m.status)) return toast('응답을 받지 못한 메시지를 먼저 다시 보내거나 삭제해 주세요.',1);
   const included=talkHistoryMessages();
@@ -811,6 +814,7 @@ $('#chatWrap').addEventListener('drop',e=>{
   e.preventDefault(); addChatFiles(files);
 });
 async function sendChat(retryId){
+  if(!CHATS_READY) return toast('대화를 불러오는 중입니다',1);
   const chat=S.chat, inp=$('#chatIn');
   if(CHAT_JOBS.has(chat.id)) return;
   const failed=chat.msgs.find(m=>m.status==='failed');
@@ -875,6 +879,7 @@ async function sendChat(retryId){
 }
 // 잘린(길이 제한·중지·끊김) 마지막 답을 그 자리에서 마저 받는다. 받은 글은 같은 답 뒤에 붙인다
 async function continueChat(index){
+  if(!CHATS_READY) return;
   const chat=S.chat, msg=chat.msgs[index];
   if(CHAT_JOBS.has(chat.id) || !msg || msg.role!=='assistant' || !msg.cut || index!==chat.msgs.length-1) return;
   const conn=S.connections.find(c=>c.id===S.activeConn);

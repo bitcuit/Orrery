@@ -1,15 +1,15 @@
 {
-  "at": "2026-10-07 22:55",
+  "at": "2026-10-08 18:07",
   "by": "claude-code",
-  "doing": "긴 대화가 끊기지 않게 함: 스트리밍, 잘린 답 이어서 쓰기, 한도 초과·일시 오류 자동 재시도, 한국어 토큰 어림 수정, 긴 대화 화면, 저장 공간 경고",
-  "where": "js/chat.js sendChat()·continueChat() · js/core.js callProvider()·readSSE()·tok",
-  "state": "미검증",
-  "next": "대화를 IndexedDB로 옮겨 저장 공간 한도를 없애기",
+  "doing": "대화 본문을 IndexedDB로 옮겨 저장 공간 한도를 없앰 (예전 대화는 처음 열 때 자동으로 옮김)",
+  "where": "js/core.js hydrateChats()·syncChats() · js/app.js init",
+  "state": "돌아감",
+  "next": "실제 API로 긴 대화를 이어 가며 스트리밍·자동 정리·이어서 쓰기 확인",
   "blocked": "",
   "session": {
     "id": "c9264113-94d9-4964-96e8-157af1c51a84",
     "title": "",
     "tool": "claude-code"
   },
-  "test": "실제 Claude·Gemini·OpenAI 호환 연결로 교신에서 긴 답을 받아 글이 생기는 대로 보이는지, 응답 길이를 작게 잡았을 때 이어서 쓰기로 이어지는지"
+  "test": "평소 쓰던 브라우저에서 앱을 열어 기존 대화창과 메시지가 그대로 있는지, 새로고침 뒤에도 남는지"
 }

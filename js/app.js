@@ -106,7 +106,8 @@ function bootUI(){
 
 (function init(){
   if(WORKER_WINDOW) return;
-  const had = load(); gcChatFiles();
+  // 대화 본문을 다 불러온 뒤에 첨부 정리를 돌린다(먼저 돌면 아직 안 불러온 대화의 첨부를 지울 수 있다)
+  const had = load(); hydrateChats().then(()=>{ gcChatFiles(); renderChat(true); });
   if(!S.presets.length){ S.presets = builtinPresets().map(p=>({...p,_sig:presetSig(p)})); S.activePreset = 'default'; }
   else {
     const b = builtinPresets();
