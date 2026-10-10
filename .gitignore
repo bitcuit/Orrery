@@ -58,3 +58,4 @@ desktop.ini
 # !docs/*.png
 !tests/package.json
 !tests/package-lock.json
+쓰는법.md
