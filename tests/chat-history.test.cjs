@@ -722,3 +722,30 @@ test('saving warns once when browser storage passes 80%', t => {
   a.run("STORAGE_OTHERS=0;save();");
   assert.equal(a.run('STORAGE_WARNED'), false);
 });
+
+test('a message can be edited in place; the edit is saved and goes out with the next question', async t => {
+  const a = boot(t);
+  const requests = stubReplies(a, ['다음 답']);
+  a.run(`S.chat.msgs=[{role:'user',content:'질문'},{role:'assistant',content:'처음 답'}];renderChat();`);
+  a.$('.msg.bot .chat-fix').click();
+  const box = a.$('.msg.bot .chat-edit-in');
+  assert.equal(box.value, '처음 답');
+  box.value = '고친 답'; box.dispatchEvent(new a.w.Event('input', {bubbles:true}));
+  a.run('renderChat(true)');   // 다른 일로 다시 그려져도 쓰던 글이 남는다
+  assert.equal(a.$('.msg.bot .chat-edit-in').value, '고친 답');
+  a.$('.msg.bot .chat-edit-in').dispatchEvent(new a.w.KeyboardEvent('keydown', {key:'Escape', bubbles:true}));
+  assert.equal(a.run('S.chat.msgs[1].content'), '처음 답', 'Esc cancels');
+  a.$('.msg.bot .chat-fix').click();
+  const again = a.$('.msg.bot .chat-edit-in');
+  again.value = ''; again.dispatchEvent(new a.w.Event('input', {bubbles:true}));
+  a.$('.chat-edit-save').click();
+  assert.equal(a.run('S.chat.msgs[1].content'), '처음 답', 'an empty answer is refused');
+  again.value = '고친 답'; again.dispatchEvent(new a.w.Event('input', {bubbles:true}));
+  again.dispatchEvent(new a.w.KeyboardEvent('keydown', {key:'Enter', ctrlKey:true, bubbles:true}));
+  assert.equal(a.$('.chat-edit-in'), null);
+  assert.equal(a.$('.msg.bot .msg-md').textContent, '고친 답');
+  assert.equal(JSON.parse(a.w.localStorage.getItem('orrery.v1')).chats.find(c=>c.msgs.length).msgs[1].content, '고친 답');
+  a.$('#chatIn').value = '이어서'; a.$('#btnSend').click();
+  await new Promise(r => setTimeout(r, 50));
+  assert.ok(requests[0].messages.some(m => m.role==='assistant' && m.content==='고친 답'));
+});

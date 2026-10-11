@@ -319,8 +319,43 @@ function talkTurnButton(cls, index, label, icon){
     + `stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></button>`;
 }
 const ICON_REDO='<path d="M21 4v6h-6"/><path d="M20.5 14a8.5 8.5 0 1 1-2.2-8.1L21 8"/>';
+const ICON_EDIT='<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3"/><path d="m14 7 3 3"/>';
 const ICON_TRASH='<path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/>'
   +'<path d="m6 7 .8 12.1A2 2 0 0 0 8.8 21h6.4a2 2 0 0 0 2-1.9L18 7"/><path d="M10 11v6M14 11v6"/>';
+
+/* 메시지 고치기 — 그 자리에서 글 칸으로 바꿔 고친다. 고친 글이 다음 질문부터 모델에 그대로 간다.
+   고치는 중에 화면이 다시 그려져도(다른 대화창 답 받기 등) 쓰던 글은 CHAT_EDIT 에 남는다. */
+let CHAT_EDIT=null; // {chat, msg, text}
+function talkEditing(m){ return !!CHAT_EDIT && !!m.id && CHAT_EDIT.chat===S.chatId && CHAT_EDIT.msg===m.id; }
+function talkEditHtml(i){
+  return `<div class="chat-edit"><textarea class="chat-edit-in" data-message-index="${i}" aria-label="메시지 고치기" spellcheck="false">${esc(CHAT_EDIT.text)}</textarea>`
+    +`<div class="chat-edit-actions"><span class="note">Ctrl+Enter 저장 · Esc 취소</span>`
+    +`<button type="button" class="mini ghost chat-edit-cancel">취소</button><button type="button" class="mini primary chat-edit-save">저장</button></div></div>`;
+}
+function resizeEditInput(el){ el.style.height='auto'; el.style.height=el.scrollHeight+2+'px'; }
+function startTalkEdit(index){
+  const m=S.chat.msgs[index];
+  if(!m || m.status) return;
+  if(CHAT_JOBS.has(S.chatId)) return toast('이 대화창은 답을 기다리는 중입니다',1);
+  if(!m.id) m.id=uid();   // 예전 메시지에는 id 가 없을 수 있다
+  CHAT_EDIT={chat:S.chatId, msg:m.id, text:m.content||''};
+  renderChat(true);
+  const el=$('#chatLog .chat-edit-in'); if(!el) return;
+  resizeEditInput(el);
+  el.focus({preventScroll:true}); el.setSelectionRange(el.value.length, el.value.length);
+  el.closest('.msg').scrollIntoView({block:'nearest'});
+}
+function endTalkEdit(keep){
+  if(!CHAT_EDIT) return;
+  const m=S.chat.msgs.find(x=>x.id===CHAT_EDIT.msg);
+  if(keep && m){
+    const text=CHAT_EDIT.text.replace(/\s+$/,'');
+    // 답이 비면 문답이 어긋나므로 막는다. 내 메시지는 첨부 파일만 있어도 된다
+    if(!text.trim() && !(m.role==='user' && m.files && m.files.length)) return toast('빈 메시지로는 저장할 수 없습니다. 지우려면 문답 삭제를 쓰세요',1);
+    m.content=text; save();
+  }
+  CHAT_EDIT=null; renderChat(true);
+}
 
 /* 답변 다시 받기 — 그 질문을 그대로 다시 보낸다.
    뒤에 이어진 대화는 새 답변과 어긋나므로 함께 지우고, 그 사실을 먼저 묻는다. */
@@ -383,6 +418,8 @@ function renderChat(preserveScroll=false){
   });
   const box = $('#chatLog');
   const scrollTop=box.scrollTop;
+  // 고치던 글 칸은 다시 그려도 커서 자리까지 그대로 둔다
+  const editEl=$('.chat-edit-in',box), editFocus=editEl&&document.activeElement===editEl&&[editEl.selectionStart,editEl.selectionEnd];
   const wrapHtml = talkSummaryItems().map(m=>{
     const excluded=m.includeHistory===false;
     return `<div class="msg bot wrap${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.current?'지금까지의 정리':'이전 정리'}</span></div><div class="msg-md">${mdHtml(m.content)}</div><div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${talkHistoryButton(excluded,`data-summary="${esc(m.id)}"`,'이 요약')}</div></div>`;
@@ -402,7 +439,8 @@ function renderChat(preserveScroll=false){
     box.innerHTML = wrapHtml + moreHtml + S.chat.msgs.slice(start).map((m,j)=>{
       const i=j+start;
       const excluded=talkTurnExcluded(i), completed=talkTurnIndexes(i).every(n=>!S.chat.msgs[n].status);
-      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span></div>${m.content?`<div class="msg-md">${mdHtml(m.content)}</div>`:''}${talkFilesHtml(m.files)}${m.role==='user'?talkSentHtml(m.sent, prevSent[i]):talkCutHtml(m,i)}<div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${talkTurnButton('chat-copy',i,'이 메시지 복사',ICON_COPY)}${completed?talkTurnButton('chat-regen',i,'이 문답의 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div>${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'&&draft===null?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
+      const editing=talkEditing(m);
+      return `<div class="msg ${m.role==='user'?'user':'bot'}${excluded?' history-excluded':''}${editing?' editing':''}"><div class="msg-heading"><span class="who">${m.role==='user'?'나':'상대'}</span></div>${editing?talkEditHtml(i):m.content?`<div class="msg-md">${mdHtml(m.content)}</div>`:''}${talkFilesHtml(m.files)}${m.role==='user'?talkSentHtml(m.sent, prevSent[i]):editing?'':talkCutHtml(m,i)}${editing?'':`<div class="msg-history-control">${excluded?'<span class="chat-history-status">전송 제외</span>':''}${completed?talkHistoryButton(excluded,`data-message-index="${i}"`,'이 문답'):''}${talkTurnButton('chat-copy',i,'이 메시지 복사',ICON_COPY)}${!m.status&&!job?talkTurnButton('chat-fix',i,'이 메시지 고치기',ICON_EDIT):''}${completed?talkTurnButton('chat-regen',i,'이 문답의 답변 다시 받기',ICON_REDO)+talkTurnButton('chat-delturn',i,'이 문답 삭제',ICON_TRASH):''}</div>`}${m.status==='failed'?`<div class="chat-failure"><span>${esc(m.error||'응답을 받지 못했습니다.')}</span><div><button type="button" class="mini chat-retry" data-message="${esc(m.id)}">다시 보내기</button> <button type="button" class="mini ghost chat-discard" data-message="${esc(m.id)}">메시지 삭제</button></div></div>`:m.status==='pending'&&draft===null?'<div class="note">응답을 기다리고 있습니다.</div>':''}</div>`;
     }).join('') + (draft!==null ? talkStreamHtml(draft, job) : '');
   }
   const t = tok(talkContext());
@@ -415,6 +453,8 @@ function renderChat(preserveScroll=false){
   $('#talkAutoCompact').checked = talkAutoCompactOn();
   renderChatAttach();
   hydrateChatImages(box);
+  const edit=$('.chat-edit-in',box);
+  if(edit){ resizeEditInput(edit); if(editFocus){ edit.focus({preventScroll:true}); edit.setSelectionRange(...editFocus); } }
   renderTalkAssets();
   renderWrapNudge(ct);
   const toCard = $('#btnTalkToCard');
@@ -949,6 +989,10 @@ $('#chatLog').addEventListener('click',e=>{
   if(codeCopy){ copy(codeCopy.closest('.md-code').querySelector('code').textContent); return; }
   const copyBtn=e.target.closest('.chat-copy');
   if(copyBtn){ const m=S.chat.msgs[Number(copyBtn.dataset.messageIndex)]; if(m) copy(m.content); return; }
+  const editBtn=e.target.closest('.chat-fix');
+  if(editBtn) return startTalkEdit(Number(editBtn.dataset.messageIndex));
+  if(e.target.closest('.chat-edit-save')) return endTalkEdit(true);
+  if(e.target.closest('.chat-edit-cancel')) return endTalkEdit(false);
   const regen=e.target.closest('.chat-regen');
   if(regen) return talkRegenerate(Number(regen.dataset.messageIndex));
   const delTurn=e.target.closest('.chat-delturn');
@@ -959,6 +1003,15 @@ $('#chatLog').addEventListener('click',e=>{
     S.chat.msgs=S.chat.msgs.filter(m=>!(m.id===discard.dataset.message && m.status==='failed'));
     save(); renderChat();
   }
+});
+$('#chatLog').addEventListener('input',e=>{
+  if(!e.target.matches('.chat-edit-in') || !CHAT_EDIT) return;
+  CHAT_EDIT.text=e.target.value; resizeEditInput(e.target);
+});
+$('#chatLog').addEventListener('keydown',e=>{
+  if(!e.target.matches('.chat-edit-in')) return;
+  if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); endTalkEdit(true); }
+  else if(e.key==='Escape'){ e.preventDefault(); endTalkEdit(false); }
 });
 $('#chatIn').addEventListener('input',e=>{ S.chat.inputDraft=e.target.value; resizeChatInput(); save(); });
 $('#chatIn').addEventListener('keydown', e=>{

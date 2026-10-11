@@ -1,11 +1,11 @@
 {
-  "at": "2026-10-11 23:14",
+  "at": "2026-10-11 23:24",
   "by": "claude-code",
-  "doing": "교신 답변의 코드 블록 위에 언어 이름과 복사 단추를 붙였어요",
-  "where": "js/core.js mdHtml() 코드 블록 분기, js/chat.js 대화 클릭 처리 .md-code-copy",
+  "doing": "교신 메시지(상대 답·내 말)를 연필 단추로 그 자리에서 고칠 수 있게 했어요",
+  "where": "js/chat.js startTalkEdit · endTalkEdit, renderChat 의 editing 분기",
   "state": "돌아감",
   "next": "실제 API로 스트리밍·이어 받기를 써 보고 문제 있으면 고치기",
   "blocked": "",
-  "test": "교신에서 코드가 든 답을 받아 코드 블록 위 '복사'를 눌러 코드만 붙여넣어지는지",
+  "test": "교신에서 상대 답의 연필을 눌러 고치고 Ctrl+Enter로 저장한 뒤, 다음 질문에 고친 내용대로 이어지는지",
   "session": { "id": "c9264113-94d9-4964-96e8-157af1c51a84", "title": "", "tool": "claude-code" }
 }
