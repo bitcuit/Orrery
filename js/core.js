@@ -8,6 +8,7 @@ const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // 대화 답변의 마크다운을 화면용으로만 그린다. 먼저 전부 이스케이프하므로 원문 HTML은 끼어들지 못한다.
 // 줄바꿈은 .msg-md 의 pre-wrap 이 살리므로 블록 요소 앞뒤에는 줄바꿈을 붙이지 않는다.
+const ICON_COPY='<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/>';
 function mdInline(s){
   const codes=[];
   s=s.replace(/`([^`\n]+)`/g,(_,c)=>`\u0000${codes.push(c)-1}\u0000`);
@@ -28,7 +29,9 @@ function mdHtml(src){
     const l=lines[i]; let m;
     if(/^\s*```/.test(l)){
       const body=[]; while(++i<lines.length && !/^\s*```/.test(lines[i])) body.push(lines[i]);
-      block(`<pre><code>${body.join('\n')}</code></pre>`);
+      // 코드만 따로 복사할 수 있게 위에 언어 이름과 복사 단추를 붙인다
+      const lang=l.replace(/^\s*```/,'').trim();
+      block(`<div class="md-code"><div class="md-code-bar"><span>${lang}</span><button type="button" class="md-code-copy" title="코드 복사" aria-label="코드 복사"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_COPY}</svg>복사</button></div><pre><code>${body.join('\n')}</code></pre></div>`);
     } else if((m=l.match(/^\s*(#{1,6})\s+(.*?)\s*#*\s*$/))){
       block(`<b class="md-h md-h${m[1].length}">${mdInline(m[2])}</b>`);
     } else if(/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)){

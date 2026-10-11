@@ -318,7 +318,6 @@ function talkTurnButton(cls, index, label, icon){
     + `aria-label="${label}" title="${label}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" `
     + `stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></button>`;
 }
-const ICON_COPY='<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/>';
 const ICON_REDO='<path d="M21 4v6h-6"/><path d="M20.5 14a8.5 8.5 0 1 1-2.2-8.1L21 8"/>';
 const ICON_TRASH='<path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/>'
   +'<path d="m6 7 .8 12.1A2 2 0 0 0 8.8 21h6.4a2 2 0 0 0 2-1.9L18 7"/><path d="M10 11v6M14 11v6"/>';
@@ -946,6 +945,8 @@ $('#chatLog').addEventListener('click',e=>{
   }
   const cont=e.target.closest('.chat-continue');
   if(cont) return continueChat(Number(cont.dataset.messageIndex));
+  const codeCopy=e.target.closest('.md-code-copy');
+  if(codeCopy){ copy(codeCopy.closest('.md-code').querySelector('code').textContent); return; }
   const copyBtn=e.target.closest('.chat-copy');
   if(copyBtn){ const m=S.chat.msgs[Number(copyBtn.dataset.messageIndex)]; if(m) copy(m.content); return; }
   const regen=e.target.closest('.chat-regen');
