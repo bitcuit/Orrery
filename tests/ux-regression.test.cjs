@@ -885,3 +885,17 @@ test('an older per-window workspace copy does not overwrite the newer saved work
   assert.equal(a.run("S.workspaces.find(w=>w.id==='w1').snapshot.opts.briefBy.world"),'NEW_BRIEF');
   assert.equal(a.run('curBrief()'),'NEW_BRIEF');
 });
+
+test('a failed background request does not leave a new entry in the work list', t => {
+  const a = boot(t);
+  a.run(`S.activeWorkspaceId=null;var W=ensureWorkspace();var J={id:W.id,iframe:{remove(){}},cancelled:false,created:true,prevStatus:'saved'};
+    WORKSPACE_JOBS.set(W.id,J);finishWorkspaceJob(J,{error:'API 400'})`);
+  assert.equal(a.run('S.workspaces.length'), 0);
+  assert.equal(a.run('S.activeWorkspaceId'), null);
+  assert.match(a.$('#toast').textContent, /요청 실패 — API 400/);
+  // 이미 있던 작업은 남기되 실패 표시는 하지 않는다
+  a.run(`var W2=ensureWorkspace();var J2={id:W2.id,iframe:{remove(){}},cancelled:false,created:false,prevStatus:'saved'};
+    WORKSPACE_JOBS.set(W2.id,J2);finishWorkspaceJob(J2,{error:'API 400'})`);
+  assert.equal(a.run('S.workspaces.length'), 1);
+  assert.equal(a.run('S.workspaces[0].status'), 'saved');
+});

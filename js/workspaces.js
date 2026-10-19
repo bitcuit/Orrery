@@ -196,6 +196,7 @@ function canRunInBackground(button){
 }
 async function startWorkspaceJob(button,label){
   if(!canChangeWork(true)) return false;
+  const before=workspaceById(S.activeWorkspaceId);
   let w=ensureWorkspace();if(WORKSPACE_JOBS.has(w.id)){toast('이 작업은 이미 생성 중입니다.',1);return false;}
   if(!OWNED_WORKSPACES.has(w.id)){w=await claimWorkspace(w);S.activeWorkspaceId=w.id;}
   if(WORKSPACE_JOBS.has(w.id))return false;
@@ -205,7 +206,8 @@ async function startWorkspaceJob(button,label){
   const notes={continueNote:$('#continueNote').value,rerollNote:$('#rerollNote').value};
   const iframe=document.createElement('iframe');iframe.hidden=true;iframe.title='작업 실행';iframe.setAttribute('aria-hidden','true');
   const url=new URL(location.href);url.hash='orrery-worker';iframe.src=url.href;
-  const job={id:w.id,iframe,label,calls:0,cancelled:false};WORKSPACE_JOBS.set(w.id,job);
+  // created: 이 요청 때문에 목록에 새로 생긴 작업 · prevStatus: 실패하면 되돌릴 원래 상태
+  const job={id:w.id,iframe,label,calls:0,cancelled:false,created:!before||before.id!==w.id,prevStatus:before&&before.id===w.id?before.status:'saved'};WORKSPACE_JOBS.set(w.id,job);
   w.status='running';w.message='';save();renderWorkspaces();renderStudioScreen();
   job.timer=setTimeout(()=>finishWorkspaceJob(job,{error:'작업 실행 화면을 열지 못했습니다.'}),15000);
   iframe.addEventListener('load',()=>{
@@ -231,12 +233,22 @@ function finishWorkspaceJob(job,data){
     w.snapshot.continueNote=data.snapshot.continueNote;w.snapshot.rerollNote=data.snapshot.rerollNote;
   }
   for(const record of data.records||[]){const at=S.library.findIndex(r=>r.id===record.id);if(at<0)S.library.push(record);else S.library[at]=record;}
-  w.status=job.cancelled?'interrupted':data.error?'failed':'complete';w.message=data.error&&data.error!=='__ABORT__'?data.error:'';w.updated=Date.now();
+  const failed=job.cancelled||!!data.error, reason=data.error&&data.error!=='__ABORT__'?data.error:'';
+  // 실패·중지는 목록에 남기지 않는다: 새로 생긴 작업은 지우고, 있던 작업은 원래 상태로 되돌린다
+  w.status=failed?job.prevStatus:'complete';w.message='';w.updated=Date.now();
   w.pendingApply=S.activeWorkspaceId===w.id;
   // Do not replace a project object which an in-flight foreground chat is using.
   if(!ACTIVE_TASK) applyCompletedWorkspace();
   WORKSPACE_RESTORING=true;try{save();}finally{WORKSPACE_RESTORING=false;}
-  renderWorkspaces();toast(w.name+' · '+(w.status==='complete'?'생성 완료':w.status==='interrupted'?'중지됨':'요청 실패'));
+  if(failed&&job.created&&!w.pendingApply) dropFailedWorkspace(w);
+  renderWorkspaces();toast(w.name+' · '+(!failed?'생성 완료':job.cancelled?'중지됨':'요청 실패'+(reason?' — '+reason:'')),failed&&!job.cancelled);
+}
+function dropFailedWorkspace(w){
+  S.workspaces=S.workspaces.filter(x=>x.id!==w.id);
+  if(S.activeWorkspaceId===w.id) S.activeWorkspaceId=null;
+  OWNED_WORKSPACES.delete(w.id);WORKSPACE_LOCKS.get(w.id)?.();WORKSPACE_LOCKS.delete(w.id);
+  try{localStorage.setItem(WORKSPACE_PREFIX+w.id,JSON.stringify({id:w.id,deleted:true}));}catch(_){}
+  save();touchDraft();
 }
 function applyCompletedWorkspace(){
   const w=workspaceById(S.activeWorkspaceId);if(!w?.pendingApply) return;
