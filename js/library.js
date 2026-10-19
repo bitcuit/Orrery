@@ -707,7 +707,9 @@ function builtinCommonItems(){
     .map((x,i)=>({ name:String(x.name||('지시문 '+(i+1))), content:String(x.content),
       role:(x.role==='user'||x.role==='assistant')?x.role:'system',
       groups:normalizeGroups(x.groups),
-      tags:Array.isArray(x.tags)?x.tags:[], enabled:x.enabled!==false }));
+      tags:Array.isArray(x.tags)?x.tags:[], enabled:x.enabled!==false }))
+    // 편집기에서 끈 지시문은 앱에 아예 넣지 않는다(목록에도 안 보이고 앱에서 켤 수도 없음)
+    .filter(x=>x.enabled);
 }
 function commonExistsIn(P, item){
   return (P.common||[]).some(c=>(c.content||'').trim()===item.content.trim());

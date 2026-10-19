@@ -899,3 +899,12 @@ test('a failed background request does not leave a new entry in the work list', 
   assert.equal(a.run('S.workspaces.length'), 1);
   assert.equal(a.run('S.workspaces[0].status'), 'saved');
 });
+
+test('instructions turned off in the editor are never sent and are not listed in the app', t => {
+  const a = boot(t, {'orrery.commonExtra.v1':JSON.stringify([{name:'On',content:'ON_TEXT'},{name:'Off',content:'OFF_TEXT',enabled:false}])});
+  a.run("S.commonPrefs={Off:{off:false}}"); // 앱에서 예전에 켜 둔 적이 있어도
+  assert.deepEqual(plain(a.run('builtinCommonItems().map(x=>x.name)')), ['On']);
+  const sent = a.run('activeBuiltinCommons({}).map(c=>c.content).join(" | ")');
+  assert.match(sent, /ON_TEXT/);
+  assert.doesNotMatch(sent, /OFF_TEXT/);
+});
