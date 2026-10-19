@@ -908,3 +908,22 @@ test('instructions turned off in the editor are never sent and are not listed in
   assert.match(sent, /ON_TEXT/);
   assert.doesNotMatch(sent, /OFF_TEXT/);
 });
+
+test('digest questions: checked answers are sent as facts, blank ones left to the AI, unchecked ones left open', async t => {
+  const a = boot(t); connection(a);
+  a.run(`applyGroup('world');tab('studio');S.project.digest={title:'T',given:['g'],questions:['Q_ANSWER','Q_DECIDE','Q_SKIP']};renderDigest();showStudioScreen('digest')`);
+  const rows=[...a.w.document.querySelectorAll('#digestOut .dq-row')];
+  assert.equal(rows.length,3);
+  const ans=rows[0].querySelector('.dq-ans'); ans.value='MY_ANSWER'; ans.dispatchEvent(new a.w.Event('input',{bubbles:true}));
+  const skip=rows[2].querySelector('.dq-use'); skip.checked=false; skip.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  assert.equal(rows[2].querySelector('.dq-ans').disabled,true);
+  const requests=replyQueue(a,[[{id:'s1',line:'seed',hook:'h',angle:'a'}]]);
+  await a.run('doSeeds()');
+  const sent=requests[0].messages.map(m=>m.content).join('\n');
+  assert.match(sent,/사용자가 답한 질문[\s\S]*Q_ANSWER[\s\S]*MY_ANSWER/);
+  assert.match(sent,/AI가 정할 질문[\s\S]*Q_DECIDE/);
+  assert.match(sent,/정하지 않아도 되는 질문[\s\S]*Q_SKIP/);
+  // 답은 저장되어 다시 그려도 남는다
+  a.run('renderDigest()');
+  assert.equal(a.$('#digestOut .dq-ans').value,'MY_ANSWER');
+});

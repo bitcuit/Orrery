@@ -989,6 +989,18 @@ button.refine-mode.on .rn{color:var(--c152)}
 .dcard ul{margin:0;padding-left:16px;font-size:13px;color:var(--c145)}
 .dcard li{margin-bottom:4px}
 .dcard li b{color:var(--c184);font-weight:540}
+/* 먼저 정할 질문 — 체크 + 답 칸. 격자 한 줄을 다 쓴다 */
+.dcard.dq{grid-column:1/-1}
+.dq-help{margin:0 0 10px}
+.dq-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:8px 14px;align-items:start;
+  padding:8px 0;border-top:1px solid var(--line)}
+.dq-q{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.55;color:var(--c145);cursor:pointer}
+.dq-q input{margin-top:3px;flex:none;width:auto}
+.dq-q span{flex:1;min-width:0;font-weight:400}
+.dq-ans{min-height:0;font-size:13px;line-height:1.55;padding:6px 10px}
+.dq-row.off .dq-q span{color:var(--dim);text-decoration:line-through}
+.dq-row.off .dq-ans{opacity:.45}
+@media (max-width:640px){.dq-row{grid-template-columns:1fr}}
 .digest-head{margin-bottom:13px}
 .digest-title{font-family:var(--body);font-size:19px;color:var(--c185)}
 .digest-head .chips{margin-top:8px}

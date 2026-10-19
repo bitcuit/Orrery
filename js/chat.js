@@ -56,7 +56,7 @@ function talkContext(chat){
   chat = chat||S.chat;
   const c = chat.ctx, parts = [];
   if(c.assets){ const t = chatSourceText(chat); if(t.trim()) parts.push('[재료]\n'+t); }
-  if(c.digest && S.project.digest && !digestStale()) parts.push('[정리한 내용]\n'+JSON.stringify(S.project.digest,null,1));
+  if(c.digest && S.project.digest && !digestStale()) parts.push('[정리한 내용]\n'+digestStr());
   if(c.card && S.project.card) parts.push('[지금 만든 것]\n'+JSON.stringify(S.project.card.fields,null,1));
   return parts.join('\n\n');
 }

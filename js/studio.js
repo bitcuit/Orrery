@@ -2119,13 +2119,41 @@ async function doDigest(){
   const d = await runStage('digest', { source: src, modeNote: modeNote('digest') });
   S.project.digest = d;
   S.project.digestSrc = src.slice(0,200);
+  // 새 정리본에 그대로 남은 질문의 답만 이어 쓴다
+  { const keep=new Set(digestQuestions()), old=S.project.digestAnswers||{};
+    S.project.digestAnswers=Object.fromEntries(Object.entries(old).filter(([q])=>keep.has(q))); }
   const P = activePreset();
   S.project.digestMeta = { presetId:P.id, presetName:P.name, tpl:digestTpl(P), source:src,
     mode:activeMode(), refine:modeUsesRefine()?activeRefine():'', at:Date.now() };
   stashDigest(S.opts.group);
   return d;
 }
-function digestStr(){ return JSON.stringify(S.project.digest, null, 1); }
+/* 정리본의 '먼저 정할 질문'에 사용자가 고른 것·답한 것. 질문 글을 열쇠로 둔다
+   체크 + 답 → 확정 사실 / 체크 + 빈칸 → AI가 정함 / 체크 해제 → 다루지 않고 열어 둠 */
+function digestQuestions(){
+  const q=S.project.digest&&S.project.digest.questions;
+  return Array.isArray(q)?q.map(digestItemText).map(x=>x.trim()).filter(Boolean):[];
+}
+function questionPick(q){
+  const a=(S.project.digestAnswers||{})[q]||{};
+  return {use:a.use!==false, answer:String(a.answer||'')};
+}
+function setQuestionPick(q, patch){
+  S.project.digestAnswers=Object.assign({},S.project.digestAnswers,{[q]:Object.assign(questionPick(q),patch)});
+  touchDraft();
+}
+function digestStr(){
+  const d=S.project.digest, qs=digestQuestions();
+  if(!qs.length || !d || typeof d!=='object' || Array.isArray(d)) return JSON.stringify(d, null, 1);
+  const out=Object.assign({},d), answered=[], decide=[], skip=[];
+  delete out.questions;
+  qs.forEach(q=>{ const p=questionPick(q);
+    if(!p.use) skip.push(q); else if(p.answer.trim()) answered.push({질문:q, 답:p.answer.trim()}); else decide.push(q); });
+  if(answered.length) out['사용자가 답한 질문 — 이 답을 확정 사실로 따를 것']=answered;
+  if(decide.length) out['AI가 정할 질문 — 결과에서 알맞게 정할 것']=decide;
+  if(skip.length) out['정하지 않아도 되는 질문 — 결과에서 다루지 말고 열어 둘 것']=skip;
+  return JSON.stringify(out, null, 1);
+}
 // 재료·구상·양식이 정리 뒤에 바뀌었으면 옛 정리본을 쓰지 않고 다시 정리한다.
 // (옛 정리본이 남으면 지운 재료 내용이 다음 단계로 계속 넘어간다)
 // create: 정리본이 아예 없을 때도 만든다(후보 뽑기처럼 정리본이 꼭 필요한 단계).
@@ -2750,12 +2778,32 @@ function renderDigest(){
   const title=data.title||data.subject||'';
   const tones=Array.isArray(data.tone)?data.tone:(data.tone?[data.tone]:[]);
   const skip=new Set(['title','subject','tone','era']);
+  const qs=digestQuestions(); if(qs.length) skip.add('questions');
   const entries=Object.entries(data).filter(([k,v])=>!skip.has(k)&&digestHasValue(v));
   const header=(title||data.era||tones.length)?`<div class="digest-head">${title?`<div class="digest-title">${esc(title)}</div>`:''}${data.era?`<div class="note">${esc(data.era)}</div>`:''}${tones.length?`<div class="chips">${tones.map(t=>`<span class="chip">${esc(t)}</span>`).join('')}</div>`:''}</div>`:'';
   const cards=entries.map(([k,v])=>`<div class="dcard"><h4>${esc(DIGEST_LABELS[k]||k.replaceAll('_',' '))}</h4>${digestValueHtml(v)}</div>`).join('');
-  box.innerHTML=header+(cards?`<div class="digest-grid">${cards}</div>`:'<div class="empty"><b>정리된 항목이 없습니다</b>응답 형식을 확인한 뒤 다시 정리해 주세요.</div>');
+  const questions=qs.length?`<div class="dcard dq"><h4>먼저 정할 질문</h4>
+    <p class="note dq-help">체크한 질문만 다음 단계로 보내요. 답을 비우면 AI가 정하고, 체크를 풀면 정하지 않고 열어 둬요.</p>
+    ${qs.map((q,i)=>{ const p=questionPick(q); return `<div class="dq-row${p.use?'':' off'}">
+      <label class="dq-q"><input type="checkbox" class="dq-use" data-qi="${i}" ${p.use?'checked':''}><span>${esc(q)}</span></label>
+      <textarea class="dq-ans" data-qi="${i}" rows="1" placeholder="비우면 AI가 정해요" aria-label="${esc(q)} 답" ${p.use?'':'disabled'}>${esc(p.answer)}</textarea></div>`; }).join('')}
+  </div>`:'';
+  box.innerHTML=header+(cards||questions?`<div class="digest-grid">${cards}${questions}</div>`:'<div class="empty"><b>정리된 항목이 없습니다</b>응답 형식을 확인한 뒤 다시 정리해 주세요.</div>');
   setSpine();
 }
+// 질문 체크·답: 다시 그리지 않고 그 자리만 바꾼다(입력 중 커서 유지)
+$('#digestOut').addEventListener('change', e=>{
+  if(!e.target.classList.contains('dq-use')) return;
+  const q=digestQuestions()[+e.target.dataset.qi]; if(q==null) return;
+  setQuestionPick(q,{use:e.target.checked});
+  const row=e.target.closest('.dq-row'); row.classList.toggle('off',!e.target.checked);
+  row.querySelector('.dq-ans').disabled=!e.target.checked;
+});
+$('#digestOut').addEventListener('input', e=>{
+  if(!e.target.classList.contains('dq-ans')) return;
+  const q=digestQuestions()[+e.target.dataset.qi]; if(q==null) return;
+  setQuestionPick(q,{answer:e.target.value});
+});
 function renderSeeds(){
   const p = S.project, box = $('#seedOut'), P = activePreset();
   if(document.activeElement!==$('#seedNote')) $('#seedNote').value=p.seedNote||'';

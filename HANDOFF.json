@@ -1,11 +1,11 @@
 {
   "at": "2026-10-19 23:55",
   "by": "claude-code",
-  "doing": "작업대(세계·인물·프롬프트) 생성이 9월 20일부터 전부 실패하던 것을 고쳤어요",
-  "where": "js/workspaces.js 작업 실행 창의 orrery-work-start 처리",
-  "state": "돌아감",
+  "doing": "재료 정리의 질문마다 체크·답을 달아 다음 단계로 보내게 했어요",
+  "where": "js/studio.js digestStr · renderDigest(먼저 정할 질문)",
+  "state": "미검증",
   "next": "실제 API로 작업대 생성과 생성 중 교신을 한 번씩 써 보기",
   "blocked": "",
-  "test": "작업대에서 세계관 만들기를 눌렀을 때 요청 실패 없이 결과가 나오는지",
+  "test": "세계 작업대에서 재료 정리 뒤 질문에 답을 적고 후보·결과를 만들었을 때 그 답대로 나오는지",
   "session": { "id": "6db55466-28b5-4a7d-92d3-0d4c37377b33", "title": "", "tool": "claude-code" }
 }
