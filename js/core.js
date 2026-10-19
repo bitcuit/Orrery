@@ -293,8 +293,9 @@ function offerDraftRestore(){
   let d=null;
   try{ const raw=localStorage.getItem(DRAFT_KEY); if(raw) d=JSON.parse(raw); }catch(e){ clearDraft(); }
   if(!d || !d.project) return false;
-  const when = d.at ? new Date(d.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '이전 방문';
-  if(!confirm(`${when}에 진행하던 작업이 있습니다.\n이전 작업물을 불러올까요?`)){ clearDraft(); return false; }
+  // 저장 작업이 있으면 그쪽이 이미 같은 내용으로 복원됐다. 다시 묻거나 덮어쓰지 않는다.
+  if(d.activeWorkspaceId && S.workspaces.some(w=>w.id===d.activeWorkspaceId)) return false;
+  // 자동 저장분이라 묻지 않고 이어서 연다(새로 고칠 때마다 묻던 창 제거). 새로 하려면 '새 작업'.
   if(d.opts) Object.assign(S.opts,d.opts);
   convertPrefs();
   if(d.activePreset) S.activePreset=d.activePreset;

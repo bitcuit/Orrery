@@ -56,7 +56,7 @@ function talkContext(chat){
   chat = chat||S.chat;
   const c = chat.ctx, parts = [];
   if(c.assets){ const t = chatSourceText(chat); if(t.trim()) parts.push('[재료]\n'+t); }
-  if(c.digest && S.project.digest) parts.push('[정리한 내용]\n'+JSON.stringify(S.project.digest,null,1));
+  if(c.digest && S.project.digest && !digestStale()) parts.push('[정리한 내용]\n'+JSON.stringify(S.project.digest,null,1));
   if(c.card && S.project.card) parts.push('[지금 만든 것]\n'+JSON.stringify(S.project.card.fields,null,1));
   return parts.join('\n\n');
 }
@@ -70,7 +70,7 @@ function talkSentSnapshot(chat){
     if(items.length) out.items=items;
     if(curBrief().trim()) out.brief=true;
   }
-  if(c.digest && S.project.digest) out.digest=true;
+  if(c.digest && S.project.digest && !digestStale()) out.digest=true;
   if(c.card && S.project.card) out.card=activePreset().name;
   return Object.keys(out).length ? out : null;
 }
@@ -508,7 +508,7 @@ function talkAssetRow(a){
 }
 function renderTalkAssets(){
   const box = $('#talkAssetList'), assetCount = $('#talkAssetCount'); if(!box) return;
-  const c=S.chat.ctx||{}, materialText=chatSourceText(S.chat), digestText=S.project.digest?JSON.stringify(S.project.digest):'';
+  const c=S.chat.ctx||{}, materialText=chatSourceText(S.chat), digestText=S.project.digest&&!digestStale()?JSON.stringify(S.project.digest):'';
   const cardText=S.project.card?JSON.stringify(S.project.card.fields||{}):'';
   const picks=chatPicks(), n = picks.assets.filter(id=>assetById(id)).length + picks.records.filter(id=>S.library.some(r=>r.id===id)).length, total=S.assets.length+S.library.length;
   assetCount.textContent = total ? `선택 ${n}/${total}개` : '성운이 비어 있습니다';
@@ -522,7 +522,7 @@ function renderTalkAssets(){
   $('#ctxAssetsMeta').textContent=materialText.trim()
     ? `${n?`고른 재료 ${n}개${curBrief().trim()?' + 구상':''}`:'구상'} · ${tok(materialText)} 토큰쯤`
     : '선택한 재료나 구상 없음';
-  $('#ctxDigestMeta').textContent=digestText?`${tok(digestText)} 토큰쯤`:'아직 정리한 내용 없음';
+  $('#ctxDigestMeta').textContent=digestText?`${tok(digestText)} 토큰쯤`:S.project.digest?'재료가 바뀌어 작업대에서 다시 정리해야 합니다':'아직 정리한 내용 없음';
   $('#ctxCardMeta').textContent=cardText?`${activePreset().name} · ${tok(cardText)} 토큰쯤`:'아직 만든 결과 없음';
   const kinds=(c.assets&&materialText.trim()?1:0)+(c.digest&&digestText?1:0)+(c.card&&cardText?1:0);
   $('#talkPickCount').textContent=`선택 ${kinds}개`;

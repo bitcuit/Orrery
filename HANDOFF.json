@@ -1,11 +1,11 @@
 {
-  "at": "2026-10-11 23:24",
+  "at": "2026-10-19 22:39",
   "by": "claude-code",
-  "doing": "교신 메시지(상대 답·내 말)를 연필 단추로 그 자리에서 고칠 수 있게 했어요",
-  "where": "js/chat.js startTalkEdit · endTalkEdit, renderChat 의 editing 분기",
-  "state": "돌아감",
-  "next": "실제 API로 스트리밍·이어 받기를 써 보고 문제 있으면 고치기",
+  "doing": "재료를 바꾼 뒤에도 옛 정리본(지운 재료 내용)이 계속 AI에 가던 문제를 고쳤어요",
+  "where": "js/studio.js ensureDigest, js/workspaces.js installWorkspace, js/core.js offerDraftRestore",
+  "state": "미검증",
+  "next": "'요청 실패'가 또 뜨면 작업 목록에 적힌 실패 문구를 확인해 원인 찾기",
   "blocked": "",
-  "test": "교신에서 상대 답의 연필을 눌러 고치고 Ctrl+Enter로 저장한 뒤, 다음 질문에 고친 내용대로 이어지는지",
-  "session": { "id": "c9264113-94d9-4964-96e8-157af1c51a84", "title": "", "tool": "claude-code" }
+  "test": "세계 작업대에서 재료를 바꾸고 후보 뽑기·만들기를 눌렀을 때 옛 재료 얘기가 안 나오고, 새로 고침해도 불러올지 묻는 창이 안 뜨는지",
+  "session": { "id": "6db55466-28b5-4a7d-92d3-0d4c37377b33", "title": "", "tool": "claude-code" }
 }

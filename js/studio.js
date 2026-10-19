@@ -2125,6 +2125,15 @@ async function doDigest(){
   return d;
 }
 function digestStr(){ return JSON.stringify(S.project.digest, null, 1); }
+// 재료·구상·양식이 정리 뒤에 바뀌었으면 옛 정리본을 쓰지 않고 다시 정리한다.
+// (옛 정리본이 남으면 지운 재료 내용이 다음 단계로 계속 넘어간다)
+// create: 정리본이 아예 없을 때도 만든다(후보 뽑기처럼 정리본이 꼭 필요한 단계).
+async function ensureDigest(create=false){
+  const stale=digestStale();
+  if(S.project.digest ? !stale : !create) return;
+  await doDigest(); renderDigest();
+  if(stale) log(stale+' — 정리본을 새로 만들었습니다.');
+}
 
 function activeSeedFormat(){ return S.opts.seedFormatBy?.[S.opts.group]==='keywords'?'keywords':'concept'; }
 function keywordSeeds(){ return S.project.seeds.length>0 && S.project.seeds.every(s=>s.keyword===true); }
@@ -2144,7 +2153,7 @@ function seedRevision(instruction, candidates, mixing=false){
     ' 원본의 확정 사실과 이 단계의 JSON 형식을 지키고, 완성 본문은 아직 만들지 말 것. 추가 지시의 중요한 조건은 후보의 line·hook·angle에 담아 다음 생성 단계에도 이어지게 할 것.';
 }
 async function doSeeds(instruction='', candidates=[]){
-  if(!S.project.digest) await doDigest();
+  await ensureDigest(true);
   const locked=S.project.seeds.filter(s=>s.locked&&!s.keyword);
   const lockNote=locked.length?'\n잠근 후보(그대로 유지되니 다시 만들지 말고, 이들과 겹치지 않는 새 후보만 제안할 것):\n'+locked.map(s=>'- '+s.line).join('\n')+'\n':'';
   const castNote = S.project.cast.length
@@ -2166,6 +2175,7 @@ async function doSeeds(instruction='', candidates=[]){
 async function doCross(a,b,instruction='',additional=[]){
   if(!a || !b) throw new Error('섞을 후보 둘을 골라 주세요.');
   const selected=[a,b,...additional];
+  await ensureDigest();
   const j = await runStage('cross', {
     digest: digestStr(), seedRevision:seedRevision(instruction,selected,true)+'\n고른 후보 '+selected.length+'개 전체를 참고해 하나로 조합하라. 기존 양식에 둘이라고 적혀 있어도 전달된 후보 전체가 대상이다. 합성 후보 하나를 기존 JSON 형식으로 반환하라.',
     seed:selected.map((s,i)=>`${i+1}) ${seedStr(s)}`).join('\n')
@@ -2181,6 +2191,7 @@ function seedStr(s){ if(!s) return '(따로 고른 방향 없음 — 자료 전�
 
 async function doExpand(seed){
   const P={schema:activeSchema()}; let j, recovered=null;
+  await ensureDigest();
   try{
     j = await runStage('expand', { digest: digestStr(), seed: seedStr(seed),
       modeNote: modeNote('expand') });
@@ -2201,6 +2212,7 @@ async function doPatch(instruction){
   const locked   = schema.filter(f=>S.project.locked[f.key]).map(f=>f.key);
   const unlocked = schema.filter(f=>!S.project.locked[f.key]).map(f=>f.key);
   if(!unlocked.length) throw new Error('전부 잠겨 있습니다. 다시 쓸 칸을 열어 주세요.');
+  await ensureDigest();
   const j = await runStage('patch', {
     digest: digestStr(),
     card: JSON.stringify(S.project.card.fields, null, 1),
@@ -2229,6 +2241,7 @@ async function doContinueCard(instruction){
   const conn=S.connections.find(c=>c.id===S.activeConn);
   if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
   const P=activePreset(), st=P.stages.expand||{};
+  if(S.project.digest) await ensureDigest();
   const context=S.project.digest ? digestStr() : sourceText();
   const note=String(instruction||'').trim();
   const messages=[
@@ -2404,6 +2417,7 @@ async function doChatToCard(){
   return {keys:changed};
 }
 async function doCheck(){
+  await ensureDigest();
   const j = await runStage('check', { digest: digestStr(),
     card: JSON.stringify(S.project.card.fields, null, 1) });
   S.project.violations = j.violations || [];
@@ -2413,6 +2427,7 @@ async function doCheck(){
 async function doRelate(){
   const cast = S.project.cast.map(c=>
     `- ${c.fields.name||'?'}: ${(c.fields.background||c.seed&&c.seed.line||'').slice(0,220)}`).join('\n');
+  await ensureDigest();
   const j = await runStage('relate', { digest: digestStr(), cast });
   S.project.relations = j.edges || [];
   return S.project.relations;
@@ -3141,6 +3156,7 @@ const ASK_MODE = {
 설계 용어로 답하지 말고, 그 인물이 실제로 할 법한 말로 답한다.`
 };
 async function doAsk(question, mode){
+  if(S.project.digest) await ensureDigest();
   const j = await runStage('ask', {
     digest: S.project.digest ? digestStr() : '(없음)',
     card: JSON.stringify(S.project.card.fields, null, 1),

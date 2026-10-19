@@ -856,3 +856,24 @@ test('field toggles narrow generation, display and rerolls, and are stored per p
   const req2=replyQueue(b,[{title:'t'}]); b.$('#btnOneShot').click(); await nextTurn();
   assert.doesNotMatch(req2[0].messages.map(m=>m.content).join('\n'), /결함·비밀 작성 설정/);
 });
+
+test('material swapped after digest is re-read before the next stage, and deleted material stays deleted', async t => {
+  const a = boot(t); connection(a);
+  a.run(`S.assets=[{id:'old',kind:'text',name:'old',body:'OLD_LORE',use:true,purposes:['world'],tags:[]}];tab('studio')`);
+  let requests=replyQueue(a,[{title:'OLD_DIGEST'}]);
+  await a.run('doDigest()');
+  const snap=a.run('JSON.stringify(captureWorkspace())');
+  a.run(`S.assets=[{id:'new',kind:'text',name:'new',body:'NEW_LORE',use:true,purposes:['world'],tags:[]}];materialChanged()`);
+  assert.match(a.run('digestStale()')||'', /재료/);
+  requests=replyQueue(a,[{title:'NEW_DIGEST'},[{id:'s1',line:'seed',hook:'h',angle:'a'}]]);
+  await a.run('doSeeds()');
+  const text=r=>r.messages.map(m=>m.content).join('\n');
+  assert.equal(requests.length,2);
+  assert.match(text(requests[0]),/NEW_LORE/);
+  assert.doesNotMatch(text(requests[0]),/OLD_LORE/);
+  assert.match(text(requests[1]),/NEW_DIGEST/);
+  assert.doesNotMatch(text(requests[1]),/OLD_DIGEST|OLD_LORE/);
+  // 지우기 전에 저장한 작업을 다시 열어도 지운 재료가 돌아오지 않는다
+  a.run(`installWorkspace(JSON.parse(${JSON.stringify(snap)}))`);
+  assert.deepEqual(plain(a.run('S.assets.map(x=>x.id)')), ['new']);
+});

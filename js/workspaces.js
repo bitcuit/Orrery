@@ -123,7 +123,8 @@ function installWorkspace(snapshot){
       if(at<0) S.presets.push(clone(p));else S.presets[at]=clone(p);
     }
     const materials=new Map((snapshot.materials||[]).map(a=>[a.id,clone(a)]));
-    S.assets=S.assets.map(a=>{const saved=materials.get(a.id);materials.delete(a.id);return saved||{...a,use:false};}).concat([...materials.values()]);
+    // 저장 작업 뒤에 지운 재료는 되살리지 않는다(지운 재료가 다시 켜져 요청에 섞이던 문제)
+    S.assets=S.assets.map(a=>materials.get(a.id)||{...a,use:false});
     if(Array.isArray(snapshot.chats)&&snapshot.chats.length){
       S.chats=snapshot.chats.map(c=>normalizeChat(clone(c),S.opts.group));
       S.chatId=S.chats.some(c=>c.id===snapshot.chatId)?snapshot.chatId:S.chats[0].id;
