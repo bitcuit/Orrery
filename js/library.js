@@ -446,7 +446,8 @@ function applyGroup(g){
   OPEN_DONE_STAGE=null; CLOSED_DONE_STAGE=null;
   stashWork();
   S.opts.group = g;
-  S.assets.forEach(a=>{ a.use=false; }); // 재료 선택은 한 작업에서만 유효
+  // 재료 선택은 한 작업에서만 유효. 재료로 켜 둔 완성본(기록)도 같이 끈다
+  S.assets.forEach(a=>{ a.use=false; }); S.library.forEach(r=>{ r.use=false; });
   $('#optBrief').value=curBrief();
   const list = presetsInGroup(g);
   const saved=(S.project.workBy||{})[g];

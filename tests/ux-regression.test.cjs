@@ -877,3 +877,11 @@ test('material swapped after digest is re-read before the next stage, and delete
   a.run(`installWorkspace(JSON.parse(${JSON.stringify(snap)}))`);
   assert.deepEqual(plain(a.run('S.assets.map(x=>x.id)')), ['new']);
 });
+
+test('an older per-window workspace copy does not overwrite the newer saved work on load', async t => {
+  const ws = brief => ({id:'w1',name:'work',status:'saved',snapshot:{version:1,opts:{group:'world',briefBy:{world:brief}},project:{},materials:[]}});
+  const fresh = {...ws('NEW_BRIEF'),updated:2000}, stale = {...ws('OLD_BRIEF'),updated:1000};
+  const a = boot(t, {'orrery.v1':JSON.stringify({workspaces:[fresh],activeWorkspaceId:'w1'}),'orrery.work.v1.w1':JSON.stringify(stale)});
+  assert.equal(a.run("S.workspaces.find(w=>w.id==='w1').snapshot.opts.briefBy.world"),'NEW_BRIEF');
+  assert.equal(a.run('curBrief()'),'NEW_BRIEF');
+});

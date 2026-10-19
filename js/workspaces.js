@@ -32,7 +32,8 @@ function loadSharedWorkspaces(){
   const all=new Map(S.workspaces.map(w=>[w.id,w]));
   for(let i=0;i<localStorage.length;i++){
     const key=localStorage.key(i);if(!key?.startsWith(WORKSPACE_PREFIX)) continue;
-    try{const w=JSON.parse(localStorage.getItem(key));if(w?.deleted)all.delete(w.id);else if(w?.snapshot?.project&&w.snapshot.opts)all.set(w.id,w);}catch(_){}
+    // 창별 사본이 앱 저장본보다 오래됐으면 쓰지 않는다(옛 사본이 최신 작업을 덮어써 지운 구상·재료가 되살아나던 문제)
+    try{const w=JSON.parse(localStorage.getItem(key));if(w?.deleted)all.delete(w.id);else if(w?.snapshot?.project&&w.snapshot.opts&&!((all.get(w.id)?.updated||0)>(w.updated||0)))all.set(w.id,w);}catch(_){}
   }
   S.workspaces=[...all.values()];
 }
@@ -158,7 +159,7 @@ function createWorkspace(){
   S.opts.briefBy[g]='';S.opts.extraBy[g]='';convertPrefs().extraBy[g]='';
   S.project.digestBy[g]=null;delete S.project.workBy[g];
   Object.assign(S.project,emptyWork(),{screen:'input'});
-  S.assets.forEach(a=>{ a.use=false; });
+  S.assets.forEach(a=>{ a.use=false; }); S.library.forEach(r=>{ r.use=false; });
   $('#optBrief').value='';$('#continueNote').value='';$('#rerollNote').value='';
   // Each work owns its conversations. Other group work is retained in the saved prior session.
   S.chats=[emptyChat(g)]; S.chatId=S.chats[0].id;
