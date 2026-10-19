@@ -184,13 +184,29 @@ $('#workspaceList').addEventListener('click',e=>{
   if(button.dataset.workOpen) openWorkspace(button.dataset.workOpen);
   if(button.dataset.workStop) stopWorkspaceJob(button.dataset.workStop);
   const id=button.dataset.workDelete;
-  if(id&&!WORKSPACE_JOBS.has(id)&&confirm('이 저장 작업을 삭제할까요? 현재 화면의 내용과 성도 기록은 남습니다.')){
-    if(!OWNED_WORKSPACES.has(id)){toast('다른 창의 작업을 보호하려면 먼저 복사본으로 열어 주세요.',1);return;}
+  if(id&&!WORKSPACE_JOBS.has(id)) deleteWorkspace(id);
+});
+// 다른 창이 실제로 열어 둔 작업만 막는다. 안 열려 있으면(대부분) 바로 지운다
+async function lockForDelete(id){
+  if(OWNED_WORKSPACES.has(id)||!navigator.locks?.request) return true;
+  return new Promise(resolve=>{
+    navigator.locks.request('orrery-work-'+id,{ifAvailable:true},lock=>{
+      if(!lock){resolve(false);return;}
+      OWNED_WORKSPACES.add(id);resolve(true);
+      return new Promise(release=>WORKSPACE_LOCKS.set(id,release));
+    }).catch(()=>resolve(true));
+  });
+}
+async function deleteWorkspace(id){
+  if(!confirm('이 저장 작업을 삭제할까요? 현재 화면의 내용과 성도 기록은 남습니다.')) return;
+  {
+    if(!await lockForDelete(id)){toast('다른 창에서 열려 있는 작업이라 지울 수 없습니다. 그 창을 닫고 지워 주세요.',1);return;}
+    WORKSPACE_LOCKS.get(id)?.();WORKSPACE_LOCKS.delete(id);OWNED_WORKSPACES.delete(id);
     try{localStorage.setItem(WORKSPACE_PREFIX+id,JSON.stringify({id,deleted:true}));}catch(_){toast('삭제 내용을 저장하지 못했습니다',1);return;}
     S.workspaces=S.workspaces.filter(w=>w.id!==id);if(S.activeWorkspaceId===id) S.activeWorkspaceId=null;
     save();touchDraft();renderWorkspaces();
   }
-});
+}
 function canRunInBackground(button){
   return !WORKER_WINDOW && typeof MessageChannel==='function' && BACKGROUND_ACTIONS.has(button?.id);
 }
@@ -275,7 +291,8 @@ if(WORKER_WINDOW) window.addEventListener('message',e=>{
   if(e.source!==parent || e.data?.type!=='orrery-work-start' || !e.ports[0] || WORKER_PORT) return;
   WORKER_PORT=e.ports[0];WORKER_PORT.onmessage=({data})=>{if(data.type==='cancel')abortCurrentCall();};
   try{
-    S=e.data.state;$('#continueNote').value=e.data.continueNote||'';$('#rerollNote').value=e.data.rerollNote||'';
+    // S 를 갈아끼우면 S.chat(지금 대화창을 가리키는 접근자)이 사라져 bootUI 가 죽는다. 값만 덮어쓴다
+    Object.assign(S,e.data.state);$('#continueNote').value=e.data.continueNote||'';$('#rerollNote').value=e.data.rerollNote||'';
     bootUI();BOOTING=false;tab('studio');WORKER_PORT.postMessage({type:'started'});
     const button=$('#'+e.data.action);
     if(!button || button.disabled) throw new Error('이 단계는 실행할 수 없습니다.');

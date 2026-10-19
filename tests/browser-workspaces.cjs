@@ -67,7 +67,8 @@ let browser,ws,closeBrowser;
   await evaluate("tab('talk');$('#chatIn').value='Chat during generation';$('#btnSend').click()");
   await waitFor(()=>requests.length===3,'chat starts during two generations');
   release(1,[{id:'b',line:'Candidate B'}]);
-  await waitFor(()=>evaluate('workspaceById(S.activeWorkspaceId).pendingApply===true'),'studio result waits for foreground chat safely');
+  // 교신은 작업대 작업을 막지 않으므로(대화창 동시 진행) 결과는 대화 중에도 바로 들어온다
+  await waitFor(()=>evaluate("workspaceById(S.activeWorkspaceId).status==='complete'&&!workspaceById(S.activeWorkspaceId).pendingApply"),'studio result applies while chat runs');
   release(2,'Chat reply');await waitFor(()=>evaluate('!workIsBusy()'),'chat completes');
   release(0,[{id:'a',line:'Candidate A'}]);
   await waitFor(()=>evaluate('WORKSPACE_JOBS.size===0'),'both workers complete');
