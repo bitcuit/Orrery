@@ -1,11 +1,11 @@
 {
-  "at": "2026-10-19 22:39",
+  "at": "2026-10-19 22:55",
   "by": "claude-code",
-  "doing": "재료를 바꾼 뒤에도 옛 정리본(지운 재료 내용)이 계속 AI에 가던 문제를 고쳤어요",
-  "where": "js/studio.js ensureDigest, js/workspaces.js installWorkspace, js/core.js offerDraftRestore",
+  "doing": "세계관 설계 양식을 AI 채팅 세계관 칸 크기로 줄였어요(칸마다 최대 개수, 물가·연표 같은 세부 빼기)",
+  "where": "builtin-presets.js 'world' 양식, js/studio.js worldDirection",
   "state": "미검증",
-  "next": "'요청 실패'가 또 뜨면 작업 목록에 적힌 실패 문구를 확인해 원인 찾기",
+  "next": "실제로 세계관을 한 번 만들어 보고 분량이 맞는지 보기",
   "blocked": "",
-  "test": "세계 작업대에서 재료를 바꾸고 후보 뽑기·만들기를 눌렀을 때 옛 재료 얘기가 안 나오고, 새로 고침해도 불러올지 묻는 창이 안 뜨는지",
+  "test": "세계 작업대에서 세계관 설계로 하나 만들었을 때 칸마다 몇 줄 안 되고 물가·연표 같은 세부가 안 나오는지",
   "session": { "id": "6db55466-28b5-4a7d-92d3-0d4c37377b33", "title": "", "tool": "claude-code" }
 }
