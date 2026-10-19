@@ -927,3 +927,20 @@ test('digest questions: checked answers are sent as facts, blank ones left to th
   a.run('renderDigest()');
   assert.equal(a.$('#digestOut .dq-ans').value,'MY_ANSWER');
 });
+
+test('refine mode rewrites only unlocked fields, keeps locked ones and can be undone once', async t => {
+  const a = boot(t); connection(a);
+  a.run(`applyGroup('character');switchPreset('default');tab('studio');
+    S.project.card={fields:{name:'OLD_NAME',background:'OLD_BG'},continuations:[]};S.project.locked={name:true};
+    S.opts.contMode='refine';showStudioScreen('result');renderCard()`);
+  assert.equal(a.$('#btnContinue').textContent,'다듬기');
+  const requests=replyQueue(a,[{fields:{name:'HACKED',background:'NEW_BG'}}]);
+  a.$('#continueNote').value='짧게';
+  await a.run('doRefineCard("짧게")');a.run('renderCard()');
+  assert.match(requests[0].messages.map(m=>m.content).join('\n'),/다듬기 지시:\n짧게/);
+  assert.deepEqual(plain(a.run('S.project.card.fields')),{name:'OLD_NAME',background:'NEW_BG'});
+  assert.equal(a.$('#btnRefineUndo').hidden,false);
+  a.$('#btnRefineUndo').click();
+  assert.deepEqual(plain(a.run('S.project.card.fields')),{name:'OLD_NAME',background:'OLD_BG'});
+  assert.equal(a.$('#btnRefineUndo').hidden,true);
+});

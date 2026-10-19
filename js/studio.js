@@ -2305,6 +2305,37 @@ async function doContinueCard(instruction){
   card.raw={text:parsedRaw,at:Date.now(),label:'이어서 만들기 원문'};
   return {keys,recovered:!!recovered};
 }
+// 다듬기: 지금 결과를 지시대로 고쳐 쓴다. 바뀐 칸만 통째로 받아 바꾸고, 잠근 칸은 건드리지 않는다.
+// 바로 전 상태는 card.refined.before 에 남겨 '다듬기 전으로'로 되돌린다
+async function doRefineCard(instruction){
+  const card=S.project.card; if(!card) throw new Error('먼저 결과를 만들어 주세요.');
+  const conn=S.connections.find(c=>c.id===S.activeConn);
+  if(!conn) throw new Error('먼저 연결 탭에서 API 연결을 하나 만들어 주세요.');
+  const P=activePreset(), st=P.stages.expand||{};
+  await ensureDigest();
+  const context=S.project.digest ? digestStr() : sourceText();
+  const note=String(instruction||'').trim();
+  const locked=P.schema.filter(f=>S.project.locked[f.key]).map(f=>f.key);
+  const messages=[
+    {role:'system',content:`당신은 이미 작성된 ${ASSET_PURPOSE_LABEL[S.opts.group]||'창작'} 결과를 다듬는 편집자다. 지시받은 부분만 고치고, 지시와 상관없는 사실·고유명사·설정은 그대로 둔다. 새 설정을 지어 넣지 않는다.`},
+    {role:'user',content:`양식의 칸:\n${schemaSpec()}\n\n참고 맥락:\n${context||'(없음)'}\n\n현재 결과:\n${JSON.stringify(card.fields,null,1)}\n\n고치지 말 칸: ${locked.join(', ')||'(없음)'}\n\n다듬기 지시:\n${note||'(별도 지시 없음 — 어색한 문장, 같은 말의 반복, 칸끼리의 모순만 정리하고 내용은 바꾸지 말 것)'}\n\n아래 형식의 유효한 JSON 하나만 출력하라.\n{"fields":{"field_key":"고친 뒤의 칸 전체 내용"}}\n- 고친 칸만 넣고, 그 칸은 고친 뒤의 전체 내용을 써라.\n- 고치지 말 칸과 양식에 없는 키는 넣지 마라.\n- 설명과 코드펜스는 쓰지 마라.`}
+  ];
+  const opts={temperature:Math.min(st.temperature??0.75,0.7),maxTokens:Math.max(2400,st.maxTokens||2400)};
+  const raw=await callProvider(conn,messages,opts);
+  const parsed=await parseJsonReply(conn,messages,opts,raw,true);
+  const j=parsed.json||{}, source=(j&&typeof j==='object'&&(j.fields||j.revised))||j;
+  const allowed=new Set(P.schema.filter(f=>!S.project.locked[f.key]).map(f=>f.key));
+  const before=clone(card.fields), keys=[];
+  Object.keys(source||{}).forEach(k=>{
+    if(!allowed.has(k)||typeof source[k]!=='string'||!source[k].trim()||source[k]===card.fields[k]) return;
+    card.fields[k]=source[k]; keys.push(k);
+  });
+  if(!keys.length) throw new Error('고친 칸이 없습니다. 지시를 더 구체적으로 적어 다시 해보세요.');
+  // 되돌리기는 다듬은 직후 그대로일 때만 — 그 뒤 손으로 고치거나 이어 붙이면 사라진다
+  card.refined={before,after:clone(card.fields)};
+  card.raw={text:parsed.raw||raw,at:Date.now(),label:'다듬기 원문'};
+  return {keys};
+}
 function textSignature(text){
   const s=String(text||''); let h=2166136261;
   for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
@@ -2907,13 +2938,29 @@ function renderContinue(){
   const count=Array.isArray(card.continuations)?card.continuations.length:0;
   box.classList.toggle('cut',!!card.truncated);
   if(card.truncated) box.open=true;
-  $('#continueTitle').textContent=card.truncated?'출력이 중간에 끊겼습니다':'이어서 만들기';
+  // 끊긴 결과는 먼저 이어 붙여야 하므로 '뒤에 붙이기'로 둔다
+  if(card.truncated) S.opts.contMode='append';
+  const refine=S.opts.contMode==='refine';
+  $$('#continueBox input[name="contMode"]').forEach(x=>{ x.checked=x.value===(S.opts.contMode||'append'); });
+  $('#continueTitle').textContent=card.truncated?'출력이 중간에 끊겼습니다':'이어 쓰기 · 다듬기';
   $('#continueHint').textContent=card.truncated
     ? `${card.truncatedField?card.truncatedField+' 칸부터 ':''}복구한 결과입니다 · 이어서 만들면 남은 내용을 붙입니다`
-    : '현재 결과는 그대로 두고 새 내용만 뒤에 붙입니다';
+    : refine ? '현재 결과를 지시대로 고쳐 씁니다 · 잠근 칸은 그대로' : '현재 결과는 그대로 두고 새 내용만 뒤에 붙입니다';
+  $('#continueNoteLabel').textContent=refine?'다듬기 지시':'이어쓰기 지시';
+  $('#continueNote').placeholder=refine
+    ? '예: 문장을 더 짧게, 장소 칸을 더 구체적으로 · 비우면 어색한 문장·반복·모순만 정리합니다.'
+    : '비우면 잘린 곳이나 마지막 칸부터 자연스럽게 잇습니다.';
   $('#continueMeta').textContent=count?`이어 쓴 기록 ${count}회 · 결과와 함께 임시 저장·백업됩니다`:'빈 지시로 눌러도 됩니다';
+  $('#btnContinue').textContent=refine?'다듬기':'이어서 만들기';
   $('#btnContinue').disabled=false;
+  $('#btnRefineUndo').hidden=!canUndoRefine(card);
 }
+function canUndoRefine(card){ return !!(card&&card.refined&&JSON.stringify(card.fields)===JSON.stringify(card.refined.after)); }
+// 이어 쓰기 방식은 S.opts.contMode('append' 뒤에 붙이기 · 'refine' 다듬기) — 작업 실행 창에도 같이 넘어간다
+$('#continueBox').addEventListener('change', e=>{
+  if(e.target.name!=='contMode') return;
+  S.opts.contMode=e.target.value; save(); renderContinue(); $('#continueNote').focus();
+});
 function readConvertSettings(){
   return {
     sourceLang:$('#convertSourceLang').value.trim()||S.opts.lang||'자동 감지',
@@ -3354,12 +3401,24 @@ $('#btnExpand').addEventListener('click', e=> guard(e.target,'만드는 중', as
 $('#btnReroll').addEventListener('click', e=> guard(e.target,'다시 쓰는 중', async()=>{
   await doPatch(); renderCard(); saveRecord(); toast('안 잠근 칸을 다시 썼습니다');
 }));
-$('#btnContinue').addEventListener('click', e=> guard(e.currentTarget,'잇는 중', async()=>{
+$('#btnContinue').addEventListener('click', e=> S.opts.contMode==='refine'
+  ? guard(e.currentTarget,'다듬는 중', async()=>{
+    const result=await doRefineCard($('#continueNote').value);
+    S.project.violations=null; S.project.verdict=null; S.project.qa=[];
+    renderCard(); renderCheck(); saveRecord(); touchDraft();
+    toast(`${result.keys.length}개 칸을 다듬었습니다 · '다듬기 전으로'로 되돌릴 수 있습니다`);
+  })
+  : guard(e.currentTarget,'잇는 중', async()=>{
   const result=await doContinueCard($('#continueNote').value);
   S.project.violations=null; S.project.verdict=null; S.project.qa=[];
   renderCard(); renderCheck(); saveRecord(); touchDraft();
   toast(`${result.keys.length}개 칸에 이어 붙였습니다${result.recovered?' · 응답이 다시 잘려 읽힌 부분까지 반영했습니다':''}`);
 }));
+$('#btnRefineUndo').addEventListener('click', ()=>{
+  const card=S.project.card; if(!canUndoRefine(card)) return;
+  card.fields=card.refined.before; delete card.refined;
+  renderCard(); renderCheck(); saveRecord(); touchDraft(); toast('다듬기 전으로 되돌렸습니다');
+});
 $('#continueNote').addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); $('#btnContinue').click(); }
 });

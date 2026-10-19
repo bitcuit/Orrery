@@ -1065,6 +1065,7 @@ button.refine-mode.on .rn{color:var(--c152)}
 .continuebox>summary::after{content:'＋';margin-left:auto;color:var(--dim2)}
 .continuebox[open]>summary::after{content:'−'}
 .continuebox[hidden]{display:none}
+.continuebox .cont-mode{margin:6px 0 8px}
 .continuebox .continue-title b{font-size:13px;color:var(--c164);font-weight:520}
 .continuebox.cut .continue-title b{color:var(--c166)}
 .continuebox textarea{min-height:62px;margin-top:9px}
