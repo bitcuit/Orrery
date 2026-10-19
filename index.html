@@ -333,7 +333,7 @@
       </div>
       <label class="fl" for="continueNote"><span id="continueNoteLabel">이어쓰기 지시</span> <span class="note">· 선택</span></label>
       <textarea id="continueNote" rows="2" placeholder="비우면 잘린 곳이나 마지막 칸부터 자연스럽게 잇습니다."></textarea>
-      <div class="bar"><span class="note" id="continueMeta"></span><span class="sp"></span><button class="ghost" id="btnRefineUndo" hidden>다듬기 전으로</button><button class="primary" id="btnContinue">이어서 만들기</button></div>
+      <div class="bar"><span class="note" id="continueMeta"></span><span class="sp"></span><button class="ghost" id="btnRefineUndo" hidden title="다듬기·교신 완성본 직전 결과로 돌아갑니다">되돌리기</button><button class="primary" id="btnContinue">이어서 만들기</button></div>
     </details>
     <div class="bar" id="cardBar" style="display:none">
       <button class="primary" id="btnSaveLib"><svg class="ic" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m16 5.6 3 6.4 7 .9-5.1 4.9 1.3 7L16 21.4l-6.2 3.4 1.3-7L6 12.9l7-.9z" stroke="#e9b654"/></svg>고정하기</button>
@@ -746,6 +746,11 @@
     <div class="modal-h"><h2>완성본으로 정리</h2><button class="mini" id="talkRecordClose" aria-label="닫기">닫기</button></div>
     <div class="modal-b">
       <div class="field"><label class="fl" for="talkRecordPreset">양식</label><select id="talkRecordPreset"></select></div>
+      <div class="field"><span class="fl">채우는 방식</span>
+        <div class="purpose-options" role="radiogroup" aria-label="채우는 방식">
+          <label class="purpose-choice"><input type="radio" name="talkRecordMode" value="fill" checked><span>빈 칸까지 채워 완성</span></label>
+          <label class="purpose-choice"><input type="radio" name="talkRecordMode" value="only"><span>정한 것만 옮기기</span></label>
+        </div></div>
       <p class="note" id="talkRecordNote"></p>
     </div>
     <div class="modal-f" style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line)">

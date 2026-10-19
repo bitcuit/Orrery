@@ -3406,7 +3406,7 @@ $('#btnContinue').addEventListener('click', e=> S.opts.contMode==='refine'
     const result=await doRefineCard($('#continueNote').value);
     S.project.violations=null; S.project.verdict=null; S.project.qa=[];
     renderCard(); renderCheck(); saveRecord(); touchDraft();
-    toast(`${result.keys.length}개 칸을 다듬었습니다 · '다듬기 전으로'로 되돌릴 수 있습니다`);
+    toast(`${result.keys.length}개 칸을 다듬었습니다 · '되돌리기'로 돌아갈 수 있습니다`);
   })
   : guard(e.currentTarget,'잇는 중', async()=>{
   const result=await doContinueCard($('#continueNote').value);

@@ -944,3 +944,23 @@ test('refine mode rewrites only unlocked fields, keeps locked ones and can be un
   assert.deepEqual(plain(a.run('S.project.card.fields')),{name:'OLD_NAME',background:'OLD_BG'});
   assert.equal(a.$('#btnRefineUndo').hidden,true);
 });
+
+test('chat → 완성본: "fill" asks to complete every field with reference material, "only" leaves undiscussed fields empty', async t => {
+  const a = boot(t); connection(a);
+  a.run(`applyGroup('character');switchPreset('default');
+    S.assets=[{id:'m',kind:'text',name:'m',body:'REF_MATERIAL',use:true,purposes:[],tags:[]}];S.chat.picks={assets:['m'],records:[]};S.chat.ctx={assets:true};
+    S.chat.msgs=[{id:'u1',role:'user',content:'이름은 서윤',includeHistory:true},{id:'b1',role:'assistant',content:'좋아요',includeHistory:true}];
+    tab('talk');renderChat(true);openTalkRecord()`);
+  assert.equal(a.$('#talkRecordModal input[value="fill"]').checked,true);
+  let requests=replyQueue(a,[{name:'서윤',background:'채운 배경'}]);
+  await a.run('runTalkRecord()');
+  let sent=requests[0].messages.map(m=>m.content).join('\n');
+  assert.match(sent,/모든 칸을 완성/);assert.match(sent,/REF_MATERIAL/);
+  assert.equal(a.run('S.library.at(-1).fields.background'),'채운 배경');
+  a.run('openTalkRecord()');
+  const only=a.$('#talkRecordModal input[value="only"]');only.checked=true;only.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  requests=replyQueue(a,[{name:'서윤'}]);
+  await a.run('runTalkRecord()');
+  sent=requests[0].messages.map(m=>m.content).join('\n');
+  assert.match(sent,/빈 문자열로 둔다/);assert.doesNotMatch(sent,/REF_MATERIAL/);
+});

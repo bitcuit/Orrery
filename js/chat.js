@@ -1091,7 +1091,10 @@ function openTalkRecord(){
 }
 function renderTalkRecordNote(){
   const P=S.presets.find(p=>p.id===$('#talkRecordPreset').value);
-  $('#talkRecordNote').textContent=P?`칸 ${P.schema.length}개: ${P.schema.map(f=>f.label).join(' · ')}`:'';
+  const mode=talkRecordMode();
+  $$('#talkRecordModal input[name="talkRecordMode"]').forEach(x=>{ x.checked=x.value===mode; });
+  $('#talkRecordNote').textContent=(P?`칸 ${P.schema.length}개: ${P.schema.map(f=>f.label).join(' · ')}`:'')
+    +(mode==='fill'?' · 대화에서 안 정한 칸은 대화와 보낼 자료에 맞춰 채웁니다':' · 대화에서 안 정한 칸은 비워 둡니다');
 }
 function closeTalkRecord(){ $('#talkRecordModal').hidden=true; }
 async function talkRecordTranscript(){
@@ -1112,14 +1115,19 @@ async function runTalkRecord(){
   try{
     const lang=S.opts.lang||'한국어';
     const fields=P.schema.map(f=>`- "${f.key}": ${f.label}${f.hint?' — '+f.hint:''}`).join('\n');
+    // fill: 대화에서 다루지 않은 칸도 대화·보낼 자료의 맥락으로 채워 모든 칸을 완성 / only: 정한 것만 옮김
+    const fill=talkRecordMode()==='fill', ref=fill?talkContext(S.chat):'';
     const msgs=[
-      {role:'system',content:`너는 창작 상담 대화에서 확정된 내용을 정해진 양식의 칸에 옮겨 적는 정리자다.
+      {role:'system',content:(fill?`너는 창작 상담 대화에서 정한 내용을 반영해 정해진 양식의 모든 칸을 완성하는 작가다.
+- 대화에서 합의되거나 확정된 내용은 반드시 그대로 반영한다. 제안만 되고 채택되지 않은 것은 확정으로 다루지 않는다.
+- 대화에서 다루지 않은 칸도 대화와 참고 자료의 맥락에 맞게 채워, 빈 칸 없이 바로 쓸 수 있는 완성본으로 만든다.
+- 대화·참고 자료와 어긋나는 설정을 새로 만들지 않는다.`:`너는 창작 상담 대화에서 확정된 내용을 정해진 양식의 칸에 옮겨 적는 정리자다.
 - 대화에서 합의되거나 확정된 내용만 쓴다. 제안만 되고 채택되지 않은 것, 아직 여러 안이 남은 것은 쓰지 않는다.
-- 대화에 없는 내용을 지어내지 않는다. 대화에서 다루지 않은 칸은 빈 문자열로 둔다.
+- 대화에 없는 내용을 지어내지 않는다. 대화에서 다루지 않은 칸은 빈 문자열로 둔다.`)+`
 - 뒤에 나온 결정이 앞의 결정을 바꿨으면 뒤의 것을 따른다.
 - ${lang}로 쓴다.
 - 출력은 JSON 객체 하나뿐이다. 설명이나 코드 울타리를 붙이지 않는다.`},
-      {role:'user',content:`양식: ${P.name}\n칸:\n${fields}\n\n위 칸 이름(key)을 그대로 키로 쓴 JSON 객체로 답하라.\n\n[대화]\n${await talkRecordTranscript()}`}
+      {role:'user',content:`양식: ${P.name}\n칸:\n${fields}\n\n위 칸 이름(key)을 그대로 키로 쓴 JSON 객체로 답하라.${ref.trim()?`\n\n[참고 자료]\n${ref}`:''}\n\n[대화]\n${await talkRecordTranscript()}`}
     ];
     const out=await callProvider(conn,msgs,{temperature:0.4,maxTokens:4000,concurrent:true});
     const j=extractJson(out), got={};
@@ -1134,6 +1142,12 @@ async function runTalkRecord(){
   }catch(err){ if(err.message!=='__ABORT__') showErr(err); }
   finally{ TALK_RECORD_BUSY=false; btn.disabled=false; btn.textContent='정리하기'; }
 }
+// 채우는 방식은 설정에 기억한다. 처음엔 '빈 칸까지 채워 완성'
+function talkRecordMode(){ return S.opts.talkRecordMode==='only'?'only':'fill'; }
+$('#talkRecordModal').addEventListener('change',e=>{
+  if(e.target.name!=='talkRecordMode') return;
+  S.opts.talkRecordMode=e.target.value; save(); renderTalkRecordNote();
+});
 $('#btnTalkToRecord').addEventListener('click',openTalkRecord);
 $('#talkRecordPreset').addEventListener('change',renderTalkRecordNote);
 $('#talkRecordRun').addEventListener('click',runTalkRecord);
