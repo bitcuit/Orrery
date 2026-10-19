@@ -330,7 +330,10 @@ test('a finished conversation becomes a completed record in the chosen form, and
   assert.equal(rec.from, 'chat');
   assert.equal(rec.fields.unknown, undefined);
   assert.equal(a.$('#talkRecordModal').hidden, true);
-  assert.equal(a.$('#libViewModal').hidden, false);
+  // 완성본은 작업대 결과 카드로 열린다(성도 보기 창이 아니라)
+  assert.equal(a.$('#libViewModal').hidden, true);
+  assert.equal(a.run('S.project.libId'), rec.id);
+  assert.equal(a.run('S.project.card.fields.name'), '레아');
   a.run("tab('studio');renderNebulaPicker()");
   const box = a.$('#nebulaList .r-use');
   assert.ok(box);

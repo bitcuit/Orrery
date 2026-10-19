@@ -1137,8 +1137,13 @@ async function runTalkRecord(){
     const rec={id:uid(),star:false,at:now,updated:now,name:guessName(got,P)||'대화에서 정리',fields:got,
       presetId:P.id,presetName:P.name,group:P.group||'character',world:'',from:'chat'};
     S.library.push(rec); save(); renderLib();
-    closeTalkRecord(); openLibView(rec.id);
-    toast('완성본에 저장했습니다 · 성도에서 다시 볼 수 있습니다');
+    closeTalkRecord();
+    // 작업대 결과 카드로 연다(다듬기·이어 쓰기·내보내기를 바로 쓰게). 작업대가 생성 중이면 성도 보기로
+    if((typeof currentWorkspaceJob==='function'&&currentWorkspaceJob())||workIsBusy()){
+      openLibView(rec.id); toast('완성본에 저장했습니다 · 작업대가 생성 중이라 성도에서 열었습니다');
+    } else {
+      loadRecordToStudio(rec); toast('완성본을 작업대 결과 카드로 열었습니다 · 성도에도 남았습니다');
+    }
   }catch(err){ if(err.message!=='__ABORT__') showErr(err); }
   finally{ TALK_RECORD_BUSY=false; btn.disabled=false; btn.textContent='정리하기'; }
 }

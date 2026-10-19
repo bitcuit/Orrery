@@ -957,6 +957,11 @@ test('chat → 완성본: "fill" asks to complete every field with reference mat
   let sent=requests[0].messages.map(m=>m.content).join('\n');
   assert.match(sent,/모든 칸을 완성/);assert.match(sent,/REF_MATERIAL/);
   assert.equal(a.run('S.library.at(-1).fields.background'),'채운 배경');
+  // 작업대 결과 카드로 열린다
+  assert.equal(a.run('S.project.card.fields.background'),'채운 배경');
+  assert.equal(a.run('S.project.libId'),a.run('S.library.at(-1).id'));
+  assert.equal(a.$('#studioResults').hidden,false);
+  a.run("tab('talk')");
   a.run('openTalkRecord()');
   const only=a.$('#talkRecordModal input[value="only"]');only.checked=true;only.dispatchEvent(new a.w.Event('change',{bubbles:true}));
   requests=replyQueue(a,[{name:'서윤'}]);
