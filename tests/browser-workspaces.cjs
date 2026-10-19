@@ -52,7 +52,12 @@ let browser,ws,closeBrowser;
 
   const origin=`http://127.0.0.1:${server.address().port}`;
   const waitFor=async (predicate,label)=>{for(let n=0;n<160;n++){if(await predicate())return;await delay(50);}throw new Error('Timed out: '+label);};
-  const release=(index,content)=>requests[index].res.end(JSON.stringify({choices:[{message:{content:typeof content==='string'?content:JSON.stringify(content)}}]}));
+  const release=(index,content)=>{
+    const {res,body}=requests[index], text=typeof content==='string'?content:JSON.stringify(content);
+    // 교신은 스트리밍으로 받는다
+    if(body.stream){res.setHeader('Content-Type','text/event-stream');res.end('data: '+JSON.stringify({choices:[{delta:{content:text}}]})+'\n\ndata: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n');return;}
+    res.end(JSON.stringify({choices:[{message:{content:text}}]}));
+  };
   await send('Page.addScriptToEvaluateOnNewDocument',{source:"window.confirm=()=>true;"});
   await send('Page.navigate',{url:origin+'/index.html'});
   await waitFor(()=>evaluate("typeof BOOTING!=='undefined'&&!BOOTING"),'initial boot');
