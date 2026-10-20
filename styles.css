@@ -1928,3 +1928,8 @@ button.mini.ghost{border-color:var(--c34)}
 @media (prefers-reduced-motion:reduce){.msg.streaming .msg-md::after{animation:none}}
 .chat-cut{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;white-space:normal;font-size:12px;color:var(--dim2)}
 .chat-more{align-self:center;margin:4px 0 8px}
+
+/* 결과에 질문하기 — 누가 답할까요 · 질문 · 묻기를 같은 높이로 맞춰 칸과 이름표가 한 줄에 서게 */
+#qaPanel .row>.field{margin-bottom:0}
+#askMode,#askIn,#btnAsk{height:42px;min-height:42px;box-sizing:border-box}
+#askIn{display:block;line-height:1.5;padding-top:8px;padding-bottom:8px;resize:none}
