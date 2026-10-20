@@ -508,7 +508,7 @@ function talkAssetRow(a){
 }
 function renderTalkAssets(){
   const box = $('#talkAssetList'), assetCount = $('#talkAssetCount'); if(!box) return;
-  const c=S.chat.ctx||{}, materialText=chatSourceText(S.chat), digestText=S.project.digest&&!digestStale()?JSON.stringify(S.project.digest):'';
+  const c=S.chat.ctx||{}, materialText=chatSourceText(S.chat), digestText=S.project.digest&&!digestStale()?digestStr():'';
   const cardText=S.project.card?JSON.stringify(S.project.card.fields||{}):'';
   const picks=chatPicks(), n = picks.assets.filter(id=>assetById(id)).length + picks.records.filter(id=>S.library.some(r=>r.id===id)).length, total=S.assets.length+S.library.length;
   assetCount.textContent = total ? `선택 ${n}/${total}개` : '성운이 비어 있습니다';

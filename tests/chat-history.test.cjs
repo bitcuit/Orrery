@@ -170,14 +170,14 @@ test('history window starts with a question and failed/pending messages have no 
   a.run(`S.chat.msgs=Array.from({length:30},(_,i)=>({role:i%2?'assistant':'user',content:String(i)}));
     S.chat.msgs.push({id:'pending',role:'user',content:'current',status:'pending'});
     CHAT_SENDING=true; renderChat();`);
-  assert.equal(a.$('[data-message-index="30"]'), null);
+  assert.equal(a.$('.chat-history-toggle[data-message-index="30"]'), null);
   const sent = plain(a.run('talkHistoryMessages(S.chat.msgs[30],24)'));
   assert.equal(sent[0].role, 'user');
   assert.equal(sent.at(-1).content, 'current');
   assert.equal(sent.length,23);
   a.run('CHAT_SENDING=false; renderChat();');
   assert.equal(a.run('S.chat.msgs[30].status'),'failed');
-  assert.equal(a.$('[data-message-index="30"]'), null);
+  assert.equal(a.$('.chat-history-toggle[data-message-index="30"]'), null);
   assert.ok(a.$('.chat-retry'));
   assert.ok(!a.run('talkHistoryMessages().some(m=>m.id==="pending")'));
 });

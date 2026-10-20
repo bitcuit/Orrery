@@ -418,7 +418,9 @@ $('#dataFile').addEventListener('change', async e=>{
     if(saved) toast('백업을 불러왔습니다');
   }catch(err){
     if(previous){
-      S=previous.state;
+      // S 를 갈아끼우면 S.chat(접근자)이 사라져 bootUI 가 죽는다. 값만 되돌린다
+      Object.keys(S).forEach(k=>{ if(!(k in previous.state)) delete S[k]; });
+      Object.assign(S,previous.state);
       if(previous.common===null)localStorage.removeItem(COMMON_EXTRA_KEY);else localStorage.setItem(COMMON_EXTRA_KEY,previous.common);
       $('#continueNote').value=previous.continueNote; $('#rerollNote').value=previous.rerollNote;
       bootUI(); save(); touchDraft();

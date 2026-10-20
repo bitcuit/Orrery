@@ -969,3 +969,16 @@ test('chat → 완성본: "fill" asks to complete every field with reference mat
   sent=requests[0].messages.map(m=>m.content).join('\n');
   assert.match(sent,/빈 문자열로 둔다/);assert.doesNotMatch(sent,/REF_MATERIAL/);
 });
+
+test('answers survive an automatic re-digest whose questions are worded differently', async t => {
+  const a = boot(t); connection(a);
+  a.run(`applyGroup('world');tab('studio');S.assets=[{id:'m',kind:'text',name:'m',body:'OLD',use:true,purposes:['world'],tags:[]}];materialChanged()`);
+  let requests=replyQueue(a,[{title:'T',questions:['누가 다스리나?']}]);
+  await a.run('doDigest()');
+  a.run(`setQuestionPick('누가 다스리나?',{answer:'항만 조합'});S.assets[0].body='NEW';materialChanged()`);
+  requests=replyQueue(a,[{title:'T2',questions:['통치 주체는?']},[{id:'s1',line:'x',hook:'h',angle:'a'}]]);
+  await a.run('doSeeds()');
+  const sent=requests[1].messages.map(m=>m.content).join(' ');
+  assert.match(sent,/누가 다스리나\?[\s\S]*항만 조합/);
+  assert.match(sent,/통치 주체는\?/);
+});

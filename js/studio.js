@@ -2119,7 +2119,7 @@ async function doDigest(){
   const d = await runStage('digest', { source: src, modeNote: modeNote('digest') });
   S.project.digest = d;
   S.project.digestSrc = src.slice(0,200);
-  // 새 정리본에 그대로 남은 질문의 답만 이어 쓴다
+  // 새 정리본에 남은 질문과, 사용자가 답을 적어 둔 질문만 이어 쓴다(답은 다시 정리해도 지키기)
   { const keep=new Set(digestQuestions()), old=S.project.digestAnswers||{};
     S.project.digestAnswers=Object.fromEntries(Object.entries(old).filter(([q])=>keep.has(q))); }
   const P = activePreset();
@@ -2132,7 +2132,11 @@ async function doDigest(){
    체크 + 답 → 확정 사실 / 체크 + 빈칸 → AI가 정함 / 체크 해제 → 다루지 않고 열어 둠 */
 function digestQuestions(){
   const q=S.project.digest&&S.project.digest.questions;
-  return Array.isArray(q)?q.map(digestItemText).map(x=>x.trim()).filter(Boolean):[];
+  const cur=Array.isArray(q)?q.map(digestItemText).map(x=>x.trim()).filter(Boolean):[];
+  // 재료가 바뀌어 다시 정리하면 질문 글이 달라진다. 이미 답한 질문은 사라지지 않게 뒤에 붙여 둔다
+  const kept=Object.entries(S.project.digestAnswers||{})
+    .filter(([k,a])=>!cur.includes(k)&&a&&a.use!==false&&String(a.answer||'').trim()).map(([k])=>k);
+  return cur.concat(kept);
 }
 function questionPick(q){
   const a=(S.project.digestAnswers||{})[q]||{};
@@ -3111,6 +3115,7 @@ $('#cardOut').addEventListener('input', e=>{
   renderConvert();
   touchDraft();
   clearTimeout(window.__saveT);
+  if(S.project.card.refined) $('#btnRefineUndo').hidden=!canUndoRefine(S.project.card);   // 손으로 고치면 되돌리기는 사라진다
   window.__saveT = setTimeout(()=>{ window.__saveT=null; saveRecord(); }, 1200);
 });
 
@@ -3415,7 +3420,8 @@ $('#btnContinue').addEventListener('click', e=> S.opts.contMode==='refine'
   toast(`${result.keys.length}개 칸에 이어 붙였습니다${result.recovered?' · 응답이 다시 잘려 읽힌 부분까지 반영했습니다':''}`);
 }));
 $('#btnRefineUndo').addEventListener('click', ()=>{
-  const card=S.project.card; if(!canUndoRefine(card)) return;
+  const card=S.project.card;
+  if(!canUndoRefine(card)){ renderContinue(); return toast('그 뒤에 결과가 바뀌어 되돌릴 수 없습니다',1); }
   card.fields=card.refined.before; delete card.refined;
   renderCard(); renderCheck(); saveRecord(); touchDraft(); toast('다듬기 전으로 되돌렸습니다');
 });
