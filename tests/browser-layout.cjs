@@ -54,7 +54,7 @@ let browser,ws,closeBrowser;
   assert.ok(await evaluate("$('.chat-history-toggle svg').getBoundingClientRect().width>=18"),'History eye icon remains legible');
   const metrics=()=>evaluate(`(()=>{
     const rect=s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};
-    return {width:innerWidth,height:innerHeight,documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight,settings:rect('#talkSettings'),chat:rect('.talk-conversation'),input:rect('#chatIn'),send:rect('#btnSend'),log:rect('#chatLog'),tokens:rect('#ctxTok'),actions:rect('.talk-actions'),settingsOpen:$('#talkSettings').open,logScroll:$('#chatLog').scrollHeight,logClient:$('#chatLog').clientHeight};
+    return {width:innerWidth,height:innerHeight,documentWidth:document.documentElement.scrollWidth,documentHeight:document.documentElement.scrollHeight,chat:rect('.talk-conversation'),input:rect('#chatIn'),send:rect('#btnSend'),log:rect('#chatLog'),tokens:rect('#ctxTok'),actions:rect('.talk-actions'),settingsOpen:!$('#talkDialog').hidden,logScroll:$('#chatLog').scrollHeight,logClient:$('#chatLog').clientHeight};
   })()`);
   const artifacts=path.join(__dirname,'artifacts');fs.mkdirSync(artifacts,{recursive:true});
   const screenshot=async name=>{const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(artifacts,name+'.png'),Buffer.from(shot.data,'base64'));};
@@ -73,13 +73,25 @@ let browser,ws,closeBrowser;
       assert.ok(m.tokens.right<=m.actions.x,'Tokens do not overlap actions at '+width);
     }
     assert.ok(m.log.height>=100,'Chat remains readable at '+width);
-    assert.equal(m.settingsOpen,width>980,'Responsive settings default at '+width);
-    if(width>980) assert.ok(m.settings.right<=m.chat.x,'Settings and chat are side by side');
-    else{
-      await evaluate("$('#talkSettings').open=true");await delay(50);
-      const expanded=await metrics();assert.ok(expanded.send.bottom<=height,'Composer remains visible with settings expanded at '+width);
+    // 대화 설정은 닫힌 대화 상자. 열면 가운데에 뜨고 화면 안에 들어오며, 끌어 옮기고 위치 초기화·Esc로 닫힌다
+    assert.equal(m.settingsOpen,false,'Settings dialog starts closed at '+width);
+    {
+      await evaluate("try{localStorage.removeItem('orrery.talkDialogPos')}catch(_){};$('#btnTalkSettings').click()");await delay(50);
+      const box=await evaluate("(()=>{const r=$('#talkDialog').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom}})()");
+      assert.ok(box.x>=0&&box.y>=0&&box.right<=width&&box.bottom<=height,'Settings dialog fits the viewport at '+width);
+      const visible=await evaluate('document.body.getBoundingClientRect().width');   // 스크롤 막대 자리(scrollbar-gutter)를 뺀 본문 폭
+      assert.ok(Math.abs(box.x+box.w/2-visible/2)<2,'Settings dialog opens centered at '+width);
       await screenshot('chat-settings-'+width);
-      await evaluate("$('#talkSettings').open=false");
+      const h=await evaluate("(()=>{const r=$('#talkDialogHandle').getBoundingClientRect();return {x:r.x+r.width*0.4,y:r.y+r.height/2}})()");
+      await send('Input.dispatchMouseEvent',{type:'mousePressed',x:h.x,y:h.y,button:'left',clickCount:1});
+      await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:h.x-60,y:h.y+40,button:'left'});
+      await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:h.x-60,y:h.y+40,button:'left',clickCount:1});await delay(50);
+      const moved=await evaluate("$('#talkDialog').getBoundingClientRect().x");
+      assert.ok(Math.abs(moved-(box.x-60))<3||moved===8,'Dragging the header moves the dialog at '+width);
+      await evaluate("$('#talkDialogReset').click()");await delay(30);
+      assert.ok(Math.abs(await evaluate("$('#talkDialog').getBoundingClientRect().x")-box.x)<2,'Reset returns the dialog to center at '+width);
+      await evaluate("$('#talkRole').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))");
+      assert.equal(await evaluate("$('#talkDialog').hidden"),true,'Esc closes the settings dialog at '+width);
     }
     await evaluate("$('#chatLog').scrollTop=$('#chatLog').scrollHeight;$('#chatIn').focus()");
     await send('Input.insertText',{text:Array.from({length:14},(_,i)=>'Long draft line '+i).join('\n')});
@@ -95,7 +107,7 @@ let browser,ws,closeBrowser;
     assert.ok(await evaluate("Math.abs($('#chatLog').scrollTop-100)<2"),'Typing preserves reading position in older messages');
     await evaluate("$('#chatIn').value='';$('#chatIn').dispatchEvent(new Event('input',{bubbles:true}))");
     assert.equal(Math.round((await metrics()).input.height),48,'Cleared draft shrinks again at '+width);
-    console.log(`${width}x${height}: composer visible, no page overflow, settings ${m.settingsOpen?'open':'collapsed'}`);
+    console.log(`${width}x${height}: composer visible, no page overflow, settings dialog checked`);
   }
   await evaluate("tab('studio');S.chat.inputDraft=Array(8).fill('Restored draft').join('\\n');bootUI();tab('talk')");await delay(100);
   assert.equal(Math.round((await metrics()).input.height),120,'Restored draft sizes when the hidden chat tab opens');

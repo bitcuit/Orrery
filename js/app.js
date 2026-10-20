@@ -9,6 +9,7 @@ function tab(name){
   $$('.topctl button[data-tab]').forEach(b=>b.classList.toggle('on', b.dataset.tab===name));
   markNav();
   $$('.view').forEach(v=>v.classList.toggle('on', v.id==='v-'+name));
+  if(name!=='talk' && typeof closeTalkDialog==='function') closeTalkDialog();
   if(name==='log') renderLog();
   if(name==='studio'){ renderConnectionAction(); renderStudioScreen(); }
   if(name==='talk'){ renderChat(); syncTalkSettingsLabel(); }
@@ -27,12 +28,41 @@ function syncTalkSettingsLabel(){
   $('#talkSettingsSummary').textContent=select.selectedOptions[0]?.textContent||'';
 }
 $('#talkRole').addEventListener('change',syncTalkSettingsLabel);
-(function(){
-  if(typeof window.matchMedia!=='function') return;
-  const desktop=window.matchMedia('(min-width: 981px)');
-  const sync=()=>{ $('#talkSettings').open=desktop.matches; };
-  desktop.addEventListener('change',sync); sync();
-})();
+/* 대화 설정 대화 상자 — 처음엔 가운데. 머리줄을 끌어 옮기고, 옮긴 자리는 이 브라우저에 기억한다.
+   막는 배경이 없어 열어 둔 채 대화할 수 있다. 닫기·Esc·설정 단추로 닫는다. */
+const TALK_DIALOG_KEY='orrery.talkDialogPos';
+// 화면(.view)에는 들어오는 움직임용 transform 이 있어 fixed 가 그 안에 갇힌다. body 바로 아래로 옮긴다
+document.body.append($('#talkDialog'));
+function talkDialogPos(){ try{ const p=JSON.parse(localStorage.getItem(TALK_DIALOG_KEY)); return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?p:null; }catch(_){ return null; } }
+function placeTalkDialog(pos){
+  const d=$('#talkDialog');
+  if(!pos){ d.style.left=''; d.style.top=''; d.classList.remove('moved'); return; }
+  // 창 크기가 바뀌어도 머리줄이 화면 안에 남게 가둔다
+  const r=d.getBoundingClientRect(), x=Math.min(Math.max(8,pos.x),Math.max(8,innerWidth-r.width-8)), y=Math.min(Math.max(8,pos.y),Math.max(8,innerHeight-48));
+  d.style.left=x+'px'; d.style.top=y+'px'; d.classList.add('moved');
+}
+function openTalkDialog(){
+  const d=$('#talkDialog'); d.hidden=false; $('#btnTalkSettings').setAttribute('aria-expanded','true');
+  placeTalkDialog(talkDialogPos()); $('#talkRole').focus({preventScroll:true});
+}
+function closeTalkDialog(){
+  const d=$('#talkDialog'); if(d.hidden) return;
+  d.hidden=true; $('#btnTalkSettings').setAttribute('aria-expanded','false'); $('#btnTalkSettings').focus({preventScroll:true});
+}
+$('#btnTalkSettings').addEventListener('click',()=>{ $('#talkDialog').hidden?openTalkDialog():closeTalkDialog(); });
+$('#talkDialogClose').addEventListener('click',closeTalkDialog);
+$('#talkDialogReset').addEventListener('click',()=>{ try{ localStorage.removeItem(TALK_DIALOG_KEY); }catch(_){} placeTalkDialog(null); });
+$('#talkDialog').addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.stopPropagation(); closeTalkDialog(); } });
+$('#talkDialogHandle').addEventListener('pointerdown',e=>{
+  if(e.button!==0||e.target.closest('button')) return;
+  const d=$('#talkDialog'), r=d.getBoundingClientRect(), dx=e.clientX-r.left, dy=e.clientY-r.top;
+  const handle=e.currentTarget; handle.setPointerCapture(e.pointerId); d.classList.add('dragging');
+  const move=ev=>placeTalkDialog({x:ev.clientX-dx,y:ev.clientY-dy});
+  const up=()=>{ handle.removeEventListener('pointermove',move); d.classList.remove('dragging');
+    if(d.classList.contains('moved')){ const p=d.getBoundingClientRect(); try{ localStorage.setItem(TALK_DIALOG_KEY,JSON.stringify({x:Math.round(p.left),y:Math.round(p.top)})); }catch(_){} } };
+  handle.addEventListener('pointermove',move); handle.addEventListener('lostpointercapture',up,{once:true});
+});
+window.addEventListener('resize',()=>{ if(!$('#talkDialog').hidden) placeTalkDialog(talkDialogPos()); });
 
 /* 쉬운 모드 */
 function applyEasy(){
