@@ -1,4 +1,4 @@
-<!-- ORRERY v1.0.21 · 2026-08-14 -->
+<!-- ORRERY v1.0.22 · 2026-10-20 -->
 <!-- ⚠ styles.css·js 를 고치면 아래 ?v= 값을 함께 올릴 것.
      GitHub Pages 는 10분간 옛 파일을 캐시해서, 올리지 않으면 바뀐 내용이 안 보인다. -->
 <!DOCTYPE html>
@@ -9,7 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <title>ORRERY · 세계 · 인물 · 프롬프트</title>
-<link rel="stylesheet" href="styles.css?v=1.0.21">
+<link rel="stylesheet" href="styles.css?v=1.0.22">
 <base target="_blank">
 </head>
 <body class="boot">
@@ -26,7 +26,7 @@
     </svg>
     <div class="brand-inner">
       <h1>ORRERY</h1>
-      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.21</span></span>
+      <span class="brand-meta"><span class="sub">항성계 창작 도구</span><span class="brand-version">v1.0.22</span></span>
     </div>
   </div>
   <div class="topctl">
@@ -166,7 +166,12 @@
   <div class="formrow">
     <label class="fl" for="studioPreset">양식</label>
     <select id="studioPreset"></select>
+  <div id="creationSettings" class="creation-settings" hidden>
+    <div class="creation-length-row"><label class="fl" for="creationLength">분량</label><select id="creationLength"><option value="short">짧게</option><option value="standard">표준</option><option value="detailed">자세히</option><option value="custom">직접 지정·자유</option></select><div id="creationCharsField" hidden><input id="creationChars" aria-label="목표 글자 수" type="number" min="400" max="12000" step="100" placeholder="비우면 자유"></div></div>
   </div>
+  </div>
+  <p class="note" id="creationSummary" hidden></p>
+  <p class="note" id="studioPresetHint" hidden></p>
   <div class="panel" id="modePanel">
     <p class="input-heading" id="modeHeading">시작 방식</p>
     <div class="modes" id="modeBox" role="group" aria-labelledby="modeHeading">
@@ -350,6 +355,20 @@
     </div>
   </div>
 
+  <section id="creationFlow" class="creation-flow" hidden>
+    <div class="bar"><button type="button" class="primary" id="btnToGreeting">이 인물로 첫 메시지 만들기</button></div>
+    <details id="relationshipChoices" class="creation-details" hidden><summary>시작 관계 제안 · 선택</summary><p class="note" id="relationshipStatus"></p><div id="relationshipOptions"></div><button type="button" class="mini ghost" id="btnFreeRelationship">자유 관계로 두기</button></details>
+    <details id="audiencePanel" class="creation-details"><summary>가상 유저 반응 보기</summary>
+      <p class="note">AI가 연기한 이용자 반응입니다. 실제 이용자 조사 결과가 아닙니다.</p>
+      <div class="field"><label class="fl" for="previewPublic">공개 소개</label><textarea id="previewPublic" rows="3" placeholder="유저에게 공개할 내용만 적으세요. 비밀 설정은 넣지 마세요."></textarea></div>
+      <div class="field"><label class="fl" for="previewOpening">첫 메시지</label><textarea id="previewOpening" rows="5" placeholder="시험할 첫 메시지를 적거나 첫 메시지 양식으로 만들어 주세요."></textarea></div>
+      <div class="field"><span class="fl" id="previewPersonaLabel">이용자 성향</span><div id="previewPersonas" class="purpose-options" role="group" aria-labelledby="previewPersonaLabel"></div></div>
+      <div class="field"><label class="fl" for="previewMode">시험 범위</label><select id="previewMode"><option value="impression">첫인상만</option><option value="play">3번 대화하고 평가</option></select></div>
+      <div class="bar preview-actions"><button type="button" class="primary" id="btnAudiencePreview">반응 받기</button><span class="note" id="previewCost"></span></div>
+      <div class="field"><label class="fl" for="previewHistory">지난 반응</label><select id="previewHistory"></select></div>
+      <div id="previewResults" aria-live="polite"></div>
+    </details>
+  </section>
   <details class="adv result-advanced" id="resultAdvanced">
     <summary>추가 도구 · 수정·검증·최종 출력 <span class="note" id="checkSummary"></span></summary>
     <div>
@@ -865,18 +884,19 @@
     </div>
   </div>
 </div>
-<script src="prompts.js?v=1.0.21"></script>
-<script src="builtin-presets.js?v=1.0.21"></script>
-<script src="talk-roles.js?v=1.0.21"></script>
+<script src="prompts.js?v=1.0.22"></script>
+<script src="builtin-presets.js?v=1.0.22"></script>
+<script src="talk-roles.js?v=1.0.22"></script>
 <!-- 일반 스크립트를 아래 순서대로 읽어 파일을 직접 열어도 작동합니다. -->
-<script src="js/core.js?v=1.0.21"></script>
-<script src="js/materials.js?v=1.0.21"></script>
-<script src="js/studio.js?v=1.0.21"></script>
-<script src="js/preset-export.js?v=1.0.21"></script>
-<script src="js/chat.js?v=1.0.21"></script>
-<script src="js/library.js?v=1.0.21"></script>
-<script src="js/settings.js?v=1.0.21"></script>
-<script src="js/workspaces.js?v=1.0.21"></script>
-<script src="js/app.js?v=1.0.21"></script>
+<script src="js/core.js?v=1.0.22"></script>
+<script src="js/materials.js?v=1.0.22"></script>
+<script src="js/studio.js?v=1.0.22"></script>
+<script src="js/preset-export.js?v=1.0.22"></script>
+<script src="js/chat.js?v=1.0.22"></script>
+<script src="js/library.js?v=1.0.22"></script>
+<script src="js/settings.js?v=1.0.22"></script>
+<script src="js/creation.js?v=1.0.22"></script>
+<script src="js/workspaces.js?v=1.0.22"></script>
+<script src="js/app.js?v=1.0.22"></script>
 </body>
 </html>

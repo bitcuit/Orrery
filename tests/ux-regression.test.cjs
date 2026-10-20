@@ -117,8 +117,8 @@ test('world settings reach both one-shot and staged API requests without forced 
     assert.match(text,/세계관 작성 설정/);assert.match(text,/가볍게:/);
     assert.doesNotMatch(text,/SANCTUARY PROTOCOL|WORLD ADULT CONTENT RULES|무엇이 희소한가/);
   }
-  assert.match(requests[0].messages.at(-1).content,/1500자/);
-  assert.match(requests[2].messages.at(-1).content,/1500자/);
+  assert.match(requests[0].messages.map(m=>m.content).join('\n'),/1500자/);
+  assert.match(requests[2].messages.map(m=>m.content).join('\n'),/1500자/);
   assert.doesNotMatch(requests[1].messages.at(-1).content,/1500자/);
 });
 test('world preset migration preserves custom blocks, fields, and edits',t=>{
@@ -132,7 +132,7 @@ test('world preset migration preserves custom blocks, fields, and edits',t=>{
   assert.deepEqual(plain(a.run('worldPrefs()')),{mood:'light',density:'normal',chars:12000});
 });
 test('world density does not impose a character budget and clearing a custom target removes it',async t=>{
-  const a=boot(t);connection(a);a.run("applyGroup('world');S.opts.briefBy.world='Write a village setting in about 800 characters'");
+  const a=boot(t);connection(a);a.run("applyGroup('world');switchPreset('world');S.opts.briefBy.world='Write a village setting in about 800 characters'");
   const requests=replyQueue(a,Array.from({length:6},()=>({title:'Village'})));
   for(const density of ['concise','normal','detailed']){
     a.$('#worldDensity').value=density;a.$('#worldDensity').dispatchEvent(new a.w.Event('change'));

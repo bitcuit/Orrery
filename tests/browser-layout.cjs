@@ -140,7 +140,10 @@ let browser,ws,closeBrowser;
   }
   for(const width of [1920,390,320]){
     await send('Emulation.setDeviceMetricsOverride',{width,height:1080,deviceScaleFactor:1,mobile:false});
-    await evaluate("applyGroup('world');$('#optAdv').open=true;$('#worldSettings details').open=true");await delay(100);
+    await evaluate("applyGroup('world');switchPreset('world-chat');$('#creationLength').value='custom';$('#creationLength').dispatchEvent(new Event('change'));$('#creationChars').value='1800'");await delay(100);
+    assert.ok(await evaluate("['studioPreset','creationLength','creationChars'].every(id=>{const r=$('#'+id).getBoundingClientRect();return r.width>0&&r.left>=0&&r.right<=innerWidth})"),'Chat form length controls fit at '+width);
+    await screenshot('creation-length-'+width);
+    await evaluate("switchPreset('world');$('#optAdv').open=true;$('#worldSettings details').open=true");await delay(100);
     const layout=await evaluate("({width:innerWidth,scroll:document.documentElement.scrollWidth,controls:['worldMood','worldDensity','worldChars'].map(id=>{const r=$('#'+id).getBoundingClientRect();return {left:r.left,right:r.right,width:r.width}})})");
     assert.ok(layout.scroll<=width+1,'World advanced settings have no horizontal overflow at '+width);
     for(const control of layout.controls) assert.ok(control.width>0&&control.left>=0&&control.right<=width,'World control fits at '+width);

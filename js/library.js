@@ -31,6 +31,7 @@ function saveRecord(){
     truncatedField:S.project.card.truncatedField||'',
     continuations:clone(S.project.card.continuations||[]),
     conversion:S.project.card.conversion?clone(S.project.card.conversion):null, updated: Date.now(),
+    creation:cardCreationData(S.project.card),
     layout:Array.isArray(S.project.card.layout)?clone(S.project.card.layout):undefined
   });
   pruneLib(); save(); renderLib(); touchDraft();
@@ -99,7 +100,7 @@ function loadRecordToStudio(rec){
   if(!canChangeWork()) return;
   flushCardEdits();
   if(rec.presetId && S.presets.find(x=>x.id===rec.presetId)) switchPreset(rec.presetId);
-  S.project.card = {fields:clone(rec.fields), seed:null, truncated:!!rec.truncated,
+  S.project.card = {...clone(rec.creation||{}),fields:clone(rec.fields), seed:null, truncated:!!rec.truncated,
     truncatedField:rec.truncatedField||'', continuations:clone(rec.continuations||[]),
     conversion:rec.conversion?clone(rec.conversion):null, ...(Array.isArray(rec.layout)?{layout:clone(rec.layout)}:{})};
   $('#continueNote').value='';
@@ -364,6 +365,7 @@ function applyGroupUi(){
   renderModeChooser(); renderNebulaPicker();
   if(typeof renderOocPanel==='function') renderOocPanel();
   if(typeof renderFieldToggles==='function') renderFieldToggles();
+  renderCreationSettings();
 }
 
 const GROUP_LABEL = { world:'세계', character:'인물', prompt:'프롬프트' };
@@ -391,13 +393,14 @@ function renderGroup(){
   const g = S.opts.group || 'character';
   markNav();
   const list = presetsInGroup(g);
-  $('#studioPreset').innerHTML = list.map(p=>
-    `<option value="${p.id}" ${p.id===S.activePreset?'selected':''}>${esc(p.name)}</option>`).join('')
+  const option=p=>`<option value="${p.id}" ${p.id===S.activePreset?'selected':''}>${esc(p.name)}</option>`;
+  const recommended=list.filter(p=>p.recommended),others=list.filter(p=>!p.recommended);
+  $('#studioPreset').innerHTML = (recommended.length?'<optgroup label="추천 양식">'+recommended.map(option).join('')+'</optgroup>':'')+(others.length?'<optgroup label="다른 양식">'+others.map(option).join('')+'</optgroup>':'')
     || '<option value="">이 분류에 양식이 없습니다</option>';
 }
 function emptyWork(){
   return {digest:null,digestSrc:'',digestMeta:null,seeds:[],sel:[],seedNote:'',card:null,locked:{},
-    violations:null,verdict:null,cast:[],relations:null,qa:[],libId:null,screen:null};
+    violations:null,verdict:null,cast:[],relations:null,qa:[],libId:null,screen:null,openingSource:null};
 }
 function flushCardEdits(){
   if(window.__saveT){
@@ -428,6 +431,7 @@ function switchPreset(id){
   }
   S.activePreset = id;
   S.project.screen='input';
+  S.project.openingSource=null;
   S.project.card = null; S.project.locked = {}; S.project.qa = [];
   if($('#continueNote')) $('#continueNote').value='';
   S.project.violations = null; S.project.verdict = null;
@@ -487,6 +491,7 @@ function renderPresetSel(){
     const gk = presetGroupKey(p);
     return `<option value="${p.id}" ${p.id===S.activePreset?'selected':''}>${p.off?'🚫 ':''}[${GROUP_STAR[gk]}] ${esc(p.name)}${p.off?' (숨김)':''}</option>`;
   }).join('');
+  renderCreationSettings();
   const n = PRESET_NOTE[S.activePreset];
   $('#stNote').innerHTML = n ? esc(n) : '';
   if($('#studioNote')) $('#studioNote').textContent = n || '';

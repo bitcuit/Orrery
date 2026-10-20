@@ -1133,7 +1133,7 @@ function fieldOffFor(P){
   const by=S.opts.fieldOff&&typeof S.opts.fieldOff==='object'?S.opts.fieldOff:(S.opts.fieldOff={});
   const P0=P||activePreset();
   const keys=new Set(P0.schema.map(f=>f.key));
-  const list=(Array.isArray(by[P0.id])?by[P0.id]:[]).filter(k=>keys.has(k));
+  const list=(Array.isArray(by[P0.id])?by[P0.id]:P0.schema.filter(f=>f.defaultOff).map(f=>f.key)).filter(k=>keys.has(k));
   if(list.length>=keys.size) return [];
   return list;
 }
@@ -1792,6 +1792,7 @@ function renderWorldSettings(){
   $('#worldSettings').hidden=S.opts.group!=='world';
   $('#worldMood').value=o.mood; $('#worldDensity').value=o.density;
   $('#worldChars').value=o.chars??'';
+  $('#worldChars').closest('details').hidden=!!activePreset().chatStandard;
 }
 function worldDirection(stage){
   if(S.opts.group!=='world') return '';
@@ -1799,7 +1800,7 @@ function worldDirection(stage){
   const mood={light:'가볍게: 편안한 일상, 호기심, 작은 모험과 협력을 중심으로. 갈등이 필요하면 해결 가능한 작은 불편이나 사건으로.',balanced:'균형 있게: 일상과 도전을 함께 다루되 비극이나 낙관을 강제하지 말 것.',heavy:'무겁게: 선택의 무게와 긴장감을 살리되 디스토피아·잔혹함·억압을 자동으로 추가하지 말 것.'}[o.mood];
   // 밀도는 글자 수를 정하지 않는다. '보통'의 기준은 AI 채팅의 세계관 칸에 넣어 쓸 크기
   const density={concise:'간결: 핵심 전제·규칙·장소만 짧게 정리한다.',normal:'보통: AI 채팅의 세계관 칸에 넣어 대화 내내 읽힐 만한 양. 대화를 시작하고 장면을 그리는 데 필요한 만큼만 쓴다. 부연이나 예외 규칙을 늘리지 않는다.',detailed:'상세: 중요한 설정의 작동 방식과 관계까지 구체화한다. 관련 없는 설정은 늘리지 않는다.'}[o.density];
-  const length=o.chars
+  const length=activePreset().chatStandard ? '' : o.chars
     ? `완성 본문 전체는 공백 포함 약 ${o.chars}자 목표. JSON 키·구문은 제외. 칸별 목표가 아니며 전체 칸에 나눠 배분한다. 양식의 개수·길이 예시보다 이 분량 설정을 우선하되 명시적 사용자 요청과 원본 핵심 사실은 보존한다.`
     : '별도의 글자 수 목표는 없다. 구상에 분량 지시가 있으면 따르고, 없으면 구상의 범위와 필요한 설명에 맞춰 자연스러운 분량으로 작성한다. 정해진 분량을 채우려고 늘리거나 임의의 글자 수에 맞춰 줄이지 말 것.';
   return `세계관 작성 설정\n${mood}\n사용자의 명시적인 구상·전체 톤과 원본의 확정 사실을 우선한다. 이 설정은 요청하지 않은 새 설정을 덧붙일 때의 기본값이다. 기존 어두운 세계를 임의로 밝게 바꾸지 말 것.\n희소성·권력 다툼·억압·파국·신체 통제는 필수 요소가 아니다. 성인 요소 허용도 해당 요소를 넣으라는 요청이 아니다. 양식의 갈등·대가 칸은 작은 사건이나 한계로도 채울 수 있다. 필요 없는 용어·조직·연표·예외 규칙은 만들지 말 것.\n설정 밀도: ${density} 필요하지 않은 세부 사항까지 모두 확정하지 말 것. 세계 자체의 전제·환경·장소·생활·규칙·집단 관계를 설계하는 작업이다. 주인공이나 플레이어를 전제하지 말고, 그 인물의 배경·목표·역할·성장 서사를 자동으로 만들지 말 것. 특정 인물은 원본에 이미 있거나 사용자가 명시적으로 요청한 경우에만 필요한 범위에서 다룬다.\n${['expand','patch','reroll'].includes(stage)?length+' 반복 설명을 피하고 문장과 JSON을 완결하라.':'요약·후보·검증·변환에서는 각 단계의 출력 형식을 지키고, 원본에 없는 내용을 보태거나 가벼운 분위기에 맞추려고 사실을 바꾸지 말 것. 설정이 간결하다는 이유만으로 결함으로 지적하지 말 것.'}`;
@@ -1807,7 +1808,7 @@ function worldDirection(stage){
 // Only exact legacy defaults are updated; custom wording and additional blocks remain intact.
 function migrateWorldPreset(p){
   if(!p){
-    S.presets.filter(p=>['world','world-brief','world-guide','world-audit'].includes(p.id)).forEach(migrateWorldPreset);
+    S.presets.filter(p=>['world-chat','world','world-brief','world-guide','world-audit'].includes(p.id)).forEach(migrateWorldPreset);
     return;
   }
   const pairs=[
@@ -2087,6 +2088,8 @@ async function runStage(stageName, vars, retryOnce){
   if(oocRule) msgs.push({role:'user',content:oocRule});
   const senseRule=sensitivityDirection(stageName);
   if(senseRule) msgs.push({role:'user',content:senseRule});
+  const creationRule=creationDirection(stageName);
+  if(creationRule) msgs.push({role:'user',content:creationRule});
   const worldRule=worldDirection(stageName);
   if(worldRule) msgs.push({role:'user',content:worldRule});
   if(['seed','cross'].includes(stageName) && vars?.seedRevision){
@@ -2121,7 +2124,7 @@ async function doDigest(){
   S.project.digestSrc = src.slice(0,200);
   // 새 정리본에 남은 질문과, 사용자가 답을 적어 둔 질문만 이어 쓴다(답은 다시 정리해도 지키기)
   { const keep=new Set(digestQuestions()), old=S.project.digestAnswers||{};
-    S.project.digestAnswers=Object.fromEntries(Object.entries(old).filter(([q])=>keep.has(q))); }
+    S.project.digestAnswers=Object.fromEntries(Object.entries(old).filter(([q,a])=>keep.has(q)||String(a&&a.answer||'').trim())); }
   const P = activePreset();
   S.project.digestMeta = { presetId:P.id, presetName:P.name, tpl:digestTpl(P), source:src,
     mode:activeMode(), refine:modeUsesRefine()?activeRefine():'', at:Date.now() };
@@ -2236,9 +2239,9 @@ async function doExpand(seed){
   }
   const fields = {};
   P.schema.forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
-  Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string') fields[k]=j[k]; });
+  Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string' && creationFieldAllowed(k)) fields[k]=j[k]; });
   if(!Object.keys(fields).length) throw new Error('결과에서 칸을 찾지 못했습니다. 다시 만들어 주세요.');
-  return { fields, seed, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:STAGE_RAW.expand?clone(Object.assign({},STAGE_RAW.expand,{label:'결과 만들기 원문'})):null };
+  return { ...creationMetadata(j), fields, seed, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:STAGE_RAW.expand?clone(Object.assign({},STAGE_RAW.expand,{label:'결과 만들기 원문'})):null };
 }
 async function doPatch(instruction){
   const schema = activeSchema();
@@ -3040,7 +3043,7 @@ function renderCard(){
   if(!p.card){
     $('#btnToggleFields').textContent='모두 펼치기';
     box.innerHTML = `<div class="empty"><b>아직 결과가 없습니다</b>${S.opts.buildMode==='oneshot'?'위에 구상을 적고 만들기를 눌러 주세요.':P.skipSeed?'첫 단계에서 정리하고 결과 만들기를 누르세요.':'후보를 하나 고르고 결과를 만드세요.'}</div>`;
-    renderContinue(); renderConvert(); setSpine(); return;
+    renderContinue(); renderConvert(); renderCreationFlow(); setSpine(); return;
   }
   if(!Array.isArray(p.card.openFields)) p.card.openFields=P.schema[0]?[P.schema[0].key]:[];
   const openFields=new Set(p.card.openFields);
@@ -3066,7 +3069,7 @@ function renderCard(){
       <div class="fld-redo" ${REDO_FIELD===f.key?'':'hidden'}><input class="f-redo-note" placeholder="예: 더 짧게 · 결말은 열어 두기" value="${REDO_FIELD===f.key?esc(REDO_TEXT):''}"><button type="button" class="mini primary f-redo-go">다시 쓰기</button><button type="button" class="mini ghost f-redo-cancel">취소</button></div>
     </div>`;
   }).join('');
-  renderContinue(); renderConvert(); setSpine(); renderQA();
+  renderContinue(); renderConvert(); renderCreationFlow(); setSpine(); renderQA();
   if(typeof renderRpLayout==='function') renderRpLayout();
 }
 $('#cardOut').addEventListener('click', async e=>{
@@ -3112,10 +3115,10 @@ $('#cardOut').addEventListener('input', e=>{
   if(e.target.tagName!=='TEXTAREA') return;
   const k = e.target.closest('.fld').dataset.k;
   S.project.card.fields[k] = e.target.value;
+  if(S.project.card.refined) $('#btnRefineUndo').hidden=!canUndoRefine(S.project.card);   // 손으로 고치면 되돌리기는 사라진다
   renderConvert();
   touchDraft();
   clearTimeout(window.__saveT);
-  if(S.project.card.refined) $('#btnRefineUndo').hidden=!canUndoRefine(S.project.card);   // 손으로 고치면 되돌리기는 사라진다
   window.__saveT = setTimeout(()=>{ window.__saveT=null; saveRecord(); }, 1200);
 });
 
@@ -3465,7 +3468,7 @@ $('#btnCastSave').addEventListener('click', ()=>{
     world:(S.project.digest&&S.project.digest.title)||'',
     seedLine: c.seed?c.seed.line:'', truncated:!!c.truncated,
     truncatedField:c.truncatedField||'', continuations:clone(c.continuations||[]),
-    conversion:c.conversion?clone(c.conversion):null }));
+    conversion:c.conversion?clone(c.conversion):null, creation:cardCreationData(c) }));
   pruneLib(); save(); renderLib(); touchDraft(); toast(S.project.cast.length+'명을 기록에 넣었습니다');
 });
 
@@ -3511,6 +3514,8 @@ async function doOneShot(){
   if(oocRule) msgs.push({role:'user',content:oocRule});
   const senseRule=sensitivityDirection('expand');
   if(senseRule) msgs.push({role:'user',content:senseRule});
+  const creationRule=creationDirection('expand');
+  if(creationRule) msgs.push({role:'user',content:creationRule});
   const worldRule=worldDirection('expand');
   if(worldRule) msgs.push({role:'user',content:worldRule});
   const raw = await callProvider(conn, msgs, opts);
@@ -3525,9 +3530,9 @@ async function doOneShot(){
   }
   const fields = {};
   activeSchema().forEach(f=>{ if(j[f.key]!=null) fields[f.key] = String(j[f.key]); });
-  Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string') fields[k]=j[k]; });
+  Object.keys(j).forEach(k=>{ if(fields[k]==null && typeof j[k]==='string' && creationFieldAllowed(k)) fields[k]=j[k]; });
   if(!Object.keys(fields).length) throw new Error('결과에서 칸을 찾지 못했습니다. 단계별로 해보세요.');
-  return { fields, seed:null, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:{text:parsedRaw,at:Date.now(),label:'한 번에 만들기 원문'} };
+  return { ...creationMetadata(j), fields, seed:null, truncated:!!recovered, truncatedField:recovered&&recovered.incompleteKey||'', continuations:[], raw:{text:parsedRaw,at:Date.now(),label:'한 번에 만들기 원문'} };
 }
 function renderOneshot(){
   renderBuildMode();
