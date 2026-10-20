@@ -152,7 +152,7 @@
     </div>
     <span class="sp"></span>
     <button class="mini ghost" id="btnWorkspaces">작업 목록</button>
-    <button class="mini ghost" id="btnViewResult" hidden>결과 다시 보기</button>
+    <button class="mini ghost" id="btnViewResult" hidden>결과로 돌아가기</button>
     <button class="mini ghost" id="btnNewWork" title="현재 분류의 작업만 비웁니다. 재료와 기록은 남습니다.">새 작업</button>
   </div>
   <div class="studio-loading" id="studioLoading" hidden role="status" aria-live="polite">
@@ -884,6 +884,8 @@
     <div class="modal-b">
       <div class="field"><label class="fl" for="workspaceName">현재 작업 이름</label><input id="workspaceName" maxlength="100" placeholder="예: 항구 도시 설정"></div>
       <div class="bar"><button id="workspaceSave" class="primary">현재 작업 저장</button><button id="workspaceNew" class="ghost">새 작업</button></div>
+      <div class="workspace-tools"><button type="button" class="mini ghost" id="workspacePickDone" title="지금 작업과 생성 중인 것을 뺀 끝난 작업을 고릅니다">끝난 작업 고르기</button></div>
+      <div class="workspace-bulk" id="workspaceBulk" hidden><b id="workspaceBulkCount">선택 0개</b><span class="sp"></span><button type="button" class="mini ghost" id="workspacePickNone">선택 풀기</button><button type="button" class="mini danger" id="workspaceBulkDelete" title="고른 작업 삭제 · Delete">삭제</button></div>
       <div id="workspaceList"></div>
       <p class="note">작업 과정은 이 브라우저에 저장됩니다. 생성은 페이지를 열어둔 동안 진행됩니다.</p>
     </div>

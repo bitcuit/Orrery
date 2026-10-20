@@ -171,20 +171,45 @@ function renderWorkspaces(){
   const active=workspaceById(S.activeWorkspaceId);
   if(document.activeElement!==$('#workspaceName')) $('#workspaceName').value=active?.name||'';
   const labels={running:'생성 중',complete:'완료',failed:'실패 · 다시 열기',interrupted:'중단됨',saved:'저장됨'};
-  $('#workspaceList').innerHTML=[...S.workspaces].sort((a,b)=>b.updated-a.updated).map(w=>
-    `<div class="workspace-row"><div><b>${esc(w.name)}</b><span class="note">${w.id===S.activeWorkspaceId?'현재 작업 · ':''}${esc(labels[w.status]||'저장됨')} · ${esc(new Date(w.updated).toLocaleString('ko-KR'))}</span>${w.message?`<span class="note">${esc(w.message)}</span>`:''}</div><div class="bar"><button class="mini" data-work-open="${esc(w.id)}">열기</button>${WORKSPACE_JOBS.has(w.id)?`<button class="mini" data-work-stop="${esc(w.id)}">중지</button>`:`<button class="mini ghost" data-work-delete="${esc(w.id)}">삭제</button>`}</div></div>`).join('');
+  for(const id of [...WORK_PICKED]) if(!workspaceById(id)||WORKSPACE_JOBS.has(id)) WORK_PICKED.delete(id);
+  $('#workspaceBulk').hidden=!WORK_PICKED.size; $('#workspaceBulkCount').textContent=`선택 ${WORK_PICKED.size}개`;
+  $('#workspaceList').innerHTML=workspaceOrder().map(w=>
+    `<div class="workspace-row${WORK_PICKED.has(w.id)?' picked':''}">${WORKSPACE_JOBS.has(w.id)?'<span class="work-pick-gap"></span>':`<input type="checkbox" class="work-pick" data-work-pick="${esc(w.id)}" ${WORK_PICKED.has(w.id)?'checked':''} aria-label="${esc(w.name)} 고르기">`}<div><b>${esc(w.name)}</b><span class="note">${w.id===S.activeWorkspaceId?'현재 작업 · ':''}${esc(labels[w.status]||'저장됨')} · ${esc(new Date(w.updated).toLocaleString('ko-KR'))}</span>${w.message?`<span class="note">${esc(w.message)}</span>`:''}</div><div class="bar"><button class="mini" data-work-open="${esc(w.id)}">열기</button>${WORKSPACE_JOBS.has(w.id)?`<button class="mini" data-work-stop="${esc(w.id)}">중지</button>`:`<button class="mini ghost" data-work-delete="${esc(w.id)}">삭제</button>`}</div></div>`).join('');
 }
 $('#btnWorkspaces').addEventListener('click',()=>{checkpointWorkspace();renderWorkspaces();$('#workspaceModal').hidden=false;});
 $('#workspaceClose').addEventListener('click',()=>$('#workspaceModal').hidden=true);
 $('#workspaceModal').addEventListener('click',e=>{if(e.target.id==='workspaceModal') e.target.hidden=true;});
 $('#workspaceSave').addEventListener('click',()=>{if(checkpointWorkspace($('#workspaceName').value)){renderWorkspaces();toast('작업 과정을 저장했습니다');}});
 $('#workspaceNew').addEventListener('click',createWorkspace);
+/* 여러 개 골라 지우기 — 체크(클릭) · Shift+클릭 범위 · 완료·저장된 것 한 번에 고르기 · Delete 키 */
+const WORK_PICKED=new Set(); let WORK_PICK_LAST=null;
+function workspaceOrder(){ return [...S.workspaces].sort((a,b)=>b.updated-a.updated); }
 $('#workspaceList').addEventListener('click',e=>{
+  const pick=e.target.closest('.work-pick');
+  if(pick){
+    const id=pick.dataset.workPick, list=workspaceOrder().filter(w=>!WORKSPACE_JOBS.has(w.id)).map(w=>w.id);
+    if(e.shiftKey&&WORK_PICK_LAST&&list.includes(WORK_PICK_LAST)){
+      const [a,b]=[list.indexOf(WORK_PICK_LAST),list.indexOf(id)].sort((x,y)=>x-y);
+      list.slice(a,b+1).forEach(x=>pick.checked?WORK_PICKED.add(x):WORK_PICKED.delete(x));
+    } else pick.checked?WORK_PICKED.add(id):WORK_PICKED.delete(id);
+    WORK_PICK_LAST=id; renderWorkspaces(); return;
+  }
   const button=e.target.closest('button');if(!button) return;
   if(button.dataset.workOpen) openWorkspace(button.dataset.workOpen);
   if(button.dataset.workStop) stopWorkspaceJob(button.dataset.workStop);
   const id=button.dataset.workDelete;
-  if(id&&!WORKSPACE_JOBS.has(id)) deleteWorkspace(id);
+  if(id&&!WORKSPACE_JOBS.has(id)) deleteWorkspaces([id]);
+});
+$('#workspacePickDone').addEventListener('click',()=>{
+  // 끝난 작업만: 완료·저장됨·중단됨. 지금 작업과 생성 중인 것은 빼고
+  S.workspaces.filter(w=>w.id!==S.activeWorkspaceId&&!WORKSPACE_JOBS.has(w.id)&&['complete','saved','interrupted','failed',undefined].includes(w.status)).forEach(w=>WORK_PICKED.add(w.id));
+  renderWorkspaces();
+});
+$('#workspacePickNone').addEventListener('click',()=>{ WORK_PICKED.clear(); renderWorkspaces(); });
+$('#workspaceBulkDelete').addEventListener('click',()=>deleteWorkspaces([...WORK_PICKED]));
+$('#workspaceModal').addEventListener('keydown',e=>{
+  if(e.key!=='Delete'||!WORK_PICKED.size||e.target.closest('input:not([type=checkbox]),textarea,select')) return;
+  e.preventDefault(); deleteWorkspaces([...WORK_PICKED]);
 });
 // 다른 창이 실제로 열어 둔 작업만 막는다. 안 열려 있으면(대부분) 바로 지운다
 async function lockForDelete(id){
@@ -197,15 +222,22 @@ async function lockForDelete(id){
     }).catch(()=>resolve(true));
   });
 }
-async function deleteWorkspace(id){
-  if(!confirm('이 저장 작업을 삭제할까요? 현재 화면의 내용과 성도 기록은 남습니다.')) return;
-  {
-    if(!await lockForDelete(id)){toast('다른 창에서 열려 있는 작업이라 지울 수 없습니다. 그 창을 닫고 지워 주세요.',1);return;}
+// 작업만 지운다. 만든 결과(성도 기록)는 남는다. 다른 창이 열어 둔 작업은 건너뛴다
+async function deleteWorkspaces(ids){
+  ids=ids.filter(id=>workspaceById(id)&&!WORKSPACE_JOBS.has(id)); if(!ids.length) return;
+  const what=ids.length===1?`“${workspaceById(ids[0]).name}” 작업을`:`고른 작업 ${ids.length}개를`;
+  if(!confirm(`${what} 삭제할까요? 그 작업의 구상·정리·후보·대화창이 지워집니다. 만든 결과(성도 기록)는 남습니다.`)) return;
+  let done=0, locked=0;
+  for(const id of ids){
+    if(!await lockForDelete(id)){ locked++; continue; }
     WORKSPACE_LOCKS.get(id)?.();WORKSPACE_LOCKS.delete(id);OWNED_WORKSPACES.delete(id);
-    try{localStorage.setItem(WORKSPACE_PREFIX+id,JSON.stringify({id,deleted:true}));}catch(_){toast('삭제 내용을 저장하지 못했습니다',1);return;}
+    try{localStorage.setItem(WORKSPACE_PREFIX+id,JSON.stringify({id,deleted:true}));}catch(_){toast('삭제 내용을 저장하지 못했습니다',1);break;}
     S.workspaces=S.workspaces.filter(w=>w.id!==id);if(S.activeWorkspaceId===id) S.activeWorkspaceId=null;
-    save();touchDraft();renderWorkspaces();
+    WORK_PICKED.delete(id); done++;
   }
+  save();touchDraft();renderWorkspaces();
+  if(locked) toast(`${done}개를 지웠습니다 · ${locked}개는 다른 창에서 열려 있어 남겼습니다`,1);
+  else if(done) toast(`${done}개 작업을 지웠습니다`);
 }
 function canRunInBackground(button){
   return !WORKER_WINDOW && typeof MessageChannel==='function' && BACKGROUND_ACTIONS.has(button?.id);

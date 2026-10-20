@@ -2632,7 +2632,7 @@ function renderStudioScreen(){
   $('#studioLoading').hidden=!loading;
   $('#studioResultNav').hidden=loading||shown==='input';
   $('#btnViewResult').hidden=loading||screen!=='input'||!(p.card||p.cast.length||p.seeds.length||p.digest);
-  $('#btnViewResult').textContent=p.card?'결과 다시 보기':'진행 중인 작업 보기';
+  $('#btnViewResult').textContent=p.card?'결과로 돌아가기':'진행 중인 작업 보기';
   $('#btnBackToCast').hidden=shown!=='result'||!p.cast.length;
   $('#v-studio').classList.toggle('result-screen',shown==='result');
   $('#v-studio').setAttribute('aria-busy',String(loading));

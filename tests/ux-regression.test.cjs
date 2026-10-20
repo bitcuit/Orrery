@@ -982,3 +982,23 @@ test('answers survive an automatic re-digest whose questions are worded differen
   assert.match(sent,/누가 다스리나\?[\s\S]*항만 조합/);
   assert.match(sent,/통치 주체는\?/);
 });
+
+test('work list: pick several (click, shift range, finished-only) and delete them together; records stay', async t => {
+  const a = boot(t);
+  a.run(`S.workspaces=[1,2,3,4].map(i=>({id:'w'+i,name:'W'+i,status:i===4?'complete':'saved',updated:1000-i,snapshot:{opts:{},project:{}}}));
+    S.activeWorkspaceId='w1';S.library=[{id:'r',name:'R',fields:{}}];renderWorkspaces();$('#workspaceModal').hidden=false`);
+  assert.equal(a.$('#workspaceBulk').hidden,true);
+  const pick=id=>a.$(`.work-pick[data-work-pick="${id}"]`);
+  pick('w2').click();
+  const end=pick('w4');end.dispatchEvent(new a.w.MouseEvent('click',{bubbles:true,shiftKey:true}));
+  assert.deepEqual(plain(a.run('[...WORK_PICKED].sort()')),['w2','w3','w4']);
+  assert.match(a.$('#workspaceBulkCount').textContent,/3개/);
+  a.$('#workspaceModal').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'Delete',bubbles:true}));
+  await new Promise(r=>setTimeout(r,20));
+  assert.deepEqual(plain(a.run('S.workspaces.map(w=>w.id)')),['w1']);
+  assert.equal(a.run('S.library.length'),1);
+  // 끝난 작업 고르기: 지금 작업은 빼고 고른다
+  a.run(`S.workspaces.push({id:'w5',name:'W5',status:'complete',updated:1,snapshot:{opts:{},project:{}}});renderWorkspaces()`);
+  a.$('#workspacePickDone').click();
+  assert.deepEqual(plain(a.run('[...WORK_PICKED]')),['w5']);
+});

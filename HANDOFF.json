@@ -1,11 +1,11 @@
 {
-  "at": "2026-10-20 00:40",
+  "at": "2026-10-20 14:44",
   "by": "claude-code",
-  "doing": "챗봇용 양식·첫 메시지·가상 유저 반응까지 전체를 다시 검사하고 커밋했어요",
-  "where": "builtin-presets.js · js/creation.js · js/studio.js · js/chat.js",
+  "doing": "교신 설정을 대화 상자로 옮기고, 작업 목록에서 여러 개를 골라 지울 수 있게 했어요",
+  "where": "js/app.js 대화 설정 대화 상자, js/workspaces.js deleteWorkspaces",
   "state": "미검증",
   "next": "실제 API로 챗봇용 캐릭터와 첫 메시지를 만들고 가상 유저 반응을 확인해요",
   "blocked": "",
-  "test": "실제 API로 챗봇용 캐릭터·첫 메시지·가상 반응을 만들고, 교신의 완성본으로 정리에서 모든 칸이 채워진 결과 카드가 열리는지",
+  "test": "교신에서 설정 단추로 대화 상자를 열어 끌어 옮기고 위치 초기화가 되는지, 작업 목록에서 끝난 작업 고르기 후 Delete로 지워지는지",
   "session": { "id": "6db55466-28b5-4a7d-92d3-0d4c37377b33", "title": "", "tool": "claude-code" }
 }

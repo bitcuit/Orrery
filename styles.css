@@ -1933,3 +1933,14 @@ button.mini.ghost{border-color:var(--c34)}
 #qaPanel .row>.field{margin-bottom:0}
 #askMode,#askIn,#btnAsk{height:42px;min-height:42px;box-sizing:border-box}
 #askIn{display:block;line-height:1.5;padding-top:8px;padding-bottom:8px;resize:none}
+
+/* 작업 목록 — 골라서 한꺼번에 지우기 */
+.workspace-row{justify-content:flex-start}
+.workspace-row>.work-pick{flex:none;width:auto;min-height:0;margin:0;accent-color:var(--brass)}
+.workspace-row>.work-pick-gap{flex:none;width:13px}
+.workspace-row>div:not(.bar){flex:1;min-width:0;overflow-wrap:anywhere}
+.workspace-row.picked{background:var(--c61);margin:0 -10px;padding-left:10px;padding-right:10px;border-radius:8px}
+.workspace-tools{display:flex;justify-content:flex-end;margin-top:12px}
+.workspace-bulk{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border-radius:9px;background:var(--c74)}
+.workspace-bulk[hidden]{display:none}
+@media(max-width:600px){.workspace-row{flex-direction:row;flex-wrap:wrap}.workspace-row .bar{width:100%;padding-left:25px}}
