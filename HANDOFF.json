@@ -1,11 +1,11 @@
 {
-  "at": "2026-10-20 14:44",
+  "at": "2026-10-21 23:47",
   "by": "claude-code",
-  "doing": "교신 설정을 대화 상자로 옮기고, 작업 목록에서 여러 개를 골라 지울 수 있게 했어요",
-  "where": "js/app.js 대화 설정 대화 상자, js/workspaces.js deleteWorkspaces",
+  "doing": "인물 작업대의 여러 인물 만들기를 가챠 뽑기로 바꿨어요(3~10명, 서로 다른 인물, 카드로 공개)",
+  "where": "js/studio.js doCastConcepts · btnCast · renderGachaLive",
   "state": "미검증",
-  "next": "실제 API로 챗봇용 캐릭터와 첫 메시지를 만들고 가상 유저 반응을 확인해요",
+  "next": "실제 API로 세계관을 넣고 6명쯤 뽑아 서로 충분히 다른지 보기",
   "blocked": "",
-  "test": "교신에서 설정 단추로 대화 상자를 열어 끌어 옮기고 위치 초기화가 되는지, 작업 목록에서 끝난 작업 고르기 후 Delete로 지워지는지",
+  "test": "인물 작업대에서 세계관 재료를 넣고 여러 인물 만들기로 뽑았을 때 카드가 하나씩 열리고, 다시 뽑기로 한 자리만 바뀌는지",
   "session": { "id": "6db55466-28b5-4a7d-92d3-0d4c37377b33", "title": "", "tool": "claude-code" }
 }

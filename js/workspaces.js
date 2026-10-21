@@ -263,7 +263,7 @@ async function startWorkspaceJob(button,label){
     const channel=new MessageChannel();job.port=channel.port1;
     job.port.onmessage=({data})=>{
       if(data.type==='started'){clearTimeout(job.timer);}
-      else if(data.type==='progress'){job.label=data.label;job.calls=data.calls;if(S.activeWorkspaceId===job.id) renderStudioScreen();}
+      else if(data.type==='progress'){job.label=data.label;job.calls=data.calls;job.gacha=data.gacha||null;if(S.activeWorkspaceId===job.id) renderStudioScreen();}
       else if(data.type==='finished') finishWorkspaceJob(job,data);
     };
     iframe.contentWindow.postMessage({type:'orrery-work-start',state,action:button.id,...notes},'*',[channel.port2]);
@@ -312,7 +312,7 @@ function stopWorkspaceJob(id){
 }
 $('#btnStopWorkspace').addEventListener('click',()=>stopWorkspaceJob(S.activeWorkspaceId));
 function reportWorkspaceProgress(){
-  if(WORKER_PORT&&ACTIVE_TASK) WORKER_PORT.postMessage({type:'progress',label:ACTIVE_TASK.label||'생성 중',calls:ACTIVE_TASK.calls||0});
+  if(WORKER_PORT&&ACTIVE_TASK) WORKER_PORT.postMessage({type:'progress',label:ACTIVE_TASK.label||'생성 중',calls:ACTIVE_TASK.calls||0,gacha:ACTIVE_TASK.gacha||null});
 }
 function reportWorkspaceResult(task){
   if(!WORKER_PORT) return;

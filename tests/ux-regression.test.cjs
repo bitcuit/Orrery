@@ -546,8 +546,8 @@ test('stopped candidate generation returns to the digest review with the origina
 
 test('cast creation opens its own screen and preserves completed people on cancellation', async t => {
   const a=boot(t); connection(a);
-  a.run("applyGroup('character');S.project.card={fields:{name:'Earlier result'}};saveRecord();S.opts.modeBy.character='cast';S.opts.briefBy.character='Cast brief';S.opts.castCount=2;renderModeChooser();renderBuildMode();tab('studio');showStudioScreen('input')");
-  const replies=[{title:'World'},[{id:'a',line:'Person A'}],{name:'Person A'}];
+  a.run("applyGroup('character');S.project.card={fields:{name:'Earlier result'}};saveRecord();S.opts.modeBy.character='cast';S.opts.briefBy.character='Cast brief';S.opts.castCount=3;renderModeChooser();renderBuildMode();tab('studio');showStudioScreen('input')");
+  const replies=[{title:'World'},[{id:'a',line:'Person A'},{id:'b',line:'Person B'},{id:'c',line:'Person C'}],{name:'Person A'}];
   const pending=pendingFetch(a), waitFetch=a.w.fetch;
   a.w.fetch=async(...args)=>replies.length?response(JSON.stringify(replies.shift())):waitFetch(...args);
   a.$('#btnOneShot').click(); await nextTurn(); screenIs(a,'loading');
@@ -1001,4 +1001,25 @@ test('work list: pick several (click, shift range, finished-only) and delete the
   a.run(`S.workspaces.push({id:'w5',name:'W5',status:'complete',updated:1,snapshot:{opts:{},project:{}}});renderWorkspaces()`);
   a.$('#workspacePickDone').click();
   assert.deepEqual(plain(a.run('[...WORK_PICKED]')),['w5']);
+});
+
+test('gacha cast: one planning call splits the axes, then N expands reveal cards; one slot can be re-rolled', async t => {
+  const a = boot(t); connection(a);
+  a.run(`applyGroup('character');S.opts.modeBy.character='cast';S.opts.briefBy.character='Harbor world';S.opts.castCount=4;renderModeChooser();renderBuildMode();tab('studio');showStudioScreen('input')`);
+  const replies=[{title:'W'},[{line:'A',angle:'a인데 x'},{line:'B',angle:'b'},{line:'C',angle:'c'},{line:'D',angle:'d'}],
+    {name:'N1'},{name:'N2'},{name:'N3'},{name:'N4'}];
+  let requests=replyQueue(a,replies);
+  a.$('#btnOneShot').click();
+  for(let i=0;i<40&&a.run('S.project.cast.length')<4;i++) await new Promise(r=>setTimeout(r,10));
+  assert.equal(requests.length,6,'digest + 1 planning + 4 expands');
+  assert.match(requests[1].messages.map(m=>m.content).join('\n'),/가챠 뽑기[\s\S]*정확히 4개/);
+  assert.deepEqual(plain(a.run('S.project.cast.map(c=>c.fields.name)')),['N1','N2','N3','N4']);
+  assert.equal(a.w.document.querySelectorAll('#castOut .gacha-card').length,4);
+  assert.match(a.$('#castOut .gacha-gap').textContent,/a인데 x/);
+  // 한 자리만 다시: 나머지 셋을 피하라는 지시와 함께 1명 기획 + 1명 완성
+  requests=replyQueue(a,[[{line:'E',angle:'e'}],{name:'N5'}]);
+  a.w.document.querySelectorAll('#castOut .c-reroll')[1].click();
+  for(let i=0;i<40&&a.run('S.project.cast[1].fields.name')!=='N5';i++) await new Promise(r=>setTimeout(r,10));
+  assert.match(requests[0].messages.map(m=>m.content).join('\n'),/이미 뽑힌 인물[\s\S]*N1[\s\S]*N3[\s\S]*N4/);
+  assert.deepEqual(plain(a.run('S.project.cast.map(c=>c.fields.name)')),['N1','N5','N3','N4']);
 });

@@ -2663,6 +2663,7 @@ function renderStudioScreen(){
       stop.hidden=false; stop.classList.add('inline');
     }
   }
+  renderGachaLive(loading?running.gacha:null);
   $('#btnStopWorkspace').hidden=!background;
   if(typeof reportWorkspaceProgress==='function') reportWorkspaceProgress();
 }
@@ -3220,13 +3221,16 @@ function renderCast(){
   if(!p.cast.length){
     box.innerHTML = '<div class="empty"><b>아직 인원이 없습니다</b>세계를 읽고 인원을 뽑으세요.</div>'; return;
   }
-  let h = `<div class="roster">${p.cast.map((c,i)=>`<div class="rmem">
-      <div class="rn">${esc(c.fields.name||'이름 없음')}</div>
-      <div class="rl">${esc(c.seed?c.seed.line:'')}</div>
-      <div class="bar" style="margin-top:9px">
+  let h = `<div class="roster gacha-roster">${p.cast.map((c,i)=>{ const g=gachaCard(c); return `<div class="rmem gacha-card">
+      <div class="rn">${esc(g.name)}</div>
+      <div class="rl">${esc(g.line)}</div>
+      ${g.gap?`<div class="gacha-gap">${esc(g.gap)}</div>`:''}
+      <div class="bar">
         <button class="mini ghost c-open" data-i="${i}">작업대로</button>
+        <button class="mini ghost c-reroll" data-i="${i}" title="다른 인물들과 겹치지 않게 이 자리만 새로 뽑습니다 · API 2회">다시 뽑기</button>
+        <span class="sp"></span>
         <button class="iconbtn danger c-del" data-i="${i}" title="인물 삭제" aria-label="인물 삭제">${TRASH_SVG}</button>
-      </div></div>`).join('')}</div>`;
+      </div></div>`; }).join('')}</div>`;
   if(p.relations && p.relations.length){
     h += `<div class="sect-label">관계</div>` + p.relations.map(e=>`
       <div class="edge">
@@ -3248,7 +3252,28 @@ $('#castOut').addEventListener('click', e=>{
     renderCard(); renderCheck(); renderQA(); saveRecord(); toast('작업대로 옮겼습니다');
     showStudioScreen('result'); }
   if(d){ const c=S.project.cast[+d.dataset.i]; if(!confirm(`“${c&&c.fields&&c.fields.name||'이 인물'}”을 캐스트에서 삭제할까요?`)) return; S.project.cast.splice(+d.dataset.i,1); S.project.relations=null; renderCast(); touchDraft(); }
+  const r = e.target.closest('.c-reroll');
+  if(r){ const i=+r.dataset.i; guard(r,'이 자리를 다시 뽑고 있습니다', async()=>{
+    const others=S.project.cast.filter((_,k)=>k!==i).map(castSummary);
+    if(ACTIVE_TASK) ACTIVE_TASK.gacha={total:1,cards:[]};
+    const [concept]=await doCastConcepts(1,others);
+    const c=await doExpand(concept);
+    S.project.cast[i]=c; S.project.relations=null; renderCast(); touchDraft();
+    toast(`${gachaCard(c).name}(으)로 다시 뽑았습니다`);
+  }).then(()=>showStudioScreen('cast')); }
 });
+// 생성 화면의 가챠 카드 — 아직 안 나온 자리는 뒷면, 완성된 자리는 앞면. 새로 열린 카드만 뒤집는 움직임
+let GACHA_SHOWN=0;
+function renderGachaLive(g){
+  const box=$('#gachaLive'); if(!box) return;
+  if(!g||!g.total){ box.hidden=true; box.innerHTML=''; GACHA_SHOWN=0; return; }
+  const cards=g.cards||[]; if(cards.length<GACHA_SHOWN) GACHA_SHOWN=0;
+  box.hidden=false;
+  box.innerHTML=Array.from({length:g.total},(_,i)=>{ const c=cards[i];
+    return c?`<div class="gacha-card front${i>=GACHA_SHOWN?' flip':''}"><div class="rn">${esc(c.name)}</div><div class="rl">${esc(c.line)}</div>${c.gap?`<div class="gacha-gap">${esc(c.gap)}</div>`:''}</div>`
+      :`<div class="gacha-card back" aria-label="아직 뽑는 중"><span aria-hidden="true">✦</span></div>`; }).join('');
+  GACHA_SHOWN=cards.length;
+}
 
 
 const ASK_MODE = {
@@ -3436,21 +3461,42 @@ $('#btnUnlockAll').addEventListener('click', ()=>{ S.project.locked={}; renderCa
 $('#btnCheck').addEventListener('click', e=> guard(e.target,'대조 중', async()=>{
   await doCheck(); renderCheck(); touchDraft(); scrollToStage('check');
 }));
-$('#btnCast').addEventListener('click', e=> guard(e.target,'뽑는 중', async()=>{
-  const n = S.opts.castCount;
+/* 가챠 뽑기 — 세계를 보고 서로 완전히 다른 인물 N명(3~10)을 먼저 한 번에 기획하고, 한 명씩 완성해 카드로 연다.
+   한 번에 기획해야 축(위치·나이대·인상·성격 온도·노리는 욕구·말투)을 나눠 가져 겹치지 않는다. 요청은 N+1번 */
+function castCount(){ return Math.min(10,Math.max(3,Number(S.opts.castCount)||3)); }
+function castDiversityRule(n, others){
+  return `이번 단계는 가챠 뽑기다. 같은 세계에서 서로 완전히 다른 인물 ${n}명을 기획한다.
+- 각 후보의 line에는 이름 없이 이 인물의 한 줄 컨셉, hook에는 세계의 어느 부분에서 나온 인물인지, angle에는 "○○인데 XX" 갭 한 줄을 쓴다.
+- 다음 축의 값이 후보끼리 겹치지 않게 나눠 가진다: 세계 속 위치(신분·직업·소속), 나이대, 성별·외형 인상, 성격의 기본 온도, 노리는 욕구(보호하고 싶다·대등하게 견주고 싶다·휘둘리고 싶다·구원받고 싶다 등), 말투.
+- 같은 세계의 같은 집단에 몰지 말고, 세계의 서로 다른 장소·계층에서 고른다.
+- 정확히 ${n}개를 JSON 배열로 출력한다.${others&&others.length?`\n이미 뽑힌 인물(이들과도 위 축이 겹치지 않게):\n${others.map(s=>'- '+s).join('\n')}`:''}`;
+}
+async function doCastConcepts(n, others){
+  await ensureDigest(true);
+  const j = await runStage('seed', { digest: digestStr(), seedCount:n, castNote:'', modeNote: modeNote('seed'), seedRevision:castDiversityRule(n,others), seedFormatRule:'' });
+  const arr=(Array.isArray(j)?j:(j.seeds||j.items||[])).filter(s=>s&&typeof s==='object'&&(s.line||s.concept));
+  if(!arr.length) throw new Error('인물 기획을 읽지 못했습니다. 다시 뽑아 주세요.');
+  return arr.slice(0,n).map((s,i)=>({id:'g'+i+uid(),line:s.line||s.concept||'',hook:s.hook||'',angle:s.angle||''}));
+}
+function gachaCard(c){ return {name:c.fields.name||guessName(c.fields)||'이름 없음', line:c.seed?c.seed.line:'', gap:c.seed?c.seed.angle:''}; }
+function castSummary(c){ const g=gachaCard(c); return `${g.name}: ${g.line}${g.gap?' / '+g.gap:''}`; }
+$('#btnCast').addEventListener('click', e=> guard(e.target,'인물을 뽑고 있습니다', async()=>{
+  const n = castCount();
   const previous=S.project.cast, previousRelations=S.project.relations;
   S.project.cast = []; S.project.relations = null; renderCast();
+  // 생성 화면의 뒤집힌 카드 — 숨은 작업 창에서 돌 때도 진행 보고로 화면에 넘어간다
+  if(ACTIVE_TASK) ACTIVE_TASK.gacha={total:n,cards:[]};
   try{
   if(!S.project.digest||currentStudioScreen()==='input'||digestStale()){ await doDigest(); renderDigest(); }
-  for(let i=0;i<n;i++){
-    busy(e.target, true, `${i+1}/${n} 만드는 중`);
-    await doSeeds();
-    const seed = S.project.seeds[0];
-    S.project.sel = [seed.id];
-    const c = await doExpand(seed);
-    S.project.cast.push(c); renderCast(); renderSeeds(); touchDraft();
+  const concepts=await doCastConcepts(n);
+  for(let i=0;i<concepts.length;i++){
+    if(ACTIVE_TASK) ACTIVE_TASK.label=`인물 ${i+1}/${concepts.length} 완성하는 중`;
+    renderStudioScreen();
+    const c = await doExpand(concepts[i]);
+    S.project.cast.push(c); renderCast(); touchDraft();
+    if(ACTIVE_TASK?.gacha){ ACTIVE_TASK.gacha.cards.push(gachaCard(c)); renderStudioScreen(); }
   }
-  touchDraft(); toast(n+'명 뽑았습니다');
+  touchDraft(); toast(S.project.cast.length+'명 뽑았습니다');
   }finally{
     if(S.project.cast.length) showStudioScreen('cast');
     else { S.project.cast=previous; S.project.relations=previousRelations; renderCast(); }
@@ -3554,12 +3600,12 @@ function renderBuildMode(){
     b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on));
   });
   const cast=activeMode()==='cast';
-  const stages=cast?1+2*S.opts.castCount:2+(P.skipSeed?0:1)+((S.opts.check&&!P.skipCheck)?1:0);
+  const stages=cast?2+castCount():2+(P.skipSeed?0:1)+((S.opts.check&&!P.skipCheck)?1:0);
   $('#buildModeBox [data-build="staged"] .bd').textContent=cast
     ? '재료 정리 확인 후 여러 인물 생성'
     : P.skipSeed?'재료 정리 확인 후 결과 완성':'재료 정리 확인 → 후보 선택 → 결과 완성';
   $('#buildModeBox [data-build="oneshot"] .bd').textContent=cast
-    ? `재료 정리부터 인물 ${S.opts.castCount}명까지 자동 생성`
+    ? `재료 정리부터 서로 다른 인물 ${castCount()}명 뽑기까지 자동`
     : '구상·재료로 바로 완성 · 후보 선택·자동 검증 생략';
   const recovery=' · 응답 복구 시 추가 호출';
   $('#stagedCost').textContent=`API 기본 ${stages}회${!cast&&S.opts.check&&!P.skipCheck?' · 결과 검증 포함':''}`+recovery;
